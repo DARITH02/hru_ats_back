@@ -31,12 +31,13 @@
 
     <div class="main-grid">
         <!-- LEFT: CLASSES & TABLE -->
-        <div class="left-col" >
+        <div class="left-col">
             <div class="panel">
                 <div class="panel-head">
                     <span class="panel-title">CURRENT CLASSES</span>
                     <span style="font-family:var(--font-mono); font-size:9px; color:var(--muted2);">SESSION DISTRO</span>
                 </div>
+
                 <!-- Doughnut Chart Area -->
                 <div id="class-list">
                     @foreach($classes as $class)
@@ -80,16 +81,153 @@
             <div class="panel" style="margin-top: 20px;">
                 <div class="panel-head">
                     <div style="display:flex; align-items:center; gap:10px;">
+                        <div style="width:8px; height:8px; border-radius:50%; background:var(--green); box-shadow:0 0 8px var(--green); animation:blink 2s infinite;"></div>
+                        <span class="panel-title">LIVE MONITORING</span>
+                    </div>
+                    <div style="display:flex; align-items:center; gap:15px;">
+                        <span style="font-family:var(--font-mono); font-size:9px; color:var(--muted2);">{{ strtoupper($activeSession?->classRoom?->subject?->name ?? 'NO SESSION') }}</span>
+                        <div style="display:flex; align-items:center; gap:5px; background:var(--surface3); padding:2px 8px; border-radius:4px; border:1px solid var(--border);">
+                             <span style="font-family:var(--font-mono); font-size:9px; color:var(--green); font-weight:800;">{{ $presentCount }}/{{ $totalCount }}</span>
+                        </div>
+                    </div>
+                </div>
+                <div class="table-responsive" style="max-height: 450px; overflow-y: auto;">
+                    <table class="att-table">
+                        <thead>
+                            <tr>
+                                <th>STUDENT IDENTITY</th>
+                                <th>CODE</th>
+                                <th>TIME</th>
+                                <th>STATUS</th>
+                                <th style="text-align:right">METHOD</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @forelse($activeStudents as $student)
+                                <tr class="fade-up">
+                                    <td>
+                                        <div class="subject-cell">
+                                            <div class="subject-avatar" style="background:{{ $student['avatar_color'] }}22; color:{{ $student['avatar_color'] }}; width:32px; height:32px; font-size:10px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-weight:700; border:1px solid {{ $student['avatar_color'] }}44;">
+                                                {{ $student['initials'] }}
+                                            </div>
+                                            <div>
+                                                <div class="subject-name" style="font-size:13px; font-weight:700;">{{ $student['name'] }}</div>
+                                                <div class="subject-id" style="font-size:9px; color:var(--muted2);">YEAR {{ $student['year'] }} · {{ $student['major'] }}</div>
+                                            </div>
+                                        </div>
+                                    </td>
+                                    <td style="font-family:var(--font-mono); font-size:10px; color:var(--accent); font-weight:700;">{{ $student['code'] }}</td>
+                                    <td style="font-family:var(--font-mono); font-size:10px; color:var(--text2);">{{ $student['time'] }}</td>
+                                    <td>
+                                        @if($student['status'] === 'present' || $student['status'] === 'PRESENT')
+                                            <span class="status-tag tag-active">PRESENT</span>
+                                        @elseif($student['status'] === 'late' || $student['status'] === 'LATE')
+                                            <span class="status-tag" style="background:var(--amber)22; color:var(--amber); border:1px solid var(--amber)44">LATE</span>
+                                        @elseif($student['status'] === 'excused' || $student['status'] === 'EXCUSED')
+                                            <span class="status-tag" style="background:var(--accent)22; color:var(--accent); border:1px solid var(--accent)44; cursor:help;" title="REASON: {{ $student['permission'] ?? 'Excused' }}">EXCUSED</span>
+                                        @else
+                                            <span class="status-tag" style="background:var(--red)22; color:var(--red); border:1px solid var(--red)44">ABSENT</span>
+                                        @endif
+                                    </td>
+                                    <td style="text-align:right; font-family:var(--font-mono); font-size:9px; color:var(--muted2); font-weight:700;">{{ strtoupper($student['method']) }}</td>
+                                </tr>
+                            @empty
+                                <tr>
+                                    <td colspan="5" style="text-align:center; padding:50px 0; color:var(--muted2); font-size:11px; font-family:var(--font-mono); letter-spacing:0.05em;">NO STUDENTS REGISTERED IN THIS SESSION</td>
+                                </tr>
+                            @endforelse
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <div class="panel" style="margin-top: 20px;">
+                <div class="panel-head">
+                    <div style="display:flex; align-items:center; gap:10px;">
                         <div
                             style="width:8px; height:8px; border-radius:50%; background:var(--accent); box-shadow:0 0 8px var(--accent);">
                         </div>
                         <span class="panel-title">MONITOR DATA</span>
                     </div>
-                    <span style="font-family:var(--font-mono); font-size:9px; color:var(--muted2);">OVERALL CLASS PROGRESS</span>
+                    <span style="font-family:var(--font-mono); font-size:9px; color:var(--muted2);">OVERALL CLASS
+                        PROGRESS</span>
                 </div>
                 <!-- Monitor Data Chart Area -->
                 <div style="padding: 20px; position:relative; min-height:280px; width:100%;">
                     <canvas id="monitor-chart"></canvas>
+                </div>
+            </div>
+
+            <div class="panel" style="margin-top: 20px;">
+                <div class="panel-head">
+                    <div style="display:flex; align-items:center; gap:10px;">
+                        <div
+                            style="width:8px; height:8px; border-radius:50%; background:var(--red); box-shadow:0 0 8px var(--red);">
+                        </div>
+                        <span class="panel-title">HIGH ABSENCE STUDENTS</span>
+                    </div>
+                    <span style="font-family:var(--font-mono); font-size:9px; color:var(--muted2);">TOP 5 CRITICAL</span>
+                </div>
+                <div style="padding: 10px 0;">
+                    @forelse($topAbsentStudents as $student)
+                        <div class="class-row" style="cursor: default; border-bottom: 1px solid rgba(255,255,255,0.03);">
+                            <div class="row-icon"
+                                style="background: rgba(239, 68, 68, 0.1); color: #ef4444; font-size: 10px; font-weight: 800; display: flex; align-items: center; justify-content: center;">
+                                {{ $student['initials'] }}
+                            </div>
+                            <div class="row-info">
+                                <div class="row-name">{{ $student['name'] }}</div>
+                                <div class="row-meta">{{ $student['absent_count'] }} SESSIONS MISSED</div>
+                            </div>
+                            <div style="text-align: right; padding-right: 15px;">
+                                <div style="font-size: 11px; font-weight: 900; color: #ef4444;">{{ $student['absence_rate'] }}%
+                                </div>
+                                <div style="font-size: 8px; color: var(--muted2); font-family: var(--font-mono);">ABSENCE RATE
+                                </div>
+                            </div>
+                        </div>
+                    @empty
+                        <div style="padding: 20px; text-align: center; color: var(--muted2); font-size: 11px;">NO CRITICAL
+                            ABSENCES DETECTED</div>
+                    @endforelse
+                </div>
+            </div>
+
+            <div class="panel" style="margin-top: 20px;">
+                <div class="panel-head">
+                    <div style="display:flex; align-items:center; gap:10px;">
+                        <div
+                            style="width:8px; height:8px; border-radius:50%; background:var(--amber); box-shadow:0 0 8px var(--amber);">
+                        </div>
+                        <span class="panel-title">HIGH ABSENCE CLASSES</span>
+                    </div>
+                    <span style="font-family:var(--font-mono); font-size:9px; color:var(--muted2);">CRITICAL SUBJECTS</span>
+                </div>
+                <div style="padding: 10px 0;">
+                    @forelse($topAbsentClasses as $class)
+                        <div class="class-row" style="cursor: default; border-bottom: 1px solid rgba(255,255,255,0.03);">
+                            <div class="row-icon icon-amber">
+                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                    stroke-width="2">
+                                    <path
+                                        d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                                </svg>
+                            </div>
+                            <div class="row-info">
+                                <div class="row-name">{{ $class['name'] }}</div>
+                                <div class="row-meta">{{ $class['teacher'] }}</div>
+                            </div>
+                            <div style="text-align: right; padding-right: 15px;">
+                                <div style="font-size: 11px; font-weight: 900; color: var(--amber);">
+                                    {{ $class['absence_rate'] }}%</div>
+                                <div style="font-size: 8px; color: var(--muted2); font-family: var(--font-mono);">AVG ABSENCE
+                                </div>
+                            </div>
+                        </div>
+                    @empty
+                        <div style="padding: 20px; text-align: center; color: var(--muted2); font-size: 11px;">ALL CLASSES
+                            PERFORMING WELL</div>
+                    @endforelse
                 </div>
             </div>
         </div>
@@ -117,16 +255,45 @@
                             <div class="timer-bar" style="margin-top:6px">
                                 <div class="timer-fill" id="timer-fill" style="width:100%"></div>
                             </div>
-                        </div>
-                        <div class="code-box">
-                            <span class="code-val" id="qr-code-val">{{ $activeSession->qr_token }}</span>
-                            <div style="color:var(--muted2); cursor:pointer;"><svg width="14" height="14" viewBox="0 0 14 14"
-                                    fill="none">
-                                    <rect x="4" y="4" width="8" height="8" rx="1.5" stroke="currentColor" stroke-width="1.2">
-                                    </rect>
-                                    <path d="M2 10V3a1 1 0 0 1 1-1h7" stroke="currentColor" stroke-width="1.2"
-                                        stroke-linecap="round"></path>
-                                </svg></div>
+                            <div class="code-box">
+                                <span class="code-val" id="qr-code-val">{{ $activeSession->qr_token }}</span>
+                                <div style="color:var(--muted2); cursor:pointer;"><svg width="14" height="14" viewBox="0 0 14 14"
+                                        fill="none">
+                                        <rect x="4" y="4" width="8" height="8" rx="1.5" stroke="currentColor" stroke-width="1.2">
+                                        </rect>
+                                        <rect x="2" y="2" width="8" height="8" rx="1.5" stroke="currentColor" stroke-width="1.2">
+                                        </rect>
+                                    </svg></div>
+                            </div>
+
+                            {{-- Permission Notification --}}
+                            @if(isset($activePermissions) && $activePermissions->count() > 0)
+                                <div style="margin-top:20px; background:rgba(167, 139, 250, 0.08); border:1px solid rgba(167, 139, 250, 0.2); border-radius:12px; padding:15px; animation: slideInRight 0.4s ease-out;">
+                                    <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:12px;">
+                                        <div style="display:flex; align-items:center; gap:8px;">
+                                            <div style="width:6px; height:6px; border-radius:50%; background:#a78bfa; box-shadow:0 0 8px #a78bfa; animation: blink 2s infinite;"></div>
+                                            <span style="font-family:var(--font-mono); font-size:10px; font-weight:800; color:#a78bfa; letter-spacing:0.05em;">ACTIVE PERMISSIONS ({{ $activePermissions->count() }})</span>
+                                        </div>
+                                        <span style="font-size:8px; color:var(--muted); font-family:var(--font-mono);">EXCUSED TODAY</span>
+                                    </div>
+                                    <div style="display:flex; flex-direction:column; gap:10px;">
+                                        @foreach($activePermissions as $perm)
+                                            <div style="display:flex; justify-content:space-between; align-items:center; background:rgba(0,0,0,0.1); padding:8px 10px; border-radius:8px; border:1px solid rgba(255,255,255,0.03);">
+                                                <div style="display:flex; align-items:center; gap:10px;">
+                                                    <div style="width:24px; height:24px; border-radius:50%; background:#a78bfa18; color:#a78bfa; display:flex; align-items:center; justify-content:center; font-weight:800; font-size:9px; border:1px solid rgba(167, 139, 250, 0.2)">{{ strtoupper(substr($perm->student->user->name, 0, 1)) }}</div>
+                                                    <div style="display:flex; flex-direction:column;">
+                                                        <span style="color:var(--text2); font-weight:700; font-size:11px;">{{ $perm->student->user->name }}</span>
+                                                        <span style="font-size:9px; color:var(--muted2); font-family:var(--font-mono);">{{ $perm->student->student_code }}</span>
+                                                    </div>
+                                                </div>
+                                                <div style="text-align:right;">
+                                                    <span style="font-family:var(--font-mono); font-size:8px; color:#a78bfa; background:rgba(167, 139, 250, 0.12); padding:3px 8px; border-radius:20px; font-weight:800; border:1px solid rgba(167, 139, 250, 0.2)">{{ strtoupper($perm->type) }}</span>
+                                                </div>
+                                            </div>
+                                        @endforeach
+                                    </div>
+                                </div>
+                            @endif
                         </div>
                         <div class="scan-count">QR SCANS THIS SESSION: <span
                                 style="color:var(--green)">{{ $sessionScanCount }}</span></div>
@@ -249,6 +416,26 @@
 
         document.getElementById('regen-btn')?.addEventListener('click', () => regenerateQr());
 
+        async function globalSkipToday() {
+            if (!confirm('DANGER: This will mark ALL scheduled sessions for TODAY as SKIPPED and shift their entire future schedule forward by 1 week. Other days (like tomorrow) will NOT be affected. Proceed?')) return;
+
+            try {
+                const res = await fetch('/api/admin/skip-today-shift', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': '{{ csrf_token() }}', 'Accept': 'application/json' }
+                });
+                const data = await res.json();
+                if (data.success) {
+                    showToast(data.message, 'success');
+                    setTimeout(() => window.location.reload(), 1000);
+                } else {
+                    showToast(data.error || 'Operation failed', 'error');
+                }
+            } catch (e) {
+                showToast('Network error', 'error');
+            }
+        }
+
         // MONITOR CHART LOGIC (Replaced Chat)
         const monitorCtx = document.getElementById('monitor-chart');
         if (monitorCtx) {
@@ -265,8 +452,8 @@
                         {
                             label: 'Attended %',
                             data: attendData,
-                            backgroundColor: 'rgba(52, 211, 153, 0.85)', // green base
-                            borderColor: '#34d399',
+                            backgroundColor: '#10b981', // Solid vibrant emerald
+                            borderColor: '#10b981',
                             borderWidth: 1,
                             borderRadius: 4,
                             barPercentage: 0.5
@@ -274,8 +461,8 @@
                         {
                             label: 'Missing/Absent %',
                             data: absentData,
-                            backgroundColor: 'rgba(255, 255, 255, 0.05)',
-                            borderColor: 'rgba(255, 255, 255, 0.1)',
+                            backgroundColor: 'rgba(255, 255, 255, 0.15)', // More visible gray
+                            borderColor: 'rgba(255, 255, 255, 0.2)',
                             borderWidth: 1,
                             borderRadius: 4,
                             barPercentage: 0.5
@@ -286,28 +473,28 @@
                     responsive: true,
                     maintainAspectRatio: false,
                     plugins: {
-                        legend: { 
-                            display: true, 
-                            position: 'top', 
-                            labels: { color: '#8892a4', usePointStyle: true, boxWidth: 8, font: { family: "'IBM Plex Mono', monospace", size: 10 } } 
+                        legend: {
+                            display: true,
+                            position: 'top',
+                            labels: { color: '#8892a4', usePointStyle: true, boxWidth: 8, font: { family: "'IBM Plex Mono', monospace", size: 10 } }
                         },
-                        tooltip: { 
-                            backgroundColor: '#111318', titleColor: '#fff', bodyColor: '#8892a4', 
-                            padding: 12, borderColor: '#1e2330', borderWidth: 1 
+                        tooltip: {
+                            backgroundColor: '#111318', titleColor: '#fff', bodyColor: '#8892a4',
+                            padding: 12, borderColor: '#1e2330', borderWidth: 1
                         }
                     },
                     scales: {
-                        x: { 
-                            stacked: true, 
+                        x: {
+                            stacked: true,
                             grid: { display: false },
                             ticks: { color: '#8892a4', font: { family: "'IBM Plex Mono', monospace", size: 9 }, maxRotation: 25, minRotation: 0 }
                         },
-                        y: { 
-                            stacked: true, 
-                            beginAtZero: true, 
-                            max: 100, 
-                            grid: { color: 'rgba(255,255,255,0.05)', drawBorder: false }, 
-                            ticks: { stepSize: 25, color: '#8892a4', callback: function(value) { return value + '%' } } 
+                        y: {
+                            stacked: true,
+                            beginAtZero: true,
+                            max: 100,
+                            grid: { color: 'rgba(255,255,255,0.05)', drawBorder: false },
+                            ticks: { stepSize: 25, color: '#8892a4', callback: function (value) { return value + '%' } }
                         }
                     }
                 }
@@ -319,16 +506,16 @@
         if (summaryCtx) {
             const attRate = parseFloat('{{ $stats['attendance_rate'] }}') || 0;
             const absRate = parseFloat('{{ $stats['absence_rate'] }}') || 0;
-            
+
             new Chart(summaryCtx, {
                 type: 'doughnut',
                 data: {
                     labels: ['Attendance', 'Absence'],
                     datasets: [{
                         data: [attRate, absRate],
-                        backgroundColor: ['rgba(52, 211, 153, 0.9)', 'rgba(239, 68, 68, 0.8)'],
-                        borderColor: ['#111318', '#111318'],
-                        borderWidth: 2,
+                        backgroundColor: ['#10b981', '#ef4444'], // Solid Emerald and Red
+                        borderColor: '#111318',
+                        borderWidth: 3,
                         cutout: '75%',
                         hoverOffset: 4
                     }]
@@ -348,7 +535,7 @@
         const ctx = document.getElementById('sys-chart');
         if (ctx) {
             const rawTimes = {!! json_encode($activeStudents->whereIn('status', ['present', 'late'])->pluck('time')->filter(fn($t) => $t !== '—')->sort()->values()) !!};
-            
+
             const scanFreq = {};
             if (rawTimes.length === 0) {
                 const dummyTime = window.getServerTime ? window.getServerTime() : new Date();
@@ -364,25 +551,27 @@
                     datasets: [{
                         label: 'Successful Scans',
                         data: Object.values(scanFreq),
-                        borderColor: '#4f8ef7',
-                        backgroundColor: 'rgba(79, 142, 247, 0.15)',
-                        borderWidth: 2,
+                        borderColor: '#3b82f6', // Solid Azure Blue
+                        backgroundColor: 'rgba(59, 130, 246, 0.2)',
+                        borderWidth: 3,
                         tension: 0.4,
-                        pointRadius: 4,
-                        pointBackgroundColor: '#111318',
+                        pointRadius: 5,
+                        pointBackgroundColor: '#3b82f6',
+                        pointBorderColor: '#111318',
+                        pointBorderWidth: 2,
                         fill: true
                     }]
                 },
                 options: {
                     responsive: true,
                     maintainAspectRatio: false,
-                    plugins: { 
+                    plugins: {
                         legend: { display: false },
                         tooltip: { backgroundColor: '#111318', titleColor: '#fff', bodyColor: '#8892a4', padding: 12, borderColor: '#1e2330', borderWidth: 1, displayColors: false }
                     },
                     scales: {
                         x: { display: true, grid: { display: false }, ticks: { color: '#8892a4', maxTicksLimit: 6, font: { family: "'IBM Plex Mono', monospace", size: 9 } } },
-                        y: { 
+                        y: {
                             display: false,
                             beginAtZero: true,
                             suggestedMax: Math.max(...Object.values(scanFreq)) + 2
@@ -392,7 +581,7 @@
             });
 
             // Ensure refreshMonitor exists for manual buttons
-            window.refreshMonitor = function() { window.location.reload(); };
+            window.refreshMonitor = function () { window.location.reload(); };
         }
 
         // CLASS DISTRO CHART
@@ -404,8 +593,8 @@
                     labels: ['Live', 'Scheduled', 'Completed'],
                     datasets: [{
                         data: [
-                            {{ collect($classes)->where('is_live', true)->count() }},
-                            {{ collect($classes)->where('is_live', false)->where('is_done', false)->count() }},
+                                {{ collect($classes)->where('is_live', true)->count() }},
+                                {{ collect($classes)->where('is_live', false)->where('is_done', false)->count() }},
                             {{ collect($classes)->where('is_done', true)->count() }}
                         ],
                         backgroundColor: ['#a78bfa', '#fbbf24', '#34d399'],
@@ -424,7 +613,7 @@
 
         // YEAR PERFORMANCE CHART
         const yearCtx = document.getElementById('year-chart');
-        if(yearCtx) {
+        if (yearCtx) {
             new Chart(yearCtx, {
                 type: 'radar',
                 data: {
@@ -432,11 +621,12 @@
                     datasets: [{
                         label: 'Attendance %',
                         data: Object.values(@json($yearStats)),
-                        borderColor: 'rgba(52, 211, 153, 0.8)',
-                        backgroundColor: 'rgba(52, 211, 153, 0.15)',
-                        borderWidth: 2,
-                        pointBackgroundColor: '#34d399',
-                        pointBorderColor: '#111318'
+                        borderColor: '#10b981',
+                        backgroundColor: 'rgba(16, 185, 129, 0.2)',
+                        borderWidth: 3,
+                        pointBackgroundColor: '#10b981',
+                        pointBorderColor: '#fff',
+                        pointBorderWidth: 2
                     }]
                 },
                 options: {

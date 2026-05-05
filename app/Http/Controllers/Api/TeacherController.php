@@ -41,11 +41,11 @@ class TeacherController extends Controller
             })
             ->update(['status' => 'completed']);
 
-        // 3. Active -> Completed (Only if time passed by a large buffer, e.g. 8 hours)
-        // This allows manual activation to "stick" while still eventually cleaning up old sessions.
+        // 3. Active -> Completed (Only if time passed by a reasonable buffer, e.g. 45 minutes)
+        // This allows teachers to finish their class and get the report promptly.
         AttendanceSession::whereHas('classRoom', fn($q) => $q->where('teacher_id', $teacherId))
             ->where('status', 'active')
-            ->where('end_time', '<', $now->subHours(8))
+            ->where('end_time', '<', $now->subMinutes(45))
             ->update(['status' => 'completed']);
 
         // 4. Auto-send Telegram for newly completed sessions
@@ -395,7 +395,7 @@ class TeacherController extends Controller
      */
     public function updateStatus(Request $request, $sessionId)
     {
-        $request->validate(['status' => 'required|in:active,scheduled,completed,passed']);
+        $request->validate(['status' => 'required|in:active,scheduled,completed,passed,skipped']);
         
         $session = AttendanceSession::findOrFail($sessionId);
         

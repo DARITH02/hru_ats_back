@@ -27,11 +27,21 @@ Route::middleware(['auth'])->group(function() {
 Route::middleware(['auth', 'role:admin,super_admin'])->group(function() {
     Route::get('/admin/instructors', [AdminUIController::class, 'instructors'])->name('admin.instructors');
     Route::get('/admin/teacher-accounts', [AdminUIController::class, 'teacherAccounts'])->name('admin.teacher-accounts');
+    
+    // Superadmin only account management
+    Route::middleware(['auth', 'role:super_admin'])->group(function() {
+        Route::post('/admin/users/{id}/approve', [AdminUIController::class, 'approveUser'])->name('admin.users.approve');
+        Route::delete('/admin/users/{id}', [AdminUIController::class, 'destroyUser'])->name('admin.users.destroy');
+    });
+
     Route::get('/admin/students', [AdminUIController::class, 'students'])->name('admin.students');
     Route::get('/admin/courses', [AdminUIController::class, 'courses'])->name('admin.courses');
     Route::get('/admin/classes', [AdminUIController::class, 'classes'])->name('admin.classes');
     Route::get('/admin/subjects', [AdminUIController::class, 'subjects'])->name('admin.subjects');
     Route::get('/admin/departments', [AdminUIController::class, 'departments'])->name('admin.departments');
+    Route::get('/admin/permissions', [AdminUIController::class, 'permissions'])->name('admin.permissions');
+    Route::post('/admin/permissions', [AdminUIController::class, 'storePermission'])->name('admin.permissions.store');
+    Route::delete('/admin/permissions/{id}', [AdminUIController::class, 'destroyPermission'])->name('admin.permissions.destroy');
     Route::get('/admin/settings', [AdminUIController::class, 'settings'])->name('admin.settings');
     Route::post('/admin/settings', [AdminUIController::class, 'updateSettings'])->name('admin.settings.update');
     Route::get('/admin/settings/export', [AdminUIController::class, 'exportSummaryReport'])->name('admin.settings.export');

@@ -85,8 +85,8 @@
             <tr>
                 <th>USER IDENTITY</th>
                 <th>SYSTEM ROLE</th>
+                <th>STATUS</th>
                 <th>LAST UPDATED</th>
-                <th>ACCOUNT SECURITY</th>
                 <th style="text-align:right">ACTIONS</th>
             </tr>
         </thead>
@@ -114,18 +114,50 @@
                     </span>
                 </td>
                 <td>
-                    <span style="font-family:var(--font-mono); font-size:10px; color:var(--muted)">{{ $user->updated_at->format('M d, Y H:i') }}</span>
+                    @if($user->is_approved)
+                        <div style="display:flex; align-items:center; gap:6px;">
+                            <div style="width:6px; height:6px; border-radius:50%; background:var(--green)"></div>
+                            <span style="font-size:10px; color:var(--text2)">APPROVED</span>
+                        </div>
+                    @else
+                        <div style="display:flex; align-items:center; gap:6px;">
+                            <div style="width:6px; height:6px; border-radius:50%; background:var(--amber); animation: blink 1.5s infinite"></div>
+                            <span style="font-size:10px; color:var(--amber)">PENDING</span>
+                        </div>
+                    @endif
                 </td>
                 <td>
-                    <div style="display:flex; align-items:center; gap:6px;">
-                        <div style="width:6px; height:6px; border-radius:50%; background:var(--green)"></div>
-                        <span style="font-size:10px; color:var(--text2)">SECURE HASHED</span>
-                    </div>
+                    <span style="font-family:var(--font-mono); font-size:10px; color:var(--muted)">{{ $user->updated_at->format('M d, Y H:i') }}</span>
                 </td>
                 <td style="text-align:right">
-                    <button class="action-btn btn-edit" title="Manage Credentials" onclick="openAccountModal(this.closest('tr'))">
-                        <svg width="12" height="12" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 7a2 2 0 012 2m4 0a6 6 0 11-7.743-5.743L11 3l1 1 1-1 1 1 1-1 1 1 1-1 1 1"/></svg>
-                    </button>
+                    <div style="display:flex; justify-content:flex-end; gap:8px">
+                        @if(auth()->user()->isSuperAdmin())
+                            @if(!$user->is_approved)
+                                <form action="{{ route('admin.users.approve', $user->id) }}" method="POST" style="display:inline">
+                                    @csrf
+                                    <button type="submit" class="action-btn" style="color:var(--green); background:var(--green)15" title="Approve Account">
+                                        <svg width="12" height="12" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>
+                                    </button>
+                                </form>
+                            @endif
+                            
+                            <button class="action-btn btn-edit" title="Manage Credentials" onclick="openAccountModal(this.closest('tr'))">
+                                <svg width="12" height="12" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 7a2 2 0 012 2m4 0a6 6 0 11-7.743-5.743L11 3l1 1 1-1 1 1 1-1 1 1 1-1 1 1"/></svg>
+                            </button>
+
+                            <form action="{{ route('admin.users.destroy', $user->id) }}" method="POST" style="display:inline" onsubmit="return confirm('Are you sure you want to delete this account? This action cannot be undone.')">
+                                @csrf
+                                @method('DELETE')
+                                <button type="submit" class="action-btn" style="color:var(--red); background:var(--red)15" title="Delete Account">
+                                    <svg width="12" height="12" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
+                                </button>
+                            </form>
+                        @else
+                             <button class="action-btn btn-edit" title="Manage Credentials" onclick="openAccountModal(this.closest('tr'))">
+                                <svg width="12" height="12" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 7a2 2 0 012 2m4 0a6 6 0 11-7.743-5.743L11 3l1 1 1-1 1 1 1-1 1 1 1-1 1 1"/></svg>
+                            </button>
+                        @endif
+                    </div>
                 </td>
             </tr>
             @endforeach

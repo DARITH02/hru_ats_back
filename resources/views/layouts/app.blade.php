@@ -19,7 +19,9 @@
 <body>
 
     <!-- SIDEBAR OVERLAY -->
-    <div id="sidebar-overlay" style="position:fixed; inset:0; background:rgba(0,0,0,0.5); backdrop-filter:blur(2px); z-index:95; display:none;"></div>
+    <div id="sidebar-overlay"
+        style="position:fixed; inset:0; background:rgba(0,0,0,0.5); backdrop-filter:blur(2px); z-index:95; display:none;">
+    </div>
 
     <!-- SIDEBAR -->
     <aside class="sidebar">
@@ -45,7 +47,7 @@
 
         <nav class="sidebar-nav">
             <div class="nav-section-label">Main</div>
-         
+
             <a href="{{ route('dashboard') }}" class="nav-link {{ request()->is('dashboard') ? 'active' : '' }}">
                 <span class="nav-icon">
                     <svg width="18" height="18" viewBox="0 0 16 16" fill="none">
@@ -82,25 +84,52 @@
                             <path d="M2 13c0-3.31 2.69-6 6-6s6 2.69 6 6" stroke="currentColor" stroke-width="1.3"
                                 stroke-linecap="round" />
                         </svg></span><span class="nav-text">Students</span></a>
+                <a href="{{ route('admin.permissions') }}" data-tooltip="Permissions"
+                    class="nav-link {{ request()->is('admin/permissions') ? 'active' : '' }}"><span class="nav-icon"><svg
+                            width="18" height="18" viewBox="0 0 16 16" fill="none">
+                            <path d="M2 13v-8a1 1 0 0 1 1-1h10a1 1 0 0 1 1 1v8a1 1 0 0 1-1 1h-10a1 1 0 0 1-1-1Z"
+                                stroke="currentColor" stroke-width="1.3" />
+                            <path d="M5 8h6M5 11h4" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" />
+                        </svg></span><span class="nav-text">Permissions</span></a>
                 <a href="{{ route('admin.classes') }}" data-tooltip="Groups"
                     class="nav-link {{ request()->is('admin/classes') ? 'active' : '' }}"><span class="nav-icon"><svg
                             width="18" height="18" viewBox="0 0 16 16" fill="none">
-                            <path d="M2 13c0-2.5 1-4 4-4s4 1.5 4 4M2 5a3 3 0 0 1 6 0 3 3 0 0 1-6 0z" stroke="currentColor" stroke-width="1.3" />
+                            <path d="M2 13c0-2.5 1-4 4-4s4 1.5 4 4M2 5a3 3 0 0 1 6 0 3 3 0 0 1-6 0z" stroke="currentColor"
+                                stroke-width="1.3" />
                             <path d="M10 5a2.5 2.5 0 0 1 5 0 2.5 2.5 0 0 1-5 0z" stroke="currentColor" stroke-width="1.3" />
                             <path d="M12 13c0-2 1-3 3-3s3 1 3 3" stroke="currentColor" stroke-width="1.3" />
                         </svg></span><span class="nav-text">Student Groups</span></a>
-                <a href="{{ route('admin.departments') }}" data-tooltip="Departments" 
-                    class="nav-link {{ request()->is('admin/departments') ? 'active' : '' }}"><span class="nav-icon"><svg
-                            width="18" height="18" viewBox="0 0 16 16" fill="none">
-                            <path d="M1 3h14M1 8h14M1 13h14" stroke="currentColor" stroke-width="1.3"
-                                stroke-linecap="round" />
-                        </svg></span><span class="nav-text">Departments</span></a>
+                <a href="{{ route('admin.departments') }}" data-tooltip="Departments"
+                    class="nav-link {{ request()->is('admin/departments') ? 'active' : '' }}"><span class="nav-icon">
+
+                        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none"
+                            stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
+                            class="lucide lucide-hotel-icon lucide-hotel">
+                            <path d="M10 22v-6.57" />
+                            <path d="M12 11h.01" />
+                            <path d="M12 7h.01" />
+                            <path d="M14 15.43V22" />
+                            <path d="M15 16a5 5 0 0 0-6 0" />
+                            <path d="M16 11h.01" />
+                            <path d="M16 7h.01" />
+                            <path d="M8 11h.01" />
+                            <path d="M8 7h.01" />
+                            <rect x="4" y="2" width="18" height="20" rx="2" />
+                        </svg>
+
+
+                    </span><span class="nav-text">Departments</span></a>
                 <a href="{{ route('admin.subjects') }}"
-                    class="nav-link {{ request()->is('admin/subjects') ? 'active' : '' }}" data-tooltip="Subjects"><span class="nav-icon"><svg
-                            width="18" height="18" viewBox="0 0 16 16" fill="none">
-                            <path d="M2 11h12M2 6h12M2 1h12" stroke="currentColor" stroke-width="1.3"
-                                stroke-linecap="round" />
-                        </svg></span><span class="nav-text">Subjects</span></a>
+                    class="nav-link {{ request()->is('admin/subjects') ? 'active' : '' }}" data-tooltip="Subjects">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none"
+                        stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
+                        class="lucide lucide-library-big-icon lucide-library-big">
+                        <rect width="8" height="18" x="3" y="3" rx="1" />
+                        <path d="M7 3v18" />
+                        <path
+                            d="M20.4 18.9c.2.5-.1 1.1-.6 1.3l-1.9.7c-.5.2-1.1-.1-1.3-.6L11.1 5.1c-.2-.5.1-1.1.6-1.3l1.9-.7c.5-.2 1.1.1 1.3.6Z" />
+                    </svg>
+                    </span><span class="nav-text">Subjects</span></a>
                 <a href="{{ route('admin.courses') }}" data-tooltip="Classes"
                     class="nav-link {{ request()->is('admin/courses') ? 'active' : '' }}"><span class="nav-icon"><svg
                             width="18" height="18" viewBox="0 0 16 16" fill="none">
@@ -120,14 +149,14 @@
                             <circle cx="8" cy="5" r="3.5" stroke="currentColor" stroke-width="1.3" />
                         </svg></span><span class="nav-text">Accounts</span></a>
                 @if(Auth::user()->isSuperAdmin())
-                <a href="{{ route('admin.settings') }}" data-tooltip="Settings"
-                    class="nav-link {{ request()->is('admin/settings') ? 'active' : '' }}"><span class="nav-icon"><svg
-                            width="18" height="18" viewBox="0 0 16 16" fill="none">
-                            <path d="M8 11a3 3 0 1 0 0-6 3 3 0 0 0 0 6Z" stroke="currentColor" stroke-width="1.3" />
-                            <path
-                                d="M8 1v1M8 14v1M1 8h1M14 8h1M3.05 3.05l.7.7M12.25 12.25l.7.7M3.05 12.25l.7-.7M12.25 3.05l.7-.7"
-                                stroke="currentColor" stroke-width="1.3" stroke-linecap="round" />
-                        </svg></span><span class="nav-text">Settings</span></a>
+                    <a href="{{ route('admin.settings') }}" data-tooltip="Settings"
+                        class="nav-link {{ request()->is('admin/settings') ? 'active' : '' }}"><span class="nav-icon"><svg
+                                width="18" height="18" viewBox="0 0 16 16" fill="none">
+                                <path d="M8 11a3 3 0 1 0 0-6 3 3 0 0 0 0 6Z" stroke="currentColor" stroke-width="1.3" />
+                                <path
+                                    d="M8 1v1M8 14v1M1 8h1M14 8h1M3.05 3.05l.7.7M12.25 12.25l.7.7M3.05 12.25l.7-.7M12.25 3.05l.7-.7"
+                                    stroke="currentColor" stroke-width="1.3" stroke-linecap="round" />
+                            </svg></span><span class="nav-text">Settings</span></a>
                 @endif
 
             @endif
@@ -141,7 +170,7 @@
                         </svg></span>
                     <span class="nav-text">Reports</span>
                 </a>
-@endif
+            @endif
         </nav>
 
         <div class="sidebar-profile">
@@ -174,7 +203,8 @@
     <header class="topbar">
         <div class="topbar-left" style="display:flex; align-items:center; gap:20px;">
             <button id="sidebar-toggle" class="topbar-btn" title="Toggle Sidebar">
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                    stroke-linecap="round" stroke-linejoin="round">
                     <line x1="3" y1="12" x2="21" y2="12"></line>
                     <line x1="3" y1="6" x2="21" y2="6"></line>
                     <line x1="3" y1="18" x2="21" y2="18"></line>
@@ -211,24 +241,34 @@
                                 stroke-width="1.3" />
                             <path d="M6 13a2 2 0 0 0 4 0" stroke="currentColor" stroke-width="1.3" />
                         </svg>
-                        <div id="notif-badge" style="position:absolute; top:8px; right:8px; width:6px; height:6px; background:var(--red); border-radius:50%; border:1.5px solid var(--bg); display:none; box-shadow:0 0 5px var(--red);"></div>
+                        <div id="notif-badge"
+                            style="position:absolute; top:8px; right:8px; width:6px; height:6px; background:var(--red); border-radius:50%; border:1.5px solid var(--bg); display:none; box-shadow:0 0 5px var(--red);">
+                        </div>
                     </div>
-                    
+
                     {{-- Dropdown --}}
-                    <div id="notif-dropdown" style="display:none; position:absolute; top:45px; right:0; width:280px; background:var(--surface2); backdrop-filter:blur(15px); border:1px solid var(--border); border-radius:12px; z-index:100; box-shadow:0 15px 35px rgba(0,0,0,0.4); overflow:hidden;">
-                        <div style="padding:12px 16px; border-bottom:1px solid var(--border); background:var(--surface3);">
-                            <div style="font-family:var(--font-mono); font-size:9px; font-weight:800; color:var(--text); letter-spacing:.1em; display:flex; justify-content:space-between; align-items:center;">
+                    <div id="notif-dropdown"
+                        style="display:none; position:absolute; top:45px; right:0; width:280px; background:var(--surface2); backdrop-filter:blur(15px); border:1px solid var(--border); border-radius:12px; z-index:100; box-shadow:0 15px 35px rgba(0,0,0,0.4); overflow:hidden;">
+                        <div
+                            style="padding:12px 16px; border-bottom:1px solid var(--border); background:var(--surface3);">
+                            <div
+                                style="font-family:var(--font-mono); font-size:9px; font-weight:800; color:var(--text); letter-spacing:.1em; display:flex; justify-content:space-between; align-items:center;">
                                 <span>LATEST ACTIVITY</span>
-                                <span style="background:var(--accent); color:white; padding:2px 6px; border-radius:4px; font-size:8px;">LIVE</span>
+                                <span
+                                    style="background:var(--accent); color:white; padding:2px 6px; border-radius:4px; font-size:8px;">LIVE</span>
                             </div>
                         </div>
                         <div id="notif-list" style="max-height:300px; overflow-y:auto; padding:5px 0;">
-                            <div style="padding:25px; text-align:center; color:var(--muted); font-size:10px; font-family:var(--font-mono);">
+                            <div
+                                style="padding:25px; text-align:center; color:var(--muted); font-size:10px; font-family:var(--font-mono);">
                                 NO RECENT EVENTS
                             </div>
                         </div>
-                        <div style="padding:10px; border-top:1px solid var(--border); text-align:center; background:var(--surface3);">
-                            <a href="#" style="font-family:var(--font-mono); font-size:8px; color:var(--accent); font-weight:700; text-decoration:none; letter-spacing:.05em;">VIEW FULL LOGS</a>
+                        <div
+                            style="padding:10px; border-top:1px solid var(--border); text-align:center; background:var(--surface3);">
+                            <a href="#"
+                                style="font-family:var(--font-mono); font-size:8px; color:var(--accent); font-weight:700; text-decoration:none; letter-spacing:.05em;">VIEW
+                                FULL LOGS</a>
                         </div>
                     </div>
                 </div>
@@ -261,8 +301,8 @@
         };
 
         // 🛡️ SECURITY: Global XSS Eraser
-        window.escapeHTML = function(str) {
-            if(!str) return "";
+        window.escapeHTML = function (str) {
+            if (!str) return "";
             const div = document.createElement('div');
             div.textContent = str;
             return div.innerHTML;
@@ -322,7 +362,7 @@
         const sidebarClose = document.getElementById('sidebar-close');
         const sidebarOverlay = document.getElementById('sidebar-overlay');
         const body = document.body;
-        
+
         // Load preference
         if (localStorage.getItem('sidebar-collapsed') === 'true' && window.innerWidth > 768) {
             body.classList.add('sidebar-collapsed');
@@ -333,7 +373,7 @@
                 const isOpen = body.classList.toggle('sidebar-mobile-open');
                 sidebarOverlay.style.display = isOpen ? 'block' : 'none';
                 if (isOpen) {
-                    body.style.overflow = 'hidden'; 
+                    body.style.overflow = 'hidden';
                 } else {
                     body.style.overflow = '';
                 }
@@ -357,13 +397,13 @@
         let globalLastActivityId = 0;
         async function fetchInitialActivity() {
             try {
-                const res = await fetch('/api/admin/global-activity?limit=1', { headers: { 'Accept':'application/json' }});
+                const res = await fetch('/api/admin/global-activity?limit=1', { headers: { 'Accept': 'application/json' } });
                 const data = await res.json();
                 if (data.activity && data.activity.length > 0) {
                     globalLastActivityId = data.activity[0].id;
                     data.activity.forEach(addNotifItem);
                 }
-            } catch(e) {}
+            } catch (e) { }
         }
         fetchInitialActivity();
 
@@ -387,7 +427,7 @@
                         }
                     });
                 }
-            } catch(e) {}
+            } catch (e) { }
         }
 
         function addNotifItem(act) {
@@ -396,14 +436,14 @@
             // Remove empty state
             const empty = list.querySelector('div[style*="text-align:center"]');
             if (empty) empty.remove();
-            
+
             const item = document.createElement('div');
             item.style = `padding: 10px 16px; border-bottom: 1px solid var(--border); display: flex; align-items: start; gap: 10px; transition: background .2s; cursor: pointer; animation: slideDown .3s ease;`;
             item.onmouseover = () => item.style.background = 'var(--accent)08';
             item.onmouseout = () => item.style.background = 'transparent';
-            
-            const initials = act.name.trim().split(/\s+/).map(n=>n[0]).join('').substring(0,2).toUpperCase();
-            
+
+            const initials = act.name.trim().split(/\s+/).map(n => n[0]).join('').substring(0, 2).toUpperCase();
+
             item.innerHTML = `
                 <div style="width:28px; height:28px; border-radius:50%; background:var(--accent)18; border:1px solid var(--accent)30; color:var(--accent); display:flex; align-items:center; justify-content:center; font-weight:700; font-size:10px; flex-shrink:0">${initials}</div>
                 <div style="flex:1">
@@ -438,12 +478,27 @@
     </script>
     <style>
         @keyframes pulse-red {
-            from { transform: scale(1); opacity: 1; }
-            to { transform: scale(1.3); opacity: 0.8; }
+            from {
+                transform: scale(1);
+                opacity: 1;
+            }
+
+            to {
+                transform: scale(1.3);
+                opacity: 0.8;
+            }
         }
+
         @keyframes slideDown {
-            from { transform: translateY(-10px); opacity: 0; }
-            to { transform: translateY(0); opacity: 1; }
+            from {
+                transform: translateY(-10px);
+                opacity: 0;
+            }
+
+            to {
+                transform: translateY(0);
+                opacity: 1;
+            }
         }
     </style>
     @stack('scripts')

@@ -60,8 +60,8 @@ class NotifyTeachers extends Command
                     $endTime = Carbon::parse($session->end_time)->format('H:i');
                     $room = $session->classRoom->room_number;
                     
-                    $message .= "📚 <b>{$subjectName}</b>\n";
-                    $message .= "   ⏰ {$startTime} - {$endTime} | 📍 Room {$room}\n\n";
+                    $message .= "📚 <b>" . e($subjectName) . "</b>\n";
+                    $message .= "   ⏰ {$startTime} - {$endTime} | 📍 Room " . e($room) . "\n\n";
                 }
 
                 $message .= "Please remember to activate check-in for your classes on time. Have a productive day! 🚀";

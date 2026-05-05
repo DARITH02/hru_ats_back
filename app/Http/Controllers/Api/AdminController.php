@@ -11,6 +11,7 @@ use App\Models\ClassRoom;
 use App\Models\Subject;
 use App\Models\Department;
 use App\Models\AttendanceSession;
+use App\Models\ActivityLog;
 use App\Models\Attendance;
 use App\Models\SemesterAssignment;
 use App\Models\Major;
@@ -41,7 +42,9 @@ class AdminController extends Controller
 
     private function getGlobalAttendanceRate()
     {
-        $sessions = AttendanceSession::with('classRoom')->get();
+        $sessions = AttendanceSession::with('classRoom')
+            ->where('status', '!=', 'skipped')
+            ->get();
         $totalPossible = 0;
         foreach ($sessions as $s) {
             if ($s->classRoom && $s->classRoom->group_id) {
@@ -244,16 +247,15 @@ class AdminController extends Controller
      * Handles days parsing, time-slot parsing (multiple sessions per day),
      * holiday skipping, and target counting.
      */
-    private function generateAcademicSessions($class, $year, $semester, $startDate, $targetCount, $holidayStart = null, $holidayEnd = null)
+    private function parseSchedule($schedStr)
     {
-        $schedStr = strtolower($class->schedule ?? '');
-        if (!$schedStr) return 0;
+        $schedStr = strtolower($schedStr ?? '');
+        if (!$schedStr) return [[], []];
 
         // 1. Parse Days
         $daysMap = ['sun' => 0, 'mon' => 1, 'tue' => 2, 'wed' => 3, 'thu' => 4, 'fri' => 5, 'sat' => 6];
         $allowedDays = [];
 
-        // Predefined groups
         if (str_contains($schedStr, 'mon-fri') || str_contains($schedStr, 'weekday')) {
             $allowedDays = [1, 2, 3, 4, 5];
         } else if (str_contains($schedStr, 'sat/sun') || str_contains($schedStr, 'weekend')) {
@@ -261,7 +263,6 @@ class AdminController extends Controller
         } else if (str_contains($schedStr, 'everyday') || str_contains($schedStr, 'full-week')) {
             $allowedDays = [0, 1, 2, 3, 4, 5, 6];
         } else {
-            // Handle ranges like "Mon-Thu" using regex
             if (preg_match('/(mon|tue|wed|thu|fri|sat|sun)\s?[-–—]\s?(mon|tue|wed|thu|fri|sat|sun)/i', $schedStr, $matches)) {
                 $start = $daysMap[strtolower($matches[1])];
                 $end = $daysMap[strtolower($matches[2])];
@@ -272,33 +273,31 @@ class AdminController extends Controller
                     for ($i = 0; $i <= $end; $i++) $allowedDays[] = $i;
                 }
             } else {
-                // Default: find individual days
                 foreach ($daysMap as $dStr => $dNum) {
                     if (str_contains($schedStr, $dStr)) $allowedDays[] = $dNum;
                 }
             }
         }
-
         if (empty($allowedDays)) $allowedDays = [1, 2, 3, 4, 5];
 
-        // 2. Parse ALL Time Slots
-        // Robust regex to capture HH:mm formats (24h or 12h with AM/PM)
+        // 2. Parse Time Slots
         preg_match_all('/(\d{1,2}:\d{2}(?::\d{2})?)\s?([AP]M)?\s?[-–—]\s?(\d{1,2}:\d{2}(?::\d{2})?)\s?([AP]M)?/i', $schedStr, $matches, PREG_SET_ORDER);
         $timeSlots = [];
-        if (empty($matches)) {
-            // If the user explicitly requested NO DEFAULT, we return 0 sessions if parsing fails.
-            return 0; 
-        } else {
-            foreach ($matches as $m) {
-                try {
-                    $timeSlots[] = [
-                        'start' => \Carbon\Carbon::parse($m[1] . ($m[2] ?? ''))->format('H:i'),
-                        'end'   => \Carbon\Carbon::parse($m[3] . ($m[4] ?? ''))->format('H:i')
-                    ];
-                } catch (\Exception $e) { continue; }
-            }
+        foreach ($matches as $m) {
+            try {
+                $timeSlots[] = [
+                    'start' => \Carbon\Carbon::parse($m[1] . ($m[2] ?? ''))->format('H:i'),
+                    'end'   => \Carbon\Carbon::parse($m[3] . ($m[4] ?? ''))->format('H:i')
+                ];
+            } catch (\Exception $e) { continue; }
         }
-        
+
+        return [$allowedDays, $timeSlots];
+    }
+
+    private function generateAcademicSessions($class, $year, $semester, $startDate, $targetCount, $holidayStart = null, $holidayEnd = null)
+    {
+        list($allowedDays, $timeSlots) = $this->parseSchedule($class->schedule);
         if (empty($timeSlots)) return 0;
 
         // 3. Clear existing scheduled (future) sessions
@@ -391,6 +390,10 @@ class AdminController extends Controller
             $data['schedule'] = $request->schedule_days . ' (' . $request->time_start . '-' . $request->time_end . ')';
         }
         $class->update($data);
+        ActivityLog::create([
+            'action' => 'UPDATE',
+            'target' => "catalog.classes#{$classId}"
+        ]);
         return response()->json(['success' => true, 'class' => $class]);
     }
 
@@ -398,6 +401,10 @@ class AdminController extends Controller
     {
         $class = ClassRoom::findOrFail($classId);
         $class->delete();
+        ActivityLog::create([
+            'action' => 'DELETE',
+            'target' => "catalog.classes#{$classId}"
+        ]);
         return response()->json(['success' => true]);
     }
 
@@ -431,6 +438,138 @@ class AdminController extends Controller
         return response()->json($formatted);
     }
 
+    public function updateStatus(Request $request, $sessionId)
+    {
+        $request->validate([
+            'status' => 'required|in:active,scheduled,completed,passed,skipped',
+            'reschedule' => 'sometimes|boolean'
+        ]);
+
+        $session = AttendanceSession::findOrFail($sessionId);
+        
+        if ($request->status === 'skipped' && $request->reschedule) {
+            $nextSlot = $this->calculateNextSlotData($session);
+            if ($nextSlot) {
+                $session->update([
+                    'start_time'         => $nextSlot['start_time'],
+                    'end_time'           => $nextSlot['end_time'],
+                    'checkin_open_time'  => $nextSlot['checkin_open_time'],
+                    'checkin_close_time' => $nextSlot['checkin_close_time'],
+                    'status'             => 'scheduled' // Re-schedule it to the end
+                ]);
+
+                ActivityLog::create([
+                    'action' => 'UPDATE',
+                    'target' => "session#{$session->id}.move_to_end"
+                ]);
+
+                return response()->json(['success' => true, 'message' => 'Session moved to end of semester', 'session' => $session]);
+            } else {
+                return response()->json(['success' => false, 'error' => 'Could not find a future slot.'], 400);
+            }
+        }
+
+        $session->update(['status' => $request->status]);
+        
+        ActivityLog::create([
+            'action' => 'UPDATE',
+            'target' => "session#{$session->id}.status_{$request->status}"
+        ]);
+
+        if ($request->status === 'completed') {
+            app(\App\Services\TelegramService::class)->checkAbsenceThresholds($session->class_id);
+        }
+
+        return response()->json(['success' => true, 'session' => $session]);
+    }
+
+    public function getNextAvailableSlot($sessionId)
+    {
+        $session = AttendanceSession::findOrFail($sessionId);
+        $nextSlot = $this->calculateNextSlotData($session);
+        if ($nextSlot) {
+            return response()->json([
+                'success' => true,
+                'date' => $nextSlot['start_time']->format('Y-m-d'),
+                'time' => $nextSlot['start_time']->format('H:i'),
+                'start_time' => $nextSlot['start_time']->toDateTimeString()
+            ]);
+        }
+        return response()->json(['success' => false, 'error' => 'No more slots available.'], 404);
+    }
+
+    private function calculateNextSlotData($session)
+    {
+        $class = $session->classRoom;
+        if (!$class) return null;
+
+        // Find the last session for this class/semester
+        $lastSession = AttendanceSession::where('class_id', $class->id)
+            ->where('academic_year', $session->academic_year)
+            ->where('semester', $session->semester)
+            ->orderBy('start_time', 'desc')
+            ->first();
+
+        if (!$lastSession) return null;
+
+        list($allowedDays, $timeSlots) = $this->parseSchedule($class->schedule);
+        if (empty($allowedDays) || empty($timeSlots)) return null;
+
+        $currentDate = \Carbon\Carbon::parse($lastSession->start_time)->startOfDay();
+        
+        // Find which slot the last session was
+        $lastSlotIndex = -1;
+        $lastStartTimeStr = \Carbon\Carbon::parse($lastSession->start_time)->format('H:i');
+        foreach ($timeSlots as $idx => $slot) {
+            if ($slot['start'] === $lastStartTimeStr) {
+                $lastSlotIndex = $idx;
+                break;
+            }
+        }
+
+        // Determine next slot
+        $nextSlotIndex = $lastSlotIndex + 1;
+        if ($nextSlotIndex >= count($timeSlots)) {
+            $nextSlotIndex = 0;
+            $currentDate->addDay();
+        }
+
+        // Find next available day
+        $maxIter = 60; // Safety (increased to handle longer breaks)
+        while ($maxIter > 0) {
+            $maxIter--;
+            if (in_array($currentDate->dayOfWeek, $allowedDays)) {
+                // Check if in holiday
+                $assignment = SemesterAssignment::where('class_id', $class->id)
+                    ->where('academic_year', $session->academic_year)
+                    ->where('semester', $session->semester)
+                    ->first();
+                
+                $inHoliday = false;
+                if ($assignment && $assignment->holiday_start && $assignment->holiday_end) {
+                    $inHoliday = $currentDate->between($assignment->holiday_start, $assignment->holiday_end);
+                }
+
+                if (!$inHoliday) {
+                    $slot = $timeSlots[$nextSlotIndex];
+                    $sTime = $currentDate->copy()->setTimeFromTimeString($slot['start']);
+                    $eTime = $currentDate->copy()->setTimeFromTimeString($slot['end']);
+
+                    return [
+                        'start_time'         => $sTime,
+                        'end_time'           => $eTime,
+                        'checkin_open_time'  => $sTime->copy()->subMinutes(20),
+                        'checkin_close_time' => $sTime->copy()->addMinutes(20),
+                    ];
+                }
+            }
+            $currentDate->addDay();
+            $nextSlotIndex = 0; // After moving to a new day, start from first slot
+        }
+
+        return null;
+    }
+
     public function listSessionAttendance($sessionId)
     {
         $session = AttendanceSession::with('classRoom.subject')->findOrFail($sessionId);
@@ -461,6 +600,150 @@ class AdminController extends Controller
             'total_count' => $allStudents->count(),
             'data' => $rows
         ]);
+    }
+
+    public function updateSession(Request $request, $sessionId)
+    {
+        $request->validate([
+            'start_time' => 'required|date',
+            'end_time'   => 'required|date|after:start_time',
+            'status'     => 'sometimes|string'
+        ]);
+
+        $session = AttendanceSession::findOrFail($sessionId);
+        
+        $data = $request->only(['start_time', 'end_time', 'status']);
+        
+        // Auto-update checkin windows based on new start_time
+        $sTime = \Carbon\Carbon::parse($request->start_time);
+        $data['checkin_open_time'] = $sTime->copy()->subMinutes(20);
+        $data['checkin_close_time'] = $sTime->copy()->addMinutes(20);
+
+        $session->update($data);
+
+        ActivityLog::create([
+            'action' => 'UPDATE',
+            'target' => "session#{$sessionId}.reschedule_man"
+        ]);
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Session updated successfully',
+            'session' => $session
+        ]);
+    }
+
+    public function globalSkip(Request $request)
+    {
+        $request->validate([
+            'start_time' => 'required|date',
+            'end_time'   => 'required|date|after:start_time',
+            'reschedule' => 'sometimes|boolean'
+        ]);
+
+        $sessions = AttendanceSession::whereBetween('start_time', [
+                \Carbon\Carbon::parse($request->start_time), 
+                \Carbon\Carbon::parse($request->end_time)
+            ])
+            ->where('status', '!=', 'completed')
+            ->get();
+
+        $affected = 0;
+        foreach ($sessions as $session) {
+            if ($request->reschedule) {
+                $nextSlot = $this->calculateNextSlotData($session);
+                if ($nextSlot) {
+                    $session->update([
+                        'start_time'         => $nextSlot['start_time'],
+                        'end_time'           => $nextSlot['end_time'],
+                        'checkin_open_time'  => $nextSlot['checkin_open_time'],
+                        'checkin_close_time' => $nextSlot['checkin_close_time'],
+                        'status'             => 'scheduled'
+                    ]);
+                    $affected++;
+
+                    ActivityLog::create([
+                        'action' => 'UPDATE',
+                        'target' => "session#{$session->id}.auto_move"
+                    ]);
+                }
+            } else {
+                $session->update(['status' => 'skipped']);
+                $affected++;
+
+                ActivityLog::create([
+                    'action' => 'UPDATE',
+                    'target' => "session#{$session->id}.status_skipped"
+                ]);
+            }
+        }
+
+        if ($affected > 0) {
+            ActivityLog::create([
+                'action' => 'UPDATE',
+                'target' => "global.batch_skip#{$affected}"
+            ]);
+        }
+
+        $msg = $request->reschedule 
+            ? "Successfully moved $affected sessions to the end of the semester."
+            : "Successfully skipped $affected sessions across all subjects.";
+
+        return response()->json([
+            'success' => true,
+            'message' => $msg,
+            'affected_count' => $affected
+        ]);
+    }
+
+    public function skipTodayAndShift(Request $request)
+    {
+        $today = now()->toDateString();
+        $dayOfWeek = now()->dayOfWeek; // 0 (Sun) to 6 (Sat)
+        $sqlDay = $dayOfWeek + 1; // MySQL DAYOFWEEK is 1-indexed (1=Sun, 2=Mon...)
+
+        // 1. Identify all sessions scheduled for today
+        $sessionsToday = AttendanceSession::whereDate('start_time', $today)
+            ->where('status', 'scheduled')
+            ->get();
+
+        if ($sessionsToday->isEmpty()) {
+            return response()->json(['success' => false, 'error' => 'No scheduled sessions found for today.']);
+        }
+
+        \DB::beginTransaction();
+        try {
+            foreach ($sessionsToday as $session) {
+                $classId = $session->class_id;
+
+                // 2. We shift THIS session and ALL FUTURE sessions for this class
+                // that occur on the SAME DAY OF WEEK.
+                $futureAndToday = AttendanceSession::where('class_id', $classId)
+                    ->where('start_time', '>=', $session->start_time)
+                    ->where('status', 'scheduled')
+                    ->whereRaw("DAYOFWEEK(start_time) = ?", [$sqlDay])
+                    ->orderBy('start_time', 'desc') // Shift from the furthest future backwards to avoid any logic overlaps
+                    ->get();
+
+                foreach ($futureAndToday as $fs) {
+                    $newStart = $fs->start_time->addWeek();
+                    $newEnd = $fs->end_time->addWeek();
+                    
+                    $fs->update([
+                        'start_time' => $newStart,
+                        'end_time' => $newEnd,
+                        'checkin_open_time' => $newStart->copy()->subMinutes(20),
+                        'checkin_close_time' => $newStart->copy()->addMinutes(20),
+                    ]);
+                }
+            }
+
+            \DB::commit();
+            return response()->json(['success' => true, 'message' => 'Today\'s sessions shifted to next week successfully.']);
+        } catch (\Exception $e) {
+            \DB::rollback();
+            return response()->json(['success' => false, 'error' => $e->getMessage()]);
+        }
     }
 
     public function listStudents()
@@ -1131,44 +1414,37 @@ class AdminController extends Controller
     public function getGlobalActivity(Request $request)
     {
         try {
-            $lastId = $request->get('last_id', 0);
-            
-            // Re-importing Models locally to be 100% sure in this scope
-            $newAttendances = \App\Models\Attendance::with(['student.user', 'session.classRoom.subject'])
-                ->where('id', '>', (int)$lastId)
-                ->orderBy('id', 'desc')
+            $logs = ActivityLog::orderBy("id", "desc")->limit(10)->get()->map(function($log) {
+                return [
+                    "id" => $log->id,
+                    "action" => $log->action,
+                    "target" => $log->target,
+                    "time" => $log->created_at->format("h:i A"),
+                    "type" => "system"
+                ];
+            });
+
+            if ($logs->isNotEmpty()) {
+                return response()->json(["success" => true, "activity" => $logs]);
+            }
+
+            $newAttendances = \App\Models\Attendance::with(["student.user", "session.classRoom.subject"])
+                ->orderBy("id", "desc")
                 ->limit(10)
                 ->get()
                 ->map(function($att) {
-                    $sName = 'Unknown';
-                    if ($att->student && $att->student->user) {
-                        $sName = $att->student->user->name;
-                    }
-                    
-                    $subName = 'Unknown';
-                    if ($att->session && $att->session->classRoom && $att->session->classRoom->subject) {
-                        $subName = $att->session->classRoom->subject->name;
-                    }
-
-                    $scanTimeStr = '—';
-                    if ($att->scan_time) {
-                        $scanTimeStr = \Carbon\Carbon::parse($att->scan_time)->format('H:i');
-                    } else if ($att->created_at) {
-                        $scanTimeStr = $att->created_at->format('H:i');
-                    }
-
                     return [
-                        'id' => $att->id,
-                        'name' => $sName,
-                        'subject' => $subName,
-                        'time' => $scanTimeStr,
-                        'type' => 'attendance'
+                        "id" => $att->id,
+                        "action" => "INSERT",
+                        "target" => ($att->student && $att->student->user ? $att->student->user->name : "Unknown") . " @ " . ($att->session && $att->session->classRoom && $att->session->classRoom->subject ? $att->session->classRoom->subject->name : "Unknown"),
+                        "time" => $att->created_at->format("h:i A"),
+                        "type" => "attendance"
                     ];
                 });
             
-            return response()->json(['success' => true, 'activity' => $newAttendances]);
+            return response()->json(["success" => true, "activity" => $newAttendances]);
         } catch (\Exception $e) {
-            return response()->json(['error' => $e->getMessage(), 'trace' => $e->getTraceAsString()], 500);
+            return response()->json(["error" => $e->getMessage()], 500);
         }
     }
 }

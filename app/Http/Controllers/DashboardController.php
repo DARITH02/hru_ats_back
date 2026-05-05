@@ -70,12 +70,26 @@ class DashboardController extends Controller
         // 4. Student Data for the Table
         $activeStudents = collect();
         $sessionScanCount = 0;
+        $activePermissions = collect();
+
         if ($activeSession) {
             $sessionAttendance = $activeSession->attendanceRecords->keyBy('student_id');
             $sessionScanCount = $sessionAttendance->where('method', 'qr')->count();
             
-            $activeStudents = $activeSession->classRoom->students->map(function($student) use ($sessionAttendance) {
+            // Get active permissions for today for students in this class
+            $activePermissions = \App\Models\StudentPermission::with('student.user')
+                ->where('start_date', '<=', now()->toDateString())
+                ->where('end_date', '>=', now()->toDateString())
+                ->whereHas('student', function($q) use ($activeSession) {
+                    $q->where('group_id', $activeSession->classRoom->group_id);
+                })
+                ->get()
+                ->keyBy('student_id');
+
+            $activeStudents = $activeSession->classRoom->students->map(function($student) use ($sessionAttendance, $activePermissions) {
                 $att = $sessionAttendance->get($student->id);
+                $perm = $activePermissions->get($student->id);
+                
                 return [
                     'id' => $student->id,
                     'code' => $student->student_code,
@@ -83,7 +97,8 @@ class DashboardController extends Controller
                     'major' => $student->major ?? 'N/A',
                     'year' => $student->year_level ?? 1,
                     'initials' => collect(explode(' ', $student->user->name))->map(fn($n) => substr($n, 0, 1))->join(''),
-                    'status' => $att->status ?? 'absent',
+                    'status' => $att->status ?? ($perm ? 'excused' : 'absent'),
+                    'permission' => $perm ? $perm->reason : null,
                     'time' => $att && $att->scan_time ? Carbon::parse($att->scan_time)->format('H:i') : '—',
                     'method' => $att->method ?? '—',
                     'avatar_color' => '#' . substr(md5($student->user->id), 0, 6),
@@ -119,7 +134,73 @@ class DashboardController extends Controller
             'presentCount' => $activeStudents->whereIn('status', ['present', 'late', 'excused'])->count(),
             'totalCount' => $activeStudents->count(),
             'yearStats' => $this->getYearStats(),
+            'topAbsentStudents' => $this->getTopAbsentStudents(),
+            'topAbsentClasses' => $this->getTopAbsentClasses(),
+            'activePermissions' => $activePermissions,
         ]);
+    }
+
+    private function getTopAbsentStudents()
+    {
+        // Students with most absences in completed sessions
+        return Student::with(['user', 'major'])
+            ->get()
+            ->map(function($student) {
+                // Count completed sessions for this student's class
+                $totalSessions = AttendanceSession::where('class_id', $student->class_id)
+                    ->where('status', 'completed')
+                    ->count();
+                
+                // Count presence/late/excused
+                $attendedCount = Attendance::where('student_id', $student->id)
+                    ->whereIn('status', ['present', 'late', 'excused', 'PRESENT', 'LATE', 'EXCUSED'])
+                    ->count();
+                
+                $absentCount = max(0, $totalSessions - $attendedCount);
+                $rate = $totalSessions > 0 ? ($absentCount / $totalSessions) * 100 : 0;
+                
+                return [
+                    'id' => $student->id,
+                    'name' => $student->user->name,
+                    'absent_count' => $absentCount,
+                    'absence_rate' => round($rate),
+                    'initials' => collect(explode(' ', $student->user->name))->map(fn($n) => substr($n, 0, 1))->join(''),
+                ];
+            })
+            ->filter(fn($s) => $s['absent_count'] > 0)
+            ->sortByDesc('absent_count')
+            ->take(5);
+    }
+
+    private function getTopAbsentClasses()
+    {
+        return ClassRoom::with(['subject', 'teacher.user'])
+            ->get()
+            ->map(function($class) {
+                $sessions = AttendanceSession::where('class_id', $class->id)->where('status', 'completed')->pluck('id');
+                if ($sessions->isEmpty()) return null;
+
+                $totalStudents = $class->students()->count();
+                if ($totalStudents === 0) return null;
+
+                $totalPossibleAttendances = $sessions->count() * $totalStudents;
+                $actualAttendances = Attendance::whereIn('session_id', $sessions)
+                    ->whereIn('status', ['present', 'late', 'excused', 'PRESENT', 'LATE', 'EXCUSED'])
+                    ->count();
+                
+                $absences = max(0, $totalPossibleAttendances - $actualAttendances);
+                $absenceRate = $totalPossibleAttendances > 0 ? ($absences / $totalPossibleAttendances) * 100 : 0;
+
+                return [
+                    'id' => $class->id,
+                    'name' => $class->subject->name,
+                    'teacher' => $class->teacher->user->name ?? 'Unknown',
+                    'absence_rate' => round($absenceRate),
+                ];
+            })
+            ->filter()
+            ->sortByDesc('absence_rate')
+            ->take(5);
     }
 
     private function getYearStats()
@@ -162,9 +243,14 @@ class DashboardController extends Controller
         AttendanceSession::whereHas('classRoom', fn($q) => $q->where('teacher_id', $teacher->id))
             ->where('status', 'scheduled')->where('start_time', '<=', $now)->where('end_time', '>=', $now)
             ->update(['status' => 'active']);
-        AttendanceSession::whereHas('classRoom', fn($q) => $q->where('teacher_id', $teacher->id))
-            ->where('status', 'active')->where('end_time', '<', $now->copy()->subHours(8))
-            ->update(['status' => 'completed']);
+        $toComplete = AttendanceSession::whereHas('classRoom', fn($q) => $q->where('teacher_id', $teacher->id))
+            ->where('status', 'active')->where('end_time', '<', $now->copy()->subMinutes(45))
+            ->get();
+        
+        foreach ($toComplete as $session) {
+            $session->update(['status' => 'completed']);
+            app(\App\Services\TelegramService::class)->checkAbsenceThresholds($session->class_id);
+        }
 
         // Assigned classes with session counts and student counts
         $classes = ClassRoom::where('teacher_id', $teacher->id)

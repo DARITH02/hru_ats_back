@@ -20,6 +20,11 @@ class WebAuthController extends Controller
         ]);
 
         if (Auth::attempt($credentials)) {
+            $user = Auth::user();
+            if (!$user->is_approved) {
+                Auth::logout();
+                return back()->withErrors(['email' => 'Your account is pending approval by a Superadmin.'])->onlyInput('email');
+            }
             $request->session()->regenerate();
             return redirect()->intended('dashboard');
         }
@@ -39,10 +44,12 @@ class WebAuthController extends Controller
         ]);
 
         $role = 'admin'; // Default role
+        $isApproved = false; // Admins need approval
 
         if ($request->filled('admin_key')) {
             if ($request->admin_key === config('app.super_admin_key')) {
                 $role = 'super_admin';
+                $isApproved = true; // Super Admins are auto-approved
             } else {
                 return back()->withErrors(['admin_key' => 'Invalid super admin key. Leave blank for normal Admin.'])->withInput();
             }
@@ -53,7 +60,12 @@ class WebAuthController extends Controller
             'email' => $request->email,
             'password' => Hash::make($request->password),
             'role' => $role,
+            'is_approved' => $isApproved,
         ]);
+
+        if (!$isApproved) {
+            return redirect()->route('login')->with('success', 'Registration successful! Your account is pending Superadmin approval.');
+        }
 
         Auth::login($user);
         return redirect()->route('dashboard');

@@ -47,15 +47,16 @@ class TelegramService
             $yearLevel = $session->classRoom->group->year_level ?? 'N/A';
             $date = $session->start_time;
 
-            $message = "📊 *Attendance Report Ready*\n\n"
-                     . "📖 *Subject:* {$subjectName} ({$subjectCode})\n"
-                     . "🏫 *Class:* {$className} (Year {$yearLevel})\n"
-                     . "📍 *Room:* {$room}\n"
-                     . "👨‍🏫 *Instructor:* {$teacher}\n"
-                     . "📅 *Date:* {$date}\n\n"
-                     . "👥 *Total Class Size:* {$total}\n"
-                     . "✅ *Marked Present:* {$present}\n"
-                     . "❌ *Total Missing:* {$absent}\n\n"
+            // Use HTML for better reliability with names containing special chars
+            $message = "📊 <b>Attendance Report Ready</b>\n\n"
+                     . "📖 <b>Subject:</b> " . e($subjectName) . " (" . e($subjectCode) . ")\n"
+                     . "🏫 <b>Class:</b> " . e($className) . " (Year " . e($yearLevel) . ")\n"
+                     . "📍 <b>Room:</b> " . e($room) . "\n"
+                     . "👨‍🏫 <b>Instructor:</b> " . e($teacher) . "\n"
+                     . "📅 <b>Date:</b> " . e($date) . "\n\n"
+                     . "👥 <b>Total Class Size:</b> {$total}\n"
+                     . "✅ <b>Marked Present:</b> {$present}\n"
+                     . "❌ <b>Total Missing:</b> {$absent}\n\n"
                      . "Please find the detailed Excel report attached below.";
 
             // 2. Send Text Summary
@@ -100,10 +101,10 @@ class TelegramService
         $fullPath = Storage::disk('local')->path($filePath);
 
         $typeName = ($type === 'half') ? 'MID-TERM' : 'FULL SEMESTER';
-        $message = "📑 *System Attendance Summary*\n\n"
-                 . "📅 *Year:* {$academicYear}\n"
-                 . "🔢 *Semester:* {$semester}\n"
-                 . "🎯 *Scope:* {$typeName}\n\n"
+        $message = "📑 <b>System Attendance Summary</b>\n\n"
+                 . "📅 <b>Year:</b> " . e($academicYear) . "\n"
+                 . "🔢 <b>Semester:</b> " . e($semester) . "\n"
+                 . "🎯 <b>Scope:</b> " . e($typeName) . "\n\n"
                  . "Attached is the comprehensive school-wide attendance report.";
 
         $this->sendMessage($bot, $message);
@@ -114,12 +115,28 @@ class TelegramService
         return true;
     }
 
-    protected function sendMessage($bot, $text)
+    public function sendMessage($botOrChatId, $text)
     {
-        return Http::post("https://api.telegram.org/bot{$bot->bot_token}/sendMessage", [
-            'chat_id' => $bot->chat_id,
+        $botToken = null;
+        $chatId = null;
+
+        if ($botOrChatId instanceof TelegramBot) {
+            $botToken = $botOrChatId->bot_token;
+            $chatId = $botOrChatId->chat_id;
+        } else {
+            // If it's a string/int (chat_id), we need the active bot token
+            $activeBot = TelegramBot::where('is_active', true)->first();
+            if (!$activeBot) return false;
+            $botToken = $activeBot->bot_token;
+            $chatId = $botOrChatId;
+        }
+
+        if (!$botToken || !$chatId) return false;
+
+        return Http::post("https://api.telegram.org/bot{$botToken}/sendMessage", [
+            'chat_id' => $chatId,
             'text' => $text,
-            'parse_mode' => 'Markdown'
+            'parse_mode' => 'HTML'
         ]);
     }
 
@@ -131,5 +148,81 @@ class TelegramService
             'chat_id' => $bot->chat_id,
             'caption' => 'Detailed Attendance Excel Report'
         ]);
+    }
+
+    /**
+     * Check if any student in the class has hit 10 or 20 absences and notify Telegram.
+     */
+    public function checkAbsenceThresholds($classId)
+    {
+        try {
+            $class = \App\Models\ClassRoom::with(['students.user', 'subject'])->find($classId);
+            if (!$class) return;
+
+            $completedSessionIds = AttendanceSession::where('class_id', $classId)
+                ->where('status', 'completed')
+                ->pluck('id');
+            
+            $sessionCount = $completedSessionIds->count();
+            if ($sessionCount < 10) return;
+
+            foreach ($class->students as $student) {
+                // Check 1: Per-Subject Absence (Alert at 10)
+                $attendedCount = \App\Models\Attendance::where('student_id', $student->id)
+                    ->whereIn('session_id', $completedSessionIds)
+                    ->whereIn('status', ['present', 'late', 'excused', 'PRESENT', 'LATE', 'EXCUSED'])
+                    ->count();
+                    
+                $absentCount = max(0, $sessionCount - $attendedCount);
+
+                if ($absentCount == 10) {
+                    $bot = TelegramBot::where('is_active', true)->first();
+                    if ($bot && $bot->chat_id) {
+                        $message = "⚠️ <b>PER-SUBJECT ABSENCE ALERT</b> ⚠️\n\n"
+                                 . "👤 <b>Student:</b> " . e($student->user->name) . " (" . e($student->student_code) . ")\n"
+                                 . "📖 <b>Subject:</b> " . e($class->subject->name) . "\n"
+                                 . "❌ <b>Total Absences in this Subject:</b> <b>" . $absentCount . "</b> sessions\n\n"
+                                 . "This student has reached the threshold for this subject.";
+                        $this->sendMessage($bot, $message);
+                    }
+                }
+
+                // Check 2: Global Absence (Alert at 20 across all subjects)
+                // We sum up all absences in all COMPLETED sessions of all classes for this student
+                $allCompletedSessions = AttendanceSession::where('status', 'completed')->get();
+                $allCompletedSessionIds = $allCompletedSessions->pluck('id');
+                
+                // Sessions for classes the student is actually enrolled in (if we can filter by group/class)
+                // But generally, we can just check sessions of classes where they were supposed to be.
+                // Assuming students are in multiple classes.
+                
+                // Let's get all classes for this student
+                $studentClasses = \App\Models\ClassRoom::where('group_id', $student->group_id)->pluck('id');
+                $relevantSessionIds = AttendanceSession::whereIn('class_id', $studentClasses)
+                    ->where('status', 'completed')
+                    ->pluck('id');
+                
+                $totalPossibleSessions = $relevantSessionIds->count();
+                $totalAttended = \App\Models\Attendance::where('student_id', $student->id)
+                    ->whereIn('session_id', $relevantSessionIds)
+                    ->whereIn('status', ['present', 'late', 'excused', 'PRESENT', 'LATE', 'EXCUSED'])
+                    ->count();
+                
+                $totalAbsents = max(0, $totalPossibleSessions - $totalAttended);
+
+                if ($totalAbsents == 20) {
+                    $bot = TelegramBot::where('is_active', true)->first();
+                    if ($bot && $bot->chat_id) {
+                        $message = "🚨 <b>SYSTEM-WIDE ABSENCE ALERT</b> 🚨\n\n"
+                                 . "👤 <b>Student:</b> " . e($student->user->name) . " (" . e($student->student_code) . ")\n"
+                                 . "📊 <b>Total Absences (All Subjects):</b> <b style='color:red'>" . $totalAbsents . "</b> sessions\n\n"
+                                 . "⚠️ This student has reached the <b>CRITICAL</b> system-wide absence limit.";
+                        $this->sendMessage($bot, $message);
+                    }
+                }
+            }
+        } catch (\Exception $e) {
+            Log::error("Absence alert check failed: " . $e->getMessage());
+        }
     }
 }

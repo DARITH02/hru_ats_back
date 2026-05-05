@@ -55,7 +55,12 @@ Route::middleware('auth:sanctum')->group(function () {
         
         // 📅 Sessions & Records (Admin)
         Route::get('/admin/classes/{classId}/sessions', [AdminController::class, 'listSessions']);
-        Route::get('/admin/sessions/{sessionId}/attendance', [AdminController::class, 'listSessionAttendance']);
+        Route::get('/admin/session/{sessionId}/attendance', [AdminController::class, 'listSessionAttendance']);
+        Route::get('/admin/session/{sessionId}/next-available-slot', [AdminController::class, 'getNextAvailableSlot']);
+        Route::put('/admin/session/{sessionId}', [AdminController::class, 'updateSession']);
+        Route::post('/admin/session/{sessionId}/status-update', [AdminController::class, 'updateStatus']);
+        Route::post('/admin/sessions/global-skip', [AdminController::class, 'globalSkip']);
+        Route::post('/admin/skip-today-shift', [AdminController::class, 'skipTodayAndShift']);
         
         Route::get('/admin/students', [AdminController::class, 'listStudents']);
         Route::middleware('role:super_admin')->get('/admin/students/export', [AdminController::class, 'exportStudents']);

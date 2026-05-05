@@ -10,7 +10,7 @@ use Exception;
 
 class AttendanceService
 {
-    /**
+    /** 
      * Core validation for check-in timing.
      */
     public function validateCheckinWindow(AttendanceSession $session)

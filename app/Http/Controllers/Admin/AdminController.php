@@ -13,6 +13,8 @@ use App\Models\Subject;
 use App\Models\Department;
 use App\Models\Major;
 use App\Models\ClassGroup;
+use App\Models\ActivityLog;
+use App\Models\Attendance;
 use CloudinaryLabs\CloudinaryLaravel\Facades\Cloudinary;
 use Illuminate\Support\Facades\Log;
 use Maatwebsite\Excel\Facades\Excel;
@@ -58,7 +60,16 @@ class AdminController extends Controller
 
     public function teacherAccounts(Request $request)
     {
-        $query = User::whereIn('role', ['teacher', 'admin']);
+        $query = User::query();
+        
+        // If super admin, show everything except themselves
+        // If normal admin, maybe only teachers? User said "supperadmin can delete all account admin teacher and more"
+        if (auth()->user()->isSuperAdmin()) {
+            $query->where('id', '!=', auth()->id())->where('role', '!=', 'student');
+        } else {
+            $query->whereIn('role', ['teacher', 'admin']);
+        }
+
         if ($request->filled('search')) {
             $q = $request->search;
             $query->where(function($w) use ($q) {
@@ -68,6 +79,37 @@ class AdminController extends Controller
         }
         $users = $query->orderBy('name')->paginate(15)->appends($request->all());
         return view('admin.teacher_accounts', compact('users'));
+    }
+
+    public function approveUser($id)
+    {
+        if (!auth()->user()->isSuperAdmin()) {
+            return redirect()->back()->with('error', 'Only Superadmins can approve accounts.');
+        }
+
+        $user = User::findOrFail($id);
+        $user->update(['is_approved' => true]);
+
+        return redirect()->back()->with('success', "Account for {$user->name} has been approved.");
+    }
+
+    public function destroyUser($id)
+    {
+        if (!auth()->user()->isSuperAdmin()) {
+            return redirect()->back()->with('error', 'Only Superadmins can delete accounts.');
+        }
+
+        $user = User::findOrFail($id);
+        
+        // Prevent deleting yourself
+        if ($user->id === auth()->id()) {
+            return redirect()->back()->with('error', 'You cannot delete your own account.');
+        }
+
+        $name = $user->name;
+        $user->delete();
+
+        return redirect()->back()->with('success', "Account for {$name} has been deleted.");
     }
 
     public function subjects(Request $request)
@@ -162,7 +204,32 @@ class AdminController extends Controller
         $teachers = Teacher::with('user')->get()->sortBy('user.name');
         $students = Student::with('user')->get()->sortBy('user.name');
         
-        return view('admin.courses', compact('classes', 'subjects', 'teachers', 'students', 'classGroups'));
+        // Fetch last 5 activities for sidebar
+        $recentActivities = ActivityLog::orderBy('id', 'desc')->limit(5)->get()->map(function($log) {
+            return [
+                'action' => $log->action,
+                'target' => $log->target,
+                'time' => $log->created_at->format('h:i A'),
+                'type' => 'system'
+            ];
+        });
+
+        if ($recentActivities->isEmpty()) {
+            $recentActivities = Attendance::with(['student.user', 'session.classRoom.subject'])
+                ->orderBy('id', 'desc')
+                ->limit(5)
+                ->get()
+                ->map(function($att) {
+                    return [
+                        'action' => 'INSERT',
+                        'target' => ($att->student && $att->student->user ? $att->student->user->name : 'Unknown') . ' @ ' . ($att->session && $att->session->classRoom && $att->session->classRoom->subject ? $att->session->classRoom->subject->name : 'Unknown'),
+                        'time' => $att->created_at->format('h:i A'),
+                        'type' => 'attendance'
+                    ];
+                });
+        }
+        
+        return view('admin.courses', compact('classes', 'subjects', 'teachers', 'students', 'classGroups', 'recentActivities'));
     }
 
     public function classes(Request $request)
@@ -179,6 +246,47 @@ class AdminController extends Controller
         $majors = Major::with('department')->orderBy('name')->get();
         $departments = Department::orderBy('name')->get();
         return view('admin.groups', compact('classGroups', 'majors', 'departments'));
+    }
+
+    public function permissions(Request $request)
+    {
+        $query = \App\Models\StudentPermission::with(['student.user']);
+        
+        if ($request->filled('search')) {
+            $q = $request->search;
+            $query->whereHas('student.user', function($u) use ($q) {
+                $u->where('name', 'like', "%$q%")
+                  ->orWhere('email', 'like', "%$q%");
+            })->orWhereHas('student', function($s) use ($q) {
+                $s->where('student_code', 'like', "%$q%");
+            });
+        }
+
+        $permissions = $query->latest()->paginate(10)->appends($request->all());
+        $students = Student::with('user')->get()->sortBy('user.name');
+        
+        return view('admin.permissions', compact('permissions', 'students'));
+    }
+
+    public function storePermission(Request $request)
+    {
+        $request->validate([
+            'student_id' => 'required|exists:students,id',
+            'start_date' => 'required|date',
+            'end_date'   => 'required|date|after_or_equal:start_date',
+            'reason'     => 'required|string',
+            'type'       => 'required|string'
+        ]);
+
+        \App\Models\StudentPermission::create($request->all());
+
+        return redirect()->back()->with('success', 'Permission assigned successfully.');
+    }
+
+    public function destroyPermission($id)
+    {
+        \App\Models\StudentPermission::findOrFail($id)->delete();
+        return redirect()->back()->with('success', 'Permission removed.');
     }
 
     public function settings()
