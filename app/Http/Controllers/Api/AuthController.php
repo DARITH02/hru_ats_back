@@ -16,20 +16,53 @@ class AuthController extends Controller
     public function login(Request $request)
     {
         $request->validate([
-            'email' => 'required|email',
+            'email' => 'required',
             'password' => 'required',
         ]);
 
-        $user = User::where('email', $request->email)->first();
+        $loginInput = $request->email;
+        $user = User::where('email', $loginInput)
+            ->orWhere('phone', $loginInput)
+            ->orWhereHas('student', function($q) use ($loginInput) {
+                $q->where('student_code', $loginInput);
+            })
+            ->first();
 
-        if (!$user || !Hash::check($request->password, $user->password)) {
+        if (!$user) {
             throw ValidationException::withMessages([
                 'email' => ['The provided credentials are incorrect.'],
             ]);
         }
 
+        if ($user->role === 'student') {
+            $student = \App\Models\Student::where('user_id', $user->id)->first();
+            if (!$student || ($student->student_code !== $request->password && !Hash::check($request->password, $user->password))) {
+                throw ValidationException::withMessages([
+                    'email' => ['The provided credentials are incorrect.'],
+                ]);
+            }
+        } else {
+            if (!Hash::check($request->password, $user->password)) {
+                throw ValidationException::withMessages([
+                    'email' => ['The provided credentials are incorrect.'],
+                ]);
+            }
+        }
+
         $deviceName = $request->device_name ?? 'web-dashboard';
         $token = $user->createToken($deviceName)->plainTextToken;
+
+        $studentData = null;
+        if ($user->role === 'student') {
+            $student = \App\Models\Student::where('user_id', $user->id)->first();
+            if ($student) {
+                $studentData = [
+                    'student_code' => $student->student_code,
+                    'group_id' => $student->group_id,
+                    'id' => $student->id
+                ];
+            }
+        }
 
         return response()->json([
             'success' => true,
@@ -39,6 +72,7 @@ class AuthController extends Controller
                 'name' => $user->name,
                 'email' => $user->email,
                 'role' => $user->role,
+                'student' => $studentData
             ]
         ]);
     }
@@ -61,7 +95,26 @@ class AuthController extends Controller
      */
     public function profile(Request $request)
     {
-        return response()->json($request->user());
+        $user = $request->user();
+        $studentData = null;
+        if ($user->role === 'student') {
+            $student = \App\Models\Student::where('user_id', $user->id)->first();
+            if ($student) {
+                $studentData = [
+                    'student_code' => $student->student_code,
+                    'group_id' => $student->group_id,
+                    'id' => $student->id
+                ];
+            }
+        }
+
+        return response()->json([
+            'id' => $user->id,
+            'name' => $user->name,
+            'email' => $user->email,
+            'role' => $user->role,
+            'student' => $studentData
+        ]);
     }
 
     /**

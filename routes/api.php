@@ -108,6 +108,8 @@ Route::middleware('auth:sanctum')->group(function () {
 });
 
 // 🎓 PUBLIC STUDENT CHECK-IN
+Route::get('/student/portal', [AttendanceController::class, 'getPortalData'])->middleware('auth:sanctum');
+Route::get('/student/active-session', [AttendanceController::class, 'getActiveSession'])->middleware('auth:sanctum');
 Route::get('/student/scan/{sessionId}', [AttendanceController::class, 'getScanInfo']);
 Route::post('/student/verify', [AttendanceController::class, 'verify']);
 Route::post('/student/history', [AttendanceController::class, 'getStudentHistoryByCode']);

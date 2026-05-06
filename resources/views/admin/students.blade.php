@@ -46,7 +46,7 @@
         <div class="modal-head">
             <div style="display:flex;align-items:center;gap:10px">
                 <div id="modalAvatarPreview"
-                    style="width:32px;height:32px;border-radius:50%;background:linear-gradient(135deg,var(--accent),var(--violet));display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;color:#fff;letter-spacing:.04em">
+                    style="width:32px;height:32px;border-radius:50%;background:#2C3E50;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;color:#fff;letter-spacing:.04em">
                     ?
                 </div>
                 <span id="studentModalTitle" class="modal-title">Add Student</span>
@@ -95,7 +95,7 @@
                         <select id="modalMajor" name="major_id" class="form-input" required>
                             <option value="">Select Major...</option>
                             @foreach($majors as $m)
-                                <option value="{{ $m->id }}">{{ strtoupper($m->name) }}</option>
+                                <option value="{{ $m->id }}">{{ strtoupper($m->name) }} [{{ $m->id }}]</option>
                             @endforeach
                         </select>
                     </div>
@@ -105,7 +105,7 @@
                         <select id="modalGroup" name="group_id" class="form-input" required>
                             <option value="">Select Group...</option>
                             @foreach($classGroups as $g)
-                                <option value="{{ $g->id }}">{{ $g->name }} (Year {{ $g->year_level }})</option>
+                                <option value="{{ $g->id }}">{{ $g->name }} (Year {{ $g->year_level }}) [{{ $g->id }}]</option>
                             @endforeach
                         </select>
                     </div>
@@ -123,10 +123,17 @@
                     </div>
                 </div>
 
-                {{-- Email --}}
-                <div class="form-group" style="margin-bottom:0">
-                    <label class="form-label">Institutional Email</label>
-                    <input id="modalEmail" class="form-input" type="email" placeholder="student@university.edu">
+                <div class="form-grid-2" style="margin-bottom:0;margin-top:12px;">
+                    {{-- Email --}}
+                    <div class="form-group" style="margin-bottom:0">
+                        <label class="form-label">Institutional Email</label>
+                        <input id="modalEmail" class="form-input" type="email" placeholder="student@university.edu">
+                    </div>
+                    {{-- Phone --}}
+                    <div class="form-group" style="margin-bottom:0">
+                        <label class="form-label">Phone Number</label>
+                        <input id="modalPhone" class="form-input" type="text" placeholder="+855 12 345 678">
+                    </div>
                 </div>
             </div>
 
@@ -151,7 +158,7 @@
     <div class="modal-box" style="max-width:480px; border-radius:28px; overflow-y:auto; max-height:90vh; border:none; padding:0">
         <div class="modal-body" style="padding:0; position:relative">
             {{-- Profile Header --}}
-            <div style="background:linear-gradient(135deg, var(--accent) 0%, var(--violet) 100%); padding:40px 30px 60px; color:white; position:relative">
+            <div style="background-color: #34D399; padding:40px 30px 60px; color:white; position:relative">
                 <button onclick="closeModal('profileModal')" style="position:absolute; top:20px; right:20px; background:rgba(255,255,255,0.15); border:none; width:32px; height:32px; border-radius:50%; color:white; display:flex; align-items:center; justify-content:center; cursor:pointer; transition:all 0.2s">
                     <svg width="12" height="12" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path d="M6 18L18 6M6 6l12 12" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
                 </button>
@@ -165,7 +172,7 @@
             </div>
 
             {{-- Info Cards (Floating) --}}
-            <div style="margin-top:-35px; padding:0 24px 30px">
+            <div style="margin-top:-10px; padding:0 24px 30px">
                 <div style="background:var(--surface2); border:1px solid var(--border); border-radius:20px; box-shadow:var(--shadow-xl); padding:24px">
                     <div style="display:grid; grid-template-columns: 1.2fr 0.8fr; gap:20px; align-items:center">
                         <div>
@@ -178,6 +185,16 @@
                                 <div>
                                     <div style="font-family:var(--font-mono); font-size:8px; color:var(--muted); text-transform:uppercase; margin-bottom:4px">MAJOR</div>
                                     <div style="font-size:13px; font-weight:700; color:var(--text2)" id="smMajor">Technology</div>
+                                </div>
+                            </div>
+                            <div style="margin-top:15px; display:grid; grid-template-columns: 1fr 1fr; gap:15px">
+                                <div>
+                                    <div style="font-family:var(--font-mono); font-size:8px; color:var(--muted); text-transform:uppercase; margin-bottom:4px">EMAIL</div>
+                                    <div style="font-size:11px; font-weight:700; color:var(--text2); overflow:hidden; text-overflow:ellipsis" id="smEmail">-</div>
+                                </div>
+                                <div>
+                                    <div style="font-family:var(--font-mono); font-size:8px; color:var(--muted); text-transform:uppercase; margin-bottom:4px">PHONE</div>
+                                    <div style="font-size:11px; font-weight:700; color:var(--text2)" id="smPhone">-</div>
                                 </div>
                             </div>
                         </div>
@@ -415,6 +432,7 @@
                     <tr data-id="{{ $student->id }}"
                         data-name="{{ strtolower($student->user->name) }}"
                         data-email="{{ strtolower($student->user->email) }}"
+                        data-phone="{{ $student->user->phone ?? '—' }}"
                         data-code="{{ strtolower($student->student_code) }}"
                         data-major-id="{{ $student->major_id }}"
                         data-year="{{ $student->year_level ?? 1 }}"
@@ -537,6 +555,7 @@
                         data-id="{{ $student->id }}"
                         data-name="{{ strtolower($student->user->name) }}"
                         data-email="{{ strtolower($student->user->email) }}"
+                        data-phone="{{ $student->user->phone ?? '—' }}"
                         data-code="{{ strtolower($student->student_code) }}"
                         data-major-id="{{ $student->major_id }}"
                         data-year="{{ $student->year_level ?? 1 }}"
@@ -724,6 +743,8 @@ async function openProfile(el) {
         document.getElementById('smStatusBadge').textContent = (s.status || 'ACTIVE').toUpperCase() + ' STUDENT';
         document.getElementById('smRate').textContent = s.attendance_rate + '%';
         document.getElementById('smJoinedDate').textContent = 'JOINED AT ' + s.joined_at;
+        document.getElementById('smEmail').textContent = s.email || '-';
+        document.getElementById('smPhone').textContent = s.phone || '-';
 
         document.getElementById('profileEditBtn').onclick = () => {
             closeModal('profileModal');
@@ -782,6 +803,7 @@ function openEditModal(row) {
     document.getElementById('modalStudentId').value = row.dataset.id;
     document.getElementById('modalName').value  = name;
     document.getElementById('modalEmail').value = row.dataset.email || '';
+    document.getElementById('modalPhone').value = row.dataset.phone && row.dataset.phone !== '—' ? row.dataset.phone : '';
     document.getElementById('modalCode').value  = row.dataset.code || '';
     document.getElementById('modalMajor').value = row.dataset.majorId || '';
     document.getElementById('modalYear').value  = row.dataset.year || '1';
@@ -803,6 +825,7 @@ document.getElementById('studentForm').addEventListener('submit', async e => {
     const payload = Object.fromEntries(formData.entries());
     payload.name = document.getElementById('modalName').value;
     payload.email = document.getElementById('modalEmail').value;
+    payload.phone = document.getElementById('modalPhone').value;
     payload.student_code = document.getElementById('modalCode').value;
 
     try {

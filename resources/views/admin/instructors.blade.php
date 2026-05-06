@@ -362,7 +362,7 @@
                         data-status="{{ $status }}"
                         data-spec="{{ strtolower($spec) }}"
                         data-email="{{ strtolower($email) }}"
-                        data-phone="{{ $instructor->phone ?? '—' }}"
+                        data-phone="{{ $instructor->user->phone ?? '—' }}"
                         data-classes="{{ $classes }}"
                         class="fade-up">
 
@@ -487,7 +487,7 @@
                         data-status="{{ $instructor->status ?? 'active' }}"
                         data-spec="{{ strtolower($instructor->specialization ?? '') }}"
                         data-email="{{ strtolower($instructor->user->email ?? '') }}"
-                        data-phone="{{ $instructor->phone ?? '—' }}"
+                        data-phone="{{ $instructor->user->phone ?? '—' }}"
                         data-classes="{{ $cls2 }}"
                         style="background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius-lg);padding:20px 18px;display:flex;flex-direction:column;align-items:center;gap:10px;text-align:center;transition:all .2s;cursor:pointer;position:relative;overflow:hidden"
                         onmouseenter="this.style.borderColor='var(--border2)';this.style.transform='translateY(-3px)';this.style.boxShadow='var(--shadow-md)'"

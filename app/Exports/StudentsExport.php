@@ -16,7 +16,7 @@ class StudentsExport implements FromCollection, WithHeadings, WithMapping
 
     public function headings(): array
     {
-        return ['ID', 'Student Code', 'Name', 'Email', 'Group', 'Major', 'Year Level'];
+        return ['ID', 'Student Code', 'Name', 'Email', 'Phone', 'Group', 'Major', 'Year Level'];
     }
 
     public function map($student): array
@@ -26,6 +26,7 @@ class StudentsExport implements FromCollection, WithHeadings, WithMapping
             $student->student_code,
             $student->user->name,
             $student->user->email,
+            $student->user->phone,
             $student->group->name ?? 'N/A',
             $student->major->name ?? 'N/A',
             $student->year_level

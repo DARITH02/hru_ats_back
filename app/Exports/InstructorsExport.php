@@ -26,7 +26,7 @@ class InstructorsExport implements FromCollection, WithHeadings, WithMapping
             $teacher->user->name,
             $teacher->user->email,
             $teacher->department->name ?? 'N/A',
-            $teacher->phone,
+            $teacher->user->phone,
             $teacher->status,
             $teacher->classes()->count()
         ];

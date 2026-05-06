@@ -490,11 +490,20 @@ class TeacherController extends Controller
 
         $history = $sessions->map(function ($session) use ($attendance) {
             $record = $attendance->get($session->id);
+            $status = 'ABSENT';
+            $isFuture = Carbon::parse($session->start_time)->isFuture();
+
+            if ($record) {
+                $status = strtoupper($record->status);
+            } elseif ($session->status === 'scheduled' || $isFuture) {
+                $status = 'SCHEDULED';
+            }
+
             return [
                 'session_id' => $session->id,
                 'subject' => $session->classRoom->subject->name ?? 'N/A',
                 'date' => $session->start_time,
-                'status' => $record ? strtoupper($record->status) : 'ABSENT',
+                'status' => $status,
                 'scan_time' => $record ? Carbon::parse($record->scan_time)->format('H:i') : null,
                 'method' => $record ? strtoupper($record->method) : null,
             ];

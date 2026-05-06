@@ -755,7 +755,8 @@ class AdminController extends Controller
     {
         $request->validate([
             'name' => 'required',
-            'email' => 'required|email|unique:users,email',
+            'email' => 'nullable|email|unique:users,email',
+            'phone' => 'nullable|string',
             'student_code' => 'required|unique:students,student_code',
             'group_id' => 'required|exists:class_groups,id',
             'major_id' => 'required|exists:majors,id',
@@ -766,6 +767,7 @@ class AdminController extends Controller
             $user = User::create([
                 'name' => $request->name,
                 'email' => $request->email,
+                'phone' => $request->phone,
                 'password' => Hash::make('password123'),
                 'role' => 'student',
             ]);
@@ -793,7 +795,8 @@ class AdminController extends Controller
         
         $request->validate([
             'name'         => 'sometimes|required',
-            'email'        => 'sometimes|required|email|unique:users,email,' . $student->user_id,
+            'email'        => 'sometimes|nullable|email|unique:users,email,' . $student->user_id,
+            'phone'        => 'sometimes|nullable|string',
             'student_code' => 'sometimes|required|unique:students,student_code,' . $student->id,
             'group_id'     => 'sometimes|required|exists:class_groups,id',
             'major_id'     => 'sometimes|required|exists:majors,id',
@@ -802,7 +805,7 @@ class AdminController extends Controller
 
         DB::beginTransaction();
         try {
-            $userUpdates = $request->only(['name', 'email']);
+            $userUpdates = $request->only(['name', 'email', 'phone']);
             if (!empty($userUpdates)) {
                 $student->user->update($userUpdates);
             }
@@ -883,8 +886,10 @@ class AdminController extends Controller
             'student' => [
                 'id'           => $student->id,
                 'name'         => $student->user->name ?? 'N/A',
+                'email'        => $student->user->email ?? 'N/A',
+                'phone'        => $student->user->phone ?? 'N/A',
                 'student_code' => $student->student_code,
-                'major'        => $student->major ?? 'Technology',
+                'major'        => $student->major->name ?? 'Technology',
                 'year_level'   => $student->year_level ?? '1',
                 'status'       => $student->status ?? 'active',
                 'joined_at'    => $student->created_at->format('M Y'),
@@ -954,6 +959,7 @@ class AdminController extends Controller
         $request->validate([
             'name' => 'required',
             'email' => 'required|email|unique:users,email',
+            'phone' => 'nullable|string',
             'password' => 'required|min:6',
         ]);
 
@@ -962,6 +968,7 @@ class AdminController extends Controller
             $user = User::create([
                 'name' => $request->name,
                 'email' => $request->email,
+                'phone' => $request->phone,
                 'password' => Hash::make($request->password),
                 'role' => 'teacher',
             ]);
@@ -970,7 +977,6 @@ class AdminController extends Controller
                 'user_id' => $user->id,
                 'department_id' => $request->department_id,
                 'specialization' => $request->specialization,
-                'phone' => $request->phone,
                 'status' => $request->status ?? 'active',
             ]);
 
@@ -988,12 +994,12 @@ class AdminController extends Controller
         
         DB::beginTransaction();
         try {
-            $teacher->user->update($request->only(['name', 'email']));
+            $teacher->user->update($request->only(['name', 'email', 'phone']));
             if ($request->password) {
                 $teacher->user->update(['password' => Hash::make($request->password)]);
             }
             
-            $teacher->update($request->only(['department_id', 'specialization', 'phone', 'status']));
+            $teacher->update($request->only(['department_id', 'specialization', 'status']));
             
             DB::commit();
             return response()->json(['success' => true, 'teacher' => $teacher->load('user')]);
@@ -1088,9 +1094,11 @@ class AdminController extends Controller
                 // name, email, student_code, group_id, major_id, year_level
                 if (count($data) < 3) continue;
 
+                $email = !empty($data[1]) ? $data[1] : null;
+
                 $user = User::create([
                     'name' => $data[0],
-                    'email' => $data[1],
+                    'email' => $email,
                     'password' => Hash::make('student123'),
                     'role' => 'student',
                 ]);

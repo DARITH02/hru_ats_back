@@ -14,19 +14,44 @@ class WebAuthController extends Controller
 
     public function login(Request $request)
     {
-        $credentials = $request->validate([
-            'email' => 'required|email',
+        $request->validate([
+            'email' => 'required', // This field is used as 'username' (can be email, phone or code)
             'password' => 'required',
         ]);
 
-        if (Auth::attempt($credentials)) {
-            $user = Auth::user();
-            if (!$user->is_approved) {
-                Auth::logout();
-                return back()->withErrors(['email' => 'Your account is pending approval by a Superadmin.'])->onlyInput('email');
+        $loginInput = $request->email;
+        
+        // Find user by email, phone, or student_code
+        $user = User::where('email', $loginInput)
+            ->orWhere('phone', $loginInput)
+            ->orWhereHas('student', function($q) use ($loginInput) {
+                $q->where('student_code', $loginInput);
+            })
+            ->first();
+
+        if ($user) {
+            // Check password or student_code (if student)
+            $authenticated = false;
+            if ($user->role === 'student') {
+                $student = \App\Models\Student::where('user_id', $user->id)->first();
+                if ($student && ($student->student_code === $request->password || Hash::check($request->password, $user->password))) {
+                    $authenticated = true;
+                }
+            } else {
+                if (Hash::check($request->password, $user->password)) {
+                    $authenticated = true;
+                }
             }
-            $request->session()->regenerate();
-            return redirect()->intended('dashboard');
+
+            if ($authenticated) {
+                if (!$user->is_approved && $user->role !== 'student') {
+                    return back()->withErrors(['email' => 'Your account is pending approval by a Superadmin.'])->onlyInput('email');
+                }
+                
+                Auth::login($user);
+                $request->session()->regenerate();
+                return redirect()->intended('dashboard');
+            }
         }
 
         return back()->withErrors(['email' => 'Invalid credentials'])->onlyInput('email');
