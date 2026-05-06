@@ -223,4 +223,88 @@ class AttendanceController extends Controller
             'history' => $history
         ]);
     }
+
+    public function getStudentClasses(Request $request)
+    {
+        $user = $request->user();
+        $student = \App\Models\Student::with('group')->where('user_id', $user->id)->first();
+        if (!$student) return response()->json(['message' => 'Student record not found'], 404);
+
+        $classes = \App\Models\ClassRoom::with(['subject', 'teacher.user'])
+            ->where('group_id', $student->group_id)
+            ->get();
+
+        return response()->json($classes->map(function ($class) use ($student) {
+            $sessions = \App\Models\AttendanceSession::where('class_id', $class->id)->get();
+            $sessionIds = $sessions->pluck('id');
+            $attendance = \App\Models\Attendance::where('student_id', $student->id)
+                ->whereIn('session_id', $sessionIds)
+                ->whereIn('status', ['present', 'late', 'PRESENT', 'LATE'])
+                ->count();
+            
+            $total = $sessions->count();
+            $rate = $total > 0 ? round(($attendance / $total) * 100) : 0;
+
+            return [
+                'id' => $class->id,
+                'name' => $class->subject->name ?? 'N/A',
+                'code' => $class->subject->code ?? 'N/A',
+                'teacher' => $class->teacher->user->name ?? 'N/A',
+                'sessions_count' => $total,
+                'attended_count' => $attendance,
+                'attendance_rate' => $rate,
+            ];
+        }));
+    }
+
+    public function getStudentClassHistory(Request $request, $classId)
+    {
+        $user = $request->user();
+        $student = \App\Models\Student::where('user_id', $user->id)->first();
+        if (!$student) return response()->json(['message' => 'Student record not found'], 404);
+
+        $class = \App\Models\ClassRoom::with(['subject', 'teacher.user'])->findOrFail($classId);
+        
+        if ($class->group_id !== $student->group_id) {
+            return response()->json(['message' => 'Unauthorized'], 403);
+        }
+
+        $sessions = \App\Models\AttendanceSession::where('class_id', $classId)
+            ->orderBy('id', 'desc')
+            ->get();
+
+        $attendance = \App\Models\Attendance::where('student_id', $student->id)
+            ->whereIn('session_id', $sessions->pluck('id'))
+            ->get()
+            ->keyBy('session_id');
+
+        $history = $sessions->map(function ($session) use ($attendance) {
+            $record = $attendance->get($session->id);
+            $status = 'ABSENT';
+            $isFuture = \Carbon\Carbon::parse($session->start_time)->isFuture();
+
+            if ($record) {
+                $status = strtoupper($record->status);
+            } elseif ($session->status === 'scheduled' || $isFuture) {
+                $status = 'SCHEDULED';
+            }
+
+            return [
+                'id' => $session->id,
+                'date' => $session->start_time,
+                'status' => $status,
+                'scan_time' => $record ? \Carbon\Carbon::parse($record->scan_time)->format('H:i') : null,
+                'method' => $record ? strtoupper($record->method) : null,
+            ];
+        });
+
+        return response()->json([
+            'class' => [
+                'id' => $class->id,
+                'name' => $class->subject->name,
+                'teacher' => $class->teacher->user->name,
+            ],
+            'history' => $history
+        ]);
+    }
 }

@@ -22,6 +22,7 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::get('/teacher/summary', [TeacherController::class, 'getSummary']);
         Route::get('/teacher/classes', [TeacherController::class, 'getClasses']);
         Route::get('/teacher/classes/{classId}/sessions', [TeacherController::class, 'getSessionsByClass']);
+        Route::get('/teacher/classes/{classId}/students', [TeacherController::class, 'getStudentsByClass']);
         Route::get('/teacher/students', [TeacherController::class, 'getStudents']);
         Route::get('/teacher/sessions', [TeacherController::class, 'getSessions']);
         
@@ -108,8 +109,12 @@ Route::middleware('auth:sanctum')->group(function () {
 });
 
 // 🎓 PUBLIC STUDENT CHECK-IN
-Route::get('/student/portal', [AttendanceController::class, 'getPortalData'])->middleware('auth:sanctum');
-Route::get('/student/active-session', [AttendanceController::class, 'getActiveSession'])->middleware('auth:sanctum');
+Route::middleware('auth:sanctum')->group(function () {
+    Route::get('/student/portal', [AttendanceController::class, 'getPortalData']);
+    Route::get('/student/active-session', [AttendanceController::class, 'getActiveSession']);
+    Route::get('/student/classes', [AttendanceController::class, 'getStudentClasses']);
+    Route::get('/student/classes/{classId}/history', [AttendanceController::class, 'getStudentClassHistory']);
+});
 Route::get('/student/scan/{sessionId}', [AttendanceController::class, 'getScanInfo']);
 Route::post('/student/verify', [AttendanceController::class, 'verify']);
 Route::post('/student/history', [AttendanceController::class, 'getStudentHistoryByCode']);

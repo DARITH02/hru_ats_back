@@ -333,6 +333,53 @@ class TeacherController extends Controller
     }
 
     /**
+     * List all students in a specific class with attendance stats
+     */
+    public function getStudentsByClass(Request $request, $classId)
+    {
+        $user = $request->user();
+        $teacher = Teacher::where('user_id', $user->id)->first();
+        if (!$teacher) return response()->json(['error' => 'Teacher not found'], 404);
+
+        $class = \App\Models\ClassRoom::where('id', $classId)->where('teacher_id', $teacher->id)->firstOrFail();
+        
+        $students = \App\Models\Student::with(['user', 'group', 'major.department'])
+            ->where('group_id', $class->group_id)
+            ->get();
+
+        $sessionIds = \App\Models\AttendanceSession::where('class_id', $class->id)->pluck('id');
+        $totalSessions = $sessionIds->count();
+
+        return response()->json($students->map(function ($student) use ($class, $totalSessions, $sessionIds) {
+            $attended = \App\Models\Attendance::where('student_id', $student->id)
+                ->whereIn('session_id', $sessionIds)
+                ->whereIn('status', ['present', 'late', 'PRESENT', 'LATE'])
+                ->count();
+            
+            $percentage = $totalSessions > 0 ? round(($attended / $totalSessions) * 100) : 0;
+            
+            return [
+                'id' => $student->id,
+                'name' => $student->user->name ?? $student->name ?? 'Unknown',
+                'student_code' => $student->student_code,
+                'attendance_percentage' => $percentage,
+                'status' => $percentage > 85 ? 'Excellent' : ($percentage > 70 ? 'Good' : 'Warning'),
+                'group' => [
+                    'id' => $student->group_id,
+                    'name' => $student->group->name ?? 'Unknown',
+                ],
+                'major' => [
+                    'id' => $student->major_id,
+                    'name' => $student->major->name ?? 'Unknown',
+                ],
+                'department' => [
+                    'name' => $student->major->department->name ?? 'Unknown',
+                ]
+            ];
+        }));
+    }
+
+    /**
      * List all classes assigned to teacher
      */
     public function getClasses(Request $request)
@@ -343,7 +390,7 @@ class TeacherController extends Controller
         $teacher = Teacher::where('user_id', $user->id)->first();
         if (!$teacher) return response()->json(['error' => 'Teacher record not found'], 404);
 
-        $classes = \App\Models\ClassRoom::with('subject')
+        $classes = \App\Models\ClassRoom::with(['subject', 'group'])
             ->where('teacher_id', $teacher->id)
             ->get();
 
@@ -361,6 +408,7 @@ class TeacherController extends Controller
                 'name' => $class->subject->name ?? 'N/A',
                 'code' => $class->subject->code ?? 'N/A',
                 'room' => $class->room_number,
+                'group_name' => $class->group->name ?? 'N/A',
                 'schedule' => $class->schedule,
                 'sessions_count' => $sessionsCount,
                 'total_students_count' => $totalStudents,
