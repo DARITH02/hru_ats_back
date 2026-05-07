@@ -3,9 +3,11 @@
 namespace App\Exports;
 
 use App\Models\Attendance;
+use App\Models\StudentPermission;
 use Maatwebsite\Excel\Concerns\FromCollection;
 use Maatwebsite\Excel\Concerns\WithHeadings;
 use Maatwebsite\Excel\Concerns\WithMapping;
+use Carbon\Carbon;
 
 class AttendanceExport implements FromCollection, WithHeadings, WithMapping
 {
@@ -17,30 +19,42 @@ class AttendanceExport implements FromCollection, WithHeadings, WithMapping
     }
 
     /**
-    * @return \Illuminate\Support\Collection
-    */
+     * @return \Illuminate\Support\Collection
+     */
     public function collection()
     {
         $session = \App\Models\AttendanceSession::with('classRoom.group')->find($this->sessionId);
         $groupId = $session->classRoom->group_id ?? null;
-        
+
         $attendances = Attendance::where('session_id', $this->sessionId)->get()->keyBy('student_id');
-        
+
         if ($groupId) {
             $students = \App\Models\Student::with(['user', 'major', 'group'])
                 ->where('group_id', $groupId)
                 ->get();
-                
-            return $students->map(function($student) use ($attendances, $session) {
+
+            // Get active permissions for this session's date
+            $date = Carbon::parse($session->start_time)->toDateString();
+            $permissions = StudentPermission::where('start_date', '<=', $date)
+                ->where('end_date', '>=', $date)
+                ->whereIn('student_id', $students->pluck('id'))
+                ->get()
+                ->keyBy('student_id');
+
+            return $students->map(function ($student) use ($attendances, $session, $permissions) {
                 $att = $attendances->get($student->id);
-                return (object)[
-                    'id'          => $student->student_code ?? $student->id,
-                    'name'        => $student->user->name ?? $student->name,
-                    'status'      => $att ? $att->status : 'absent',
-                    'time'        => $att ? $att->scan_time : 'N/A',
-                    'major'       => $student->major->name ?? 'N/A',
-                    'year'        => $student->group->year_level ?? 'N/A',
+                $perm = $permissions->get($student->id);
+                
+                $status = $att ? $att->status : ($perm ? 'excused' : 'absent');
+                
+                return (object) [
+                    'id' => $student->student_code ?? $student->id,
+                    'name' => $student->user->name ?? $student->name,
+                    'status' => $status,
+                    'time' => $att ? $att->scan_time : 'N/A',
+                    'major'       => $student->major->name ?? ($student->group->major->name ?? 'N/A'),
                     'group'       => $student->group->name ?? 'N/A',
+                    'year_level'  => $student->group->year_level ?? 'N/A',
                     'room'        => $session->classRoom->room_number ?? 'N/A',
                     'subject'     => $session->classRoom->subject->name ?? 'N/A'
                 ];
@@ -60,16 +74,16 @@ class AttendanceExport implements FromCollection, WithHeadings, WithMapping
             'Status',
             'Scan Time',
             'Major',
-            'Year Level',
             'Class Group',
+            'Year Level',
             'Room',
             'Subject'
         ];
     }
 
     /**
-    * @var mixed $item
-    */
+     * @var mixed $item
+     */
     public function map($item): array
     {
         if ($item instanceof \App\Models\Attendance) {
@@ -79,8 +93,8 @@ class AttendanceExport implements FromCollection, WithHeadings, WithMapping
                 ucfirst($item->status),
                 $item->scan_time ?? 'N/A',
                 $item->student->major->name ?? 'N/A',
-                $item->student->group->year_level ?? 'N/A',
                 $item->student->group->name ?? 'N/A',
+                $item->student->group->year_level ?? 'N/A',
                 $item->session->classRoom->room_number ?? 'N/A',
                 $item->session->classRoom->subject->name ?? 'N/A'
             ];
@@ -92,8 +106,8 @@ class AttendanceExport implements FromCollection, WithHeadings, WithMapping
             ucfirst($item->status),
             $item->time,
             $item->major,
-            $item->year,
             $item->group,
+            $item->year_level ?? 'N/A',
             $item->room,
             $item->subject
         ];

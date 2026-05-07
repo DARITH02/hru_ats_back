@@ -9,9 +9,13 @@ use App\Models\ClassRoom;
 use Maatwebsite\Excel\Concerns\FromCollection;
 use Maatwebsite\Excel\Concerns\WithHeadings;
 use Maatwebsite\Excel\Concerns\WithMapping;
+use Maatwebsite\Excel\Concerns\WithEvents;
+use Maatwebsite\Excel\Concerns\WithCustomStartCell;
+use Maatwebsite\Excel\Concerns\ShouldAutoSize;
+use Maatwebsite\Excel\Events\AfterSheet;
 use Carbon\Carbon;
 
-class SystemSummaryExport implements FromCollection, WithHeadings, WithMapping
+class SystemSummaryExport implements FromCollection, WithHeadings, WithMapping, WithEvents, WithCustomStartCell, ShouldAutoSize
 {
     protected $academicYear;
     protected $semester;
@@ -22,6 +26,31 @@ class SystemSummaryExport implements FromCollection, WithHeadings, WithMapping
         $this->academicYear = $academicYear;
         $this->semester = $semester;
         $this->reportType = $reportType;
+    }
+    public function startCell(): string
+    {
+        return 'A4';
+    }
+
+    public function registerEvents(): array
+    {
+        return [
+            AfterSheet::class => function(AfterSheet $event) {
+                $type = $this->reportType === 'half' ? 'MID-TERM' : 'FULL SEMESTER';
+                $sheet = $event->sheet->getDelegate();
+                
+                $sheet->setCellValue('A1', 'Report Type: ' . $type);
+                $sheet->setCellValue('C1', 'Academic Year: ' . $this->academicYear);
+                $sheet->setCellValue('E1', 'Semester: ' . $this->semester);
+
+                // Styling
+                $sheet->getStyle('A1:E1')->getFont()->setBold(true);
+                $sheet->getStyle('A4:H4')->getFont()->setBold(true);
+                $sheet->getStyle('A4:H4')->getFill()
+                    ->setFillType(\PhpOffice\PhpSpreadsheet\Style\Fill::FILL_SOLID)
+                    ->getStartColor()->setARGB('EEEEEE');
+            },
+        ];
     }
 
     public function collection()
@@ -65,22 +94,22 @@ class SystemSummaryExport implements FromCollection, WithHeadings, WithMapping
 
             if ($sessionIds->isEmpty()) continue;
 
-            // Get students in the group
-            $students = Student::where('group_id', $class->group_id)->get();
+            // Get students in the group with user relationship
+            $students = Student::where('group_id', $class->group_id)->with('user')->get();
 
             foreach ($students as $student) {
                 $presentCount = Attendance::where('student_id', $student->id)
                     ->whereIn('session_id', $sessionIds)
-                    ->whereIn('status', ['present', 'late', 'PRESENT', 'LATE'])
+                    ->whereIn('status', ['present', 'late', 'excused', 'PRESENT', 'LATE', 'EXCUSED'])
                     ->count();
 
                 $totalSessions = $sessions->count();
-                $absentCount = $totalSessions - $presentCount;
+                $absentCount = max(0, $totalSessions - $presentCount);
                 $rate = $totalSessions > 0 ? round(($presentCount / $totalSessions) * 100, 2) : 0;
 
                 $data->push([
                     'student_code' => $student->student_code,
-                    'student_name' => $student->name,
+                    'student_name' => $student->user->name ?? 'N/A',
                     'subject'      => $class->subject->name ?? 'N/A',
                     'class_name'   => $class->group->name ?? 'N/A',
                     'total'        => $totalSessions,
@@ -96,12 +125,7 @@ class SystemSummaryExport implements FromCollection, WithHeadings, WithMapping
 
     public function headings(): array
     {
-        $type = $this->reportType === 'half' ? 'MID-TERM' : 'FULL SEMESTER';
         return [
-            'Report Type: ' . $type,
-            'Academic Year: ' . $this->academicYear,
-            'Semester: ' . $this->semester,
-            '',
             'Student ID',
             'Student Name',
             'Subject',
@@ -115,10 +139,7 @@ class SystemSummaryExport implements FromCollection, WithHeadings, WithMapping
 
     public function map($row): array
     {
-        // Heading logic in Laravel Excel is handled by WithHeadings
-        // But the first few rows of collection can be header-like data or we can just return the data.
         return [
-            '', '', '', '', // Padding for the extra info in headings
             $row['student_code'],
             $row['student_name'],
             $row['subject'],

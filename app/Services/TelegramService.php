@@ -44,13 +44,12 @@ class TelegramService
             $className = $session->classRoom->group->name ?? 'Unknown Class';
             $room = $session->classRoom->room_number ?? 'TBD';
             $teacher = $session->classRoom->teacher->user->name ?? 'Unknown';
-            $yearLevel = $session->classRoom->group->year_level ?? 'N/A';
             $date = $session->start_time;
 
             // Use HTML for better reliability with names containing special chars
             $message = "📊 <b>Attendance Report Ready</b>\n\n"
                      . "📖 <b>Subject:</b> " . e($subjectName) . " (" . e($subjectCode) . ")\n"
-                     . "🏫 <b>Class:</b> " . e($className) . " (Year " . e($yearLevel) . ")\n"
+                     . "🏫 <b>Class:</b> " . e($className) . "\n"
                      . "📍 <b>Room:</b> " . e($room) . "\n"
                      . "👨‍🏫 <b>Instructor:</b> " . e($teacher) . "\n"
                      . "📅 <b>Date:</b> " . e($date) . "\n\n"

@@ -77,19 +77,7 @@
                         <label class="form-label">Student Code <span class="req">*</span></label>
                         <input id="modalCode" class="form-input" type="text" required placeholder="STUD-202X-XXXX">
                     </div>
-                    {{-- Year Level --}}
-                    <div class="form-group">
-                        <label class="form-label">Year Level</label>
-                        <select id="modalYear" class="form-input">
-                            <option value="1">1st Year</option>
-                            <option value="2">2nd Year</option>
-                            <option value="3">3rd Year</option>
-                            <option value="4">4th Year</option>
-                        </select>
-                    </div>
-                </div>
-
-                <div class="form-grid-2">
+                    {{-- Major Selection --}}
                     <div class="form-group">
                         <label class="form-label">Major Selection <span class="req">*</span></label>
                         <select id="modalMajor" name="major_id" class="form-input" required>
@@ -99,6 +87,9 @@
                             @endforeach
                         </select>
                     </div>
+                </div>
+
+                <div class="form-grid-2">
                     {{-- Class/Group Selection --}}
                     <div class="form-group">
                         <label class="form-label">Assign Group <span class="req">*</span></label>
@@ -109,9 +100,6 @@
                             @endforeach
                         </select>
                     </div>
-                </div>
-
-                <div class="form-grid-2">
                     {{-- Status --}}
                     <div class="form-group" style="margin-bottom:0">
                         <label class="form-label">Status</label>
@@ -143,7 +131,7 @@
                     <svg width="12" height="12" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 4v16m8-8H4"/>
                     </svg>
-                    <span id="modalSubmitLabel">ENROLL STUDENT</span>
+                    <span id="modalSubmitLabel">ADD NEW STUDENT</span>
                 </button>
             </div>
         </form>
@@ -177,17 +165,21 @@
                     <div style="display:grid; grid-template-columns: 1.2fr 0.8fr; gap:20px; align-items:center">
                         <div>
                             <div style="display:inline-block; font-family:var(--font-mono); font-size:9px; font-weight:800; color:var(--green); background:var(--green)11; padding:3px 12px; border-radius:20px; letter-spacing:0.05em; text-transform:uppercase; margin-bottom:12px" id="smStatusBadge">ACTIVE STUDENT</div>
-                            <div style="display:grid; grid-template-columns: 1fr 1fr; gap:15px">
+                            <div style="display:grid; grid-template-columns: 1fr; gap:15px">
                                 <div>
-                                    <div style="font-family:var(--font-mono); font-size:8px; color:var(--muted); text-transform:uppercase; margin-bottom:4px">YEAR LEVEL</div>
-                                    <div style="font-size:13px; font-weight:700; color:var(--text2)" id="smYear">1st Year</div>
+                                    <div style="font-family:var(--font-mono); font-size:8px; color:var(--muted); text-transform:uppercase; margin-bottom:4px">DEPARTMENT</div>
+                                    <div style="font-size:13px; font-weight:700; color:var(--text2)" id="smDept">Technology</div>
                                 </div>
                                 <div>
                                     <div style="font-family:var(--font-mono); font-size:8px; color:var(--muted); text-transform:uppercase; margin-bottom:4px">MAJOR</div>
-                                    <div style="font-size:13px; font-weight:700; color:var(--text2)" id="smMajor">Technology</div>
+                                    <div style="font-size:13px; font-weight:700; color:var(--accent)" id="smMajor">Computer Science</div>
                                 </div>
                             </div>
-                            <div style="margin-top:15px; display:grid; grid-template-columns: 1fr 1fr; gap:15px">
+                                <div style="margin-top:15px">
+                                    <div style="font-family:var(--font-mono); font-size:8px; color:var(--muted); text-transform:uppercase; margin-bottom:4px">YEAR LEVEL</div>
+                                    <div style="font-size:14px; font-weight:800; color:var(--text2)" id="smYear">1st Year</div>
+                                </div>
+                                <div style="margin-top:15px; display:grid; grid-template-columns: 1fr 1fr; gap:15px">
                                 <div>
                                     <div style="font-family:var(--font-mono); font-size:8px; color:var(--muted); text-transform:uppercase; margin-bottom:4px">EMAIL</div>
                                     <div style="font-size:11px; font-weight:700; color:var(--text2); overflow:hidden; text-overflow:ellipsis" id="smEmail">-</div>
@@ -308,7 +300,7 @@
             @endif
             <button onclick="openCreateModal()" class="btn-primary" style="gap:7px">
                 <svg width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 4v16m8-8H4"/></svg>
-                ENROLL STUDENT
+                ADD NEW STUDENT
             </button>
         </div>
     </div>
@@ -391,13 +383,6 @@
                 @endforeach
             </select>
 
-            <select class="filter-select" id="yearFilter" onchange="filterStudents()">
-                <option value="">ALL YEARS</option>
-                <option value="1" {{ request('year') == '1' ? 'selected' : '' }}>1ST YEAR</option>
-                <option value="2" {{ request('year') == '2' ? 'selected' : '' }}>2ND YEAR</option>
-                <option value="3" {{ request('year') == '3' ? 'selected' : '' }}>3RD YEAR</option>
-                <option value="4" {{ request('year') == '4' ? 'selected' : '' }}>4TH YEAR</option>
-            </select>
 
             <div class="toolbar-count"><span id="rowCount">{{ $students->count() }}</span> STUDENTS</div>
         </div>
@@ -426,7 +411,6 @@
                         $col   = $avatarColors[$loop->index % count($avatarColors)];
                         $init  = strtoupper(substr($student->user->name, 0, 2));
                         $major = $student->major ?? 'N/A';
-                        $year  = $student->year_level ?? 1;
                         $className = $student->classRoom->subject->name ?? 'Unassigned';
                     @endphp
                     <tr data-id="{{ $student->id }}"
@@ -435,7 +419,6 @@
                         data-phone="{{ $student->user->phone ?? '—' }}"
                         data-code="{{ strtolower($student->student_code) }}"
                         data-major-id="{{ $student->major_id }}"
-                        data-year="{{ $student->year_level ?? 1 }}"
                         data-group-id="{{ $student->group_id }}"
                         data-status="{{ $student->status }}"
                         data-rate="{{ 85 + ($loop->index % 15) }}"
@@ -453,9 +436,6 @@
                                 </div>
                                 <div>
                                     <div class="subject-name">{{ $student->user->name }}</div>
-                                    <div class="subject-id" style="color:var(--muted)">
-                                        LEVEL {{ $year }}
-                                    </div>
                                 </div>
                             </div>
                         </td>
@@ -471,9 +451,13 @@
                         <td>
                             <div style="display:flex;align-items:center;gap:6px">
                                 <div style="font-size:12px;color:var(--text2)">{{ $student->major->name ?? 'N/A' }}</div>
-                                <div style="font-family:var(--font-mono);font-size:8px;background:var(--accent)22;color:var(--accent);padding:1px 4px;border-radius:3px">Y{{ $year }}</div>
                             </div>
-                            <div style="font-family:var(--font-mono);font-size:9px;color:var(--muted);margin-top:2px;letter-spacing:.05em">{{ strtoupper($student->group->name ?? 'NO GROUP') }}</div>
+                            <div style="font-family:var(--font-mono);font-size:9px;color:var(--muted);margin-top:2px;letter-spacing:.05em">
+                                {{ strtoupper($student->group->name ?? 'NO GROUP') }} 
+                                @if($student->group)
+                                    • {{ $student->group->year_level }}{{ in_array($student->group->year_level % 10, [1,2,3]) && !in_array($student->group->year_level % 100, [11,12,13]) ? ['st','nd','rd'][$student->group->year_level % 10 - 1] : 'th' }} YEAR
+                                @endif
+                            </div>
                         </td>
 
                         {{-- Joined --}}
@@ -548,7 +532,6 @@
                         $col2   = $avatarColors[$loop->index % count($avatarColors)];
                         $init2  = strtoupper(substr($student->user->name, 0, 2));
                         $majorDisplay = $student->major->name ?? 'N/A';
-                        $year2   = $student->year_level ?? 1;
                         $rate2   = 85 + ($loop->index % 15);
                     @endphp
                     <div class="instructor-card fade-up"
@@ -558,7 +541,6 @@
                         data-phone="{{ $student->user->phone ?? '—' }}"
                         data-code="{{ strtolower($student->student_code) }}"
                         data-major-id="{{ $student->major_id }}"
-                        data-year="{{ $student->year_level ?? 1 }}"
                         data-group-id="{{ $student->group_id }}"
                         data-status="{{ $student->status }}"
                         data-rate="{{ $rate2 }}"
@@ -585,7 +567,6 @@
 
                         <div style="display:flex;align-items:center;gap:5px;font-size:9px;color:var(--muted);letter-spacing:.05em;max-width:90%">
                             <span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">{{ strtoupper($majorDisplay) }}</span>
-                            <span style="background:var(--accent)15;color:var(--accent);padding:1px 3px;border-radius:3px;font-size:7px;font-weight:700">Y{{ $year2 }}</span>
                         </div>
 
                         <div style="display:flex;align-items:center;gap:14px;margin-top:4px">
@@ -675,12 +656,10 @@ function filterStudents(e) {
 
     const q = document.getElementById('searchInput').value;
     const major = document.getElementById('majorFilter').value;
-    const year = document.getElementById('yearFilter').value;
 
     const params = new URLSearchParams(window.location.search);
     if (q) params.set('search', q); else params.delete('search');
     if (major) params.set('major', major); else params.delete('major');
-    if (year) params.set('year', year); else params.delete('year');
     params.set('page', 1); // Reset to first page on new search
 
     window.location.href = `${window.location.pathname}?${params.toString()}`;
@@ -738,8 +717,11 @@ async function openProfile(el) {
         document.getElementById('smInitials').textContent = s.name.split(' ').map(n=>n[0]).join('').substring(0,2).toUpperCase();
         
         // Populate Analytics
-        document.getElementById('smYear').textContent = s.year_level + (s.year_level == '1' ? 'st' : s.year_level == '2' ? 'nd' : 'th') + ' Year';
-        document.getElementById('smMajor').textContent = s.major;
+        document.getElementById('smMajor').textContent = s.major || 'N/A';
+        document.getElementById('smDept').textContent = s.department || 'N/A';
+        const yr = s.year_level || 1;
+        const suffix = (['th','st','nd','rd','th','th','th','th','th','th'][yr % 10] || 'th');
+        document.getElementById('smYear').textContent = yr + ( (yr % 100 >= 11 && yr % 100 <= 13) ? 'th' : suffix ) + ' YEAR';
         document.getElementById('smStatusBadge').textContent = (s.status || 'ACTIVE').toUpperCase() + ' STUDENT';
         document.getElementById('smRate').textContent = s.attendance_rate + '%';
         document.getElementById('smJoinedDate').textContent = 'JOINED AT ' + s.joined_at;
@@ -787,8 +769,8 @@ async function openProfile(el) {
 
 // ── Create/Edit ────────────────────────────────
 function openCreateModal() {
-    document.getElementById('studentModalTitle').textContent = 'Enroll Student';
-    document.getElementById('modalSubmitLabel').textContent = 'ENROLL STUDENT';
+    document.getElementById('studentModalTitle').textContent = 'Add New Student';
+    document.getElementById('modalSubmitLabel').textContent = 'ADD NEW STUDENT';
     document.getElementById('modalMode').value = 'create';
     document.getElementById('studentForm').reset();
     document.getElementById('modalAvatarPreview').textContent = '?';
@@ -806,7 +788,6 @@ function openEditModal(row) {
     document.getElementById('modalPhone').value = row.dataset.phone && row.dataset.phone !== '—' ? row.dataset.phone : '';
     document.getElementById('modalCode').value  = row.dataset.code || '';
     document.getElementById('modalMajor').value = row.dataset.majorId || '';
-    document.getElementById('modalYear').value  = row.dataset.year || '1';
     document.getElementById('modalGroup').value = row.dataset.groupId || '';
     document.getElementById('modalStatus').value = row.dataset.status || 'active';
     updateAvatarPreview(name);

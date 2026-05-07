@@ -16,7 +16,7 @@ class GroupsExport implements FromCollection, WithHeadings, WithMapping
 
     public function headings(): array
     {
-        return ['ID', 'Group/Class Name', 'Major', 'Department', 'Year Level', 'Students Count'];
+        return ['ID', 'Group/Class Name', 'Year Level', 'Major', 'Department', 'Students Count'];
     }
 
     public function map($group): array
@@ -24,9 +24,9 @@ class GroupsExport implements FromCollection, WithHeadings, WithMapping
         return [
             $group->id,
             $group->name,
+            $group->year_level,
             $group->major->name ?? 'N/A',
             $group->major->department->name ?? 'N/A',
-            $group->year_level,
             $group->students_count
         ];
     }

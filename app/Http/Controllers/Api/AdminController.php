@@ -106,7 +106,7 @@ class AdminController extends Controller
         $request->validate([
             'name' => 'required|unique:class_groups,name',
             'major_id' => 'required|exists:majors,id',
-            'year_level' => 'required|integer|min:1|max:5'
+            'year_level' => 'nullable|integer',
         ]);
 
         $group = ClassGroup::create($request->all());
@@ -777,7 +777,6 @@ class AdminController extends Controller
                 'student_code' => $request->student_code,
                 'group_id' => $request->group_id,
                 'major_id' => $request->major_id,
-                'year_level' => $request->year_level,
                 'status' => $request->status ?? 'active',
             ]);
 
@@ -810,7 +809,7 @@ class AdminController extends Controller
                 $student->user->update($userUpdates);
             }
             
-            $studentUpdates = $request->only(['student_code', 'group_id', 'major_id', 'year_level', 'status', 'class_id']);
+            $studentUpdates = $request->only(['student_code', 'group_id', 'major_id', 'status', 'class_id']);
             
             if ($request->has('class_id') && $request->class_id) {
                 $class = \App\Models\ClassRoom::find($request->class_id);
@@ -848,7 +847,7 @@ class AdminController extends Controller
 
     public function listStudentAttendance($studentId)
     {
-        $student = Student::with(['user', 'classRoom.subject'])->findOrFail($studentId);
+        $student = Student::with(['user', 'major.department', 'group.major.department'])->findOrFail($studentId);
         
         // Fetch the most recent 10 sessions for the student's group
         $sessions = AttendanceSession::whereHas('classRoom', function($q) use ($student) {
@@ -881,6 +880,11 @@ class AdminController extends Controller
             })->where('start_time', '<=', now())->count();
         $rate = $totalSessions === 0 ? 0 : round(($presentCount / $totalSessions) * 100);
 
+        $majorObj = $student->major ?? ($student->group->major ?? null);
+        $deptName = $majorObj ? ($majorObj->department->name ?? 'N/A') : 'N/A';
+        $majorName = $majorObj ? ($majorObj->name ?? 'N/A') : 'N/A';
+        $yearLevel = $student->group->year_level ?? 1;
+
         return response()->json([
             'success' => true,
             'student' => [
@@ -889,8 +893,9 @@ class AdminController extends Controller
                 'email'        => $student->user->email ?? 'N/A',
                 'phone'        => $student->user->phone ?? 'N/A',
                 'student_code' => $student->student_code,
-                'major'        => $student->major->name ?? 'Technology',
-                'year_level'   => $student->year_level ?? '1',
+                'major'        => $majorName,
+                'department'   => $deptName,
+                'year_level'   => $yearLevel,
                 'status'       => $student->status ?? 'active',
                 'joined_at'    => $student->created_at->format('M Y'),
                 'attendance_rate' => $rate

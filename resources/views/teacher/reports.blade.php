@@ -291,7 +291,7 @@
                                 </div>
                                 <div>
                                     <div style="font-weight:700;font-size:13px;color:var(--text)">{{ $student->user->name ?? 'Unknown' }}</div>
-                                    <div style="font-family:var(--font-mono);font-size:9px;color:var(--muted);margin-top:1px">{{ $student->major ?? 'N/A' }} · Y{{ $student->year_level ?? 1 }}</div>
+                                    <div style="font-family:var(--font-mono);font-size:9px;color:var(--muted);margin-top:1px">{{ $student->major ?? 'N/A' }}</div>
                                 </div>
                             </div>
                         </td>

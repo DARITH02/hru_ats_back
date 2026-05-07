@@ -158,6 +158,10 @@ class AdminController extends Controller
                   ->orWhereHas('user', function($u) use ($q) {
                       $u->where('name', 'like', "%$q%")
                         ->orWhere('email', 'like', "%$q%");
+                  })
+                  ->orWhereHas('group', function($g) use ($q) {
+                      $g->where('name', 'like', "%$q%")
+                        ->orWhere('year_level', 'like', "%$q%");
                   });
             });
         }
@@ -166,9 +170,6 @@ class AdminController extends Controller
             $query->where('major_id', $request->major);
         }
 
-        if ($request->filled('year')) {
-            $query->where('year_level', $request->year);
-        }
 
         $students = $query->latest()->paginate(10)->appends($request->all());
         $classes = ClassRoom::with('subject')->get();
@@ -202,7 +203,7 @@ class AdminController extends Controller
         $subjects = Subject::orderBy('name')->get();
         $classGroups = \App\Models\ClassGroup::orderBy('name')->get();
         $teachers = Teacher::with('user')->get()->sortBy('user.name');
-        $students = Student::with('user')->get()->sortBy('user.name');
+        $students = Student::with(['user', 'major.department', 'group.major.department'])->get()->sortBy('user.name');
         
         // Fetch last 5 activities for sidebar
         $recentActivities = ActivityLog::orderBy('id', 'desc')->limit(5)->get()->map(function($log) {
@@ -239,7 +240,10 @@ class AdminController extends Controller
 
         if ($request->filled('search')) {
             $q = $request->search;
-            $query->where('name', 'like', "%$q%");
+            $query->where(function($w) use ($q) {
+                $w->where('name', 'like', "%$q%")
+                  ->orWhere('year_level', 'like', "%$q%");
+            });
         }
 
         $classGroups = $query->orderBy('name')->paginate(10)->appends($request->all());
@@ -263,7 +267,7 @@ class AdminController extends Controller
         }
 
         $permissions = $query->latest()->paginate(10)->appends($request->all());
-        $students = Student::with('user')->get()->sortBy('user.name');
+        $students = Student::with(['user', 'major.department', 'group.major.department'])->get()->sortBy('user.name');
         
         return view('admin.permissions', compact('permissions', 'students'));
     }
@@ -482,11 +486,6 @@ class AdminController extends Controller
             if (!\Schema::hasColumn('students', 'group_id')) {
                 \Schema::table('students', function ($table) {
                     $table->unsignedBigInteger('group_id')->nullable();
-                });
-            }
-            if (!\Schema::hasColumn('students', 'year_level')) {
-                \Schema::table('students', function ($table) {
-                    $table->integer('year_level')->default(1);
                 });
             }
             if (!\Schema::hasColumn('classes', 'group_id')) {

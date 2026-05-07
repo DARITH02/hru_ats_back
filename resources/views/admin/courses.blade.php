@@ -61,7 +61,7 @@
             display: flex;
             align-items: center;
             justify-content: center;
-            box-shadow: inset 0 0 10px rgba(255,255,255,0.05);
+            box-shadow: inset 0 0 10px rgba(255, 255, 255, 0.05);
         }
 
         .table-header-premium {
@@ -483,11 +483,19 @@
                 <div id="studentListContainer" class="enroll-list" style="max-height:480px; padding: 20px 28px;">
                     @php
                         $sortedStudents = $students->sortBy(function ($s) {
-                            return $s->user->name ?? ''; });
+                            return $s->user->name ?? '';
+                        });
                     @endphp
                     @foreach($sortedStudents as $s)
                         <div class="enroll-row" data-id="{{ $s->id }}" data-name="{{ strtolower($s->user->name) }}"
-                            data-code="{{ strtolower($s->student_code) }}" data-class="{{ $s->class_id ?? 0 }}" data-group="{{ $s->group_id ?? 0 }}">
+                            data-code="{{ strtolower($s->student_code) }}" data-class="{{ $s->class_id ?? 0 }}"
+                            data-group="{{ $s->group_id ?? 0 }}" @php
+                                $m = $s->major ?? ($s->group->major ?? null);
+                                $d = $m ? ($m->department ?? null) : null;
+                                $yr = $s->group->year_level ?? 1;
+                            @endphp data-major="{{ strtolower($m->name ?? "") }}"
+                            data-dept="{{ strtolower($d->name ?? "") }}"
+                            data-year="{{ $yr }}">
                             <div class="enroll-info" onclick="openStudentRecordModal({{ $s->id }})" style="cursor:pointer"
                                 onmouseover="this.querySelector('.enroll-name').style.color='var(--accent)'"
                                 onmouseout="this.querySelector('.enroll-name').style.color='var(--text)'">
@@ -500,13 +508,29 @@
                                 </div>
                                 <div class="enroll-details">
                                     <div class="enroll-name">{{ $s->user->name }}</div>
-                                    <div class="enroll-meta">
+                                    <div class="enroll-meta" style="display:flex; align-items:center; gap:6px; flex-wrap:wrap">
                                         <span class="enroll-code"
                                             style="color:var(--text2); font-weight:700">{{ $s->student_code }}</span>
                                         <span style="opacity:0.3">/</span>
-                                        <span class="enroll-major">{{ $s->major ?? 'GENERAL' }}</span>
+                                        @php
+                                            $major = $s->major ?? ($s->group->major ?? null);
+                                            $dept = $major ? ($major->department ?? null) : null;
+                                            $yr = $s->group->year_level ?? 1;
+                                            $suffix = ['th', 'st', 'nd', 'rd', 'th', 'th', 'th', 'th', 'th', 'th'][$yr % 10];
+                                            if ($yr % 100 >= 11 && $yr % 100 <= 13)
+                                                $suffix = 'th';
+                                        @endphp
+                                        <span style="color:var(--muted); font-size:9px; letter-spacing:0.05em">DEPT:</span>
+                                        <span
+                                            style="color:var(--text); font-weight:600; font-size:10px">{{ strtoupper($dept->name ?? 'N/A') }}</span>
                                         <span style="opacity:0.3">•</span>
-                                        <span>YEAR {{ $s->year_level ?? 1 }}</span>
+                                        <span style="color:var(--muted); font-size:9px; letter-spacing:0.05em">MAJOR:</span>
+                                        <span class="enroll-major"
+                                            style="color:var(--accent); font-weight:700; font-size:10px">{{ strtoupper($major->name ?? 'N/A') }}</span>
+                                        <span style="opacity:0.3">•</span>
+                                        <span
+                                            style="font-weight:800; color:var(--text2); font-size:10px">{{ $yr }}{{ strtoupper($suffix) }}
+                                            YEAR</span>
                                     </div>
                                 </div>
                             </div>
@@ -790,10 +814,13 @@
     </style>
 
     {{-- Page Header --}}
-    <div class="page-header" style="margin-bottom: 35px; display: flex; justify-content: space-between; align-items: flex-end;">
+    <div class="page-header"
+        style="margin-bottom: 35px; display: flex; justify-content: space-between; align-items: flex-end;">
         <div>
             <div class="breadcrumb" style="margin-bottom: 15px;">
-                <span style="font-family: var(--font-mono); font-size: 10px; font-weight: 800; color: var(--muted); letter-spacing: 0.1em;">ACADEMIC COMMAND</span>
+                <span
+                    style="font-family: var(--font-mono); font-size: 10px; font-weight: 800; color: var(--muted); letter-spacing: 0.1em;">ACADEMIC
+                    COMMAND</span>
                 <span class="breadcrumb-sep">/</span>
                 <span class="breadcrumb-current" style="color: var(--accent); font-weight: 800;">CATALOG MATRIX</span>
             </div>
@@ -801,12 +828,19 @@
             <p class="page-subtitle-new">INTELLIGENT CURRICULUM MANAGEMENT SYSTEM</p>
         </div>
         <div style="display: flex; gap: 12px;">
-             <button class="btn-secondary" onclick="window.location.href='{{ route('admin.export.courses') }}'" style="border-radius: 14px; height: 46px; padding: 0 20px; font-weight: 700; font-size: 11px; gap: 10px;">
-                <svg width="18" height="18" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>
+            <button class="btn-secondary" onclick="window.location.href='{{ route('admin.export.courses') }}'"
+                style="border-radius: 14px; height: 46px; padding: 0 20px; font-weight: 700; font-size: 11px; gap: 10px;">
+                <svg width="18" height="18" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                        d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                </svg>
                 EXPORT SYSTEM DATA
             </button>
-            <button class="btn-primary" onclick="openModal('createModal')" style="border-radius: 14px; height: 46px; padding: 0 24px; font-weight: 800; font-size: 11px; background: linear-gradient(135deg, var(--accent), var(--violet)); box-shadow: 0 8px 20px var(--accent)33; gap: 10px;">
-                <svg width="18" height="18" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="3"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4"/></svg>
+            <button class="btn-primary" onclick="openModal('createModal')"
+                style="border-radius: 14px; height: 46px; padding: 0 24px; font-weight: 800; font-size: 11px; background: #364ed9 ; box-shadow: 0 8px 20px var(--accent)33; gap: 10px;">
+                <svg width="18" height="18" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="3">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4" />
+                </svg>
                 NEW CATALOG ENTRY
             </button>
         </div>
@@ -815,70 +849,102 @@
     {{-- Stats --}}
     <div class="stats-grid" style="grid-template-columns: repeat(4, 1fr); gap: 24px; margin-bottom: 40px;">
         <div class="premium-card" style="padding: 24px; position: relative; overflow: hidden;">
-            <div style="position: absolute; top: -20px; right: -20px; width: 100px; height: 100px; background: var(--accent)08; border-radius: 50%; blur: 40px;"></div>
+            <div
+                style="position: absolute; top: -20px; right: -20px; width: 100px; height: 100px; background: var(--accent)08; border-radius: 50%; blur: 40px;">
+            </div>
             <div style="display: flex; justify-content: space-between; align-items: flex-start;">
                 <div>
                     <div class="stat-label-new">TOTAL CATALOGUE</div>
                     <div class="stat-value-new">{{ $classes->count() }}</div>
                 </div>
                 <div class="glow-icon" style="background: var(--accent)15; color: var(--accent);">
-                    <svg width="22" height="22" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"/></svg>
+                    <svg width="22" height="22" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
+                    </svg>
                 </div>
             </div>
             <div style="margin-top: 15px; display: flex; align-items: center; gap: 8px;">
-                <span style="font-family: var(--font-mono); font-size: 10px; font-weight: 800; color: var(--green);">↑ 2.4%</span>
+                <span style="font-family: var(--font-mono); font-size: 10px; font-weight: 800; color: var(--green);">↑
+                    2.4%</span>
                 <span style="font-size: 9px; color: var(--muted2); font-weight: 600;">FROM LAST PERIOD</span>
             </div>
         </div>
 
         <div class="premium-card" style="padding: 24px; position: relative; overflow: hidden;">
-            <div style="position: absolute; top: -20px; right: -20px; width: 100px; height: 100px; background: var(--green)08; border-radius: 50%; blur: 40px;"></div>
+            <div
+                style="position: absolute; top: -20px; right: -20px; width: 100px; height: 100px; background: var(--green)08; border-radius: 50%; blur: 40px;">
+            </div>
             <div style="display: flex; justify-content: space-between; align-items: flex-start;">
                 <div>
                     <div class="stat-label-new">ACTIVE ROSTER</div>
                     <div class="stat-value-new">{{ $classes->pluck('teacher_id')->unique()->count() }}</div>
                 </div>
                 <div class="glow-icon" style="background: var(--green)15; color: var(--green);">
-                    <svg width="22" height="22" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"/></svg>
+                    <svg width="22" height="22" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
+                    </svg>
                 </div>
             </div>
             <div style="margin-top: 15px; display: flex; align-items: center; gap: 8px;">
-                <div style="width: 6px; height: 6px; border-radius: 50%; background: var(--green); box-shadow: 0 0 8px var(--green);"></div>
-                <span style="font-family: var(--font-mono); font-size: 10px; font-weight: 800; color: var(--green); letter-spacing: 0.05em;">SYSTEM HEALTHY</span>
+                <div
+                    style="width: 6px; height: 6px; border-radius: 50%; background: var(--green); box-shadow: 0 0 8px var(--green);">
+                </div>
+                <span
+                    style="font-family: var(--font-mono); font-size: 10px; font-weight: 800; color: var(--green); letter-spacing: 0.05em;">SYSTEM
+                    HEALTHY</span>
             </div>
         </div>
 
         <div class="premium-card" style="padding: 24px; position: relative; overflow: hidden;">
-            <div style="position: absolute; top: -20px; right: -20px; width: 100px; height: 100px; background: var(--amber)08; border-radius: 50%; blur: 40px;"></div>
+            <div
+                style="position: absolute; top: -20px; right: -20px; width: 100px; height: 100px; background: var(--amber)08; border-radius: 50%; blur: 40px;">
+            </div>
             <div style="display: flex; justify-content: space-between; align-items: flex-start;">
                 <div>
                     <div class="stat-label-new">RESOURCE LOAD</div>
                     <div class="stat-value-new">84<span style="font-size: 18px; opacity: 0.5">%</span></div>
                 </div>
                 <div class="glow-icon" style="background: var(--amber)15; color: var(--amber);">
-                    <svg width="22" height="22" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>
+                    <svg width="22" height="22" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M13 10V3L4 14h7v7l9-11h-7z" />
+                    </svg>
                 </div>
             </div>
             <div style="margin-top: 15px; display: flex; align-items: center; gap: 8px;">
-                <div style="width: 6px; height: 6px; border-radius: 50%; background: var(--amber); box-shadow: 0 0 8px var(--amber);"></div>
-                <span style="font-family: var(--font-mono); font-size: 10px; font-weight: 800; color: var(--amber); letter-spacing: 0.05em;">NEAR CAPACITY</span>
+                <div
+                    style="width: 6px; height: 6px; border-radius: 50%; background: var(--amber); box-shadow: 0 0 8px var(--amber);">
+                </div>
+                <span
+                    style="font-family: var(--font-mono); font-size: 10px; font-weight: 800; color: var(--amber); letter-spacing: 0.05em;">NEAR
+                    CAPACITY</span>
             </div>
         </div>
 
         <div class="premium-card" style="padding: 24px; position: relative; overflow: hidden;">
-            <div style="position: absolute; top: -20px; right: -20px; width: 100px; height: 100px; background: var(--violet)08; border-radius: 50%; blur: 40px;"></div>
+            <div
+                style="position: absolute; top: -20px; right: -20px; width: 100px; height: 100px; background: var(--violet)08; border-radius: 50%; blur: 40px;">
+            </div>
             <div style="display: flex; justify-content: space-between; align-items: flex-start;">
                 <div>
                     <div class="stat-label-new">HUB UPTIME</div>
                     <div class="stat-value-new">99.9<span style="font-size: 18px; opacity: 0.5">%</span></div>
                 </div>
                 <div class="glow-icon" style="background: var(--violet)15; color: var(--violet);">
-                    <svg width="22" height="22" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-7.618 3.04L4 7.424l1.393 11.14c.245 1.956 1.832 3.436 3.805 3.436h5.604c1.973 0 3.56-1.48 3.805-3.436L20 7.424l-1.382-3.44z"/></svg>
+                    <svg width="22" height="22" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-7.618 3.04L4 7.424l1.393 11.14c.245 1.956 1.832 3.436 3.805 3.436h5.604c1.973 0 3.56-1.48 3.805-3.436L20 7.424l-1.382-3.44z" />
+                    </svg>
                 </div>
             </div>
             <div style="margin-top: 15px; display: flex; align-items: center; gap: 8px;">
-                <div style="width: 6px; height: 6px; border-radius: 50%; background: var(--green); box-shadow: 0 0 8px var(--green);"></div>
-                <span style="font-family: var(--font-mono); font-size: 10px; font-weight: 800; color: var(--green); letter-spacing: 0.05em;">OPERATIONAL</span>
+                <div
+                    style="width: 6px; height: 6px; border-radius: 50%; background: var(--green); box-shadow: 0 0 8px var(--green);">
+                </div>
+                <span
+                    style="font-family: var(--font-mono); font-size: 10px; font-weight: 800; color: var(--green); letter-spacing: 0.05em;">OPERATIONAL</span>
             </div>
         </div>
     </div>
@@ -1047,7 +1113,7 @@
                                         ->when($class->academic_year, fn($q) => $q->where('academic_year', $class->academic_year))
                                         ->when($class->semester, fn($q) => $q->where('semester', $class->semester))
                                         ->count();
-                                        
+
                                     $currentSessionsCount = $class->sessions()
                                         ->whereIn('status', ['completed', 'passed'])
                                         ->when($class->academic_year, fn($q) => $q->where('academic_year', $class->academic_year))
@@ -1056,23 +1122,33 @@
 
                                     $target = $totalSessions > 0 ? $totalSessions : 30;
                                     $pct = min(100, $target > 0 ? round(($currentSessionsCount / $target) * 100) : 0);
-                                    
+
                                     // Visual color logic
                                     $statusColor = 'var(--accent)';
-                                    if($pct >= 100) $statusColor = 'var(--green)';
-                                    elseif($pct >= 50) $statusColor = 'var(--amber)';
-                                    elseif($pct > 0) $statusColor = 'var(--violet)';
+                                    if ($pct >= 100)
+                                        $statusColor = 'var(--green)';
+                                    elseif ($pct >= 50)
+                                        $statusColor = 'var(--amber)';
+                                    elseif ($pct > 0)
+                                        $statusColor = 'var(--violet)';
                                 @endphp
                                 <div style="display:flex; flex-direction:column; gap:6px">
                                     <div style="display:flex; justify-content:space-between; align-items:flex-end">
                                         <div style="display:flex; align-items:baseline; gap:3px">
-                                            <span style="font-family:var(--font-display); font-size:15px; font-weight:900; color:{{ $statusColor }}; line-height:1">{{ $currentSessionsCount }}</span>
-                                            <span style="font-family:var(--font-mono); font-size:9px; color:var(--muted); font-weight:700">/{{ $target }}</span>
+                                            <span
+                                                style="font-family:var(--font-display); font-size:15px; font-weight:900; color:{{ $statusColor }}; line-height:1">{{ $currentSessionsCount }}</span>
+                                            <span
+                                                style="font-family:var(--font-mono); font-size:9px; color:var(--muted); font-weight:700">/{{ $target }}</span>
                                         </div>
-                                        <span style="font-family:var(--font-mono); font-size:8px; font-weight:800; color:var(--muted2); text-transform:uppercase; letter-spacing:0.02em">{{ $pct }}% LOAD</span>
+                                        <span
+                                            style="font-family:var(--font-mono); font-size:8px; font-weight:800; color:var(--muted2); text-transform:uppercase; letter-spacing:0.02em">{{ $pct }}%
+                                            LOAD</span>
                                     </div>
-                                    <div style="height:5px; background:var(--surface3); border-radius:10px; overflow:hidden; border:1px solid var(--border); padding:1px">
-                                        <div style="height:100%; width:{{ $pct }}%; background:{{ $statusColor }}; border-radius:10px; transition:width 0.8s cubic-bezier(0.4, 0, 0.2, 1); box-shadow:0 0 10px {{ $statusColor }}44"></div>
+                                    <div
+                                        style="height:5px; background:var(--surface3); border-radius:10px; overflow:hidden; border:1px solid var(--border); padding:1px">
+                                        <div
+                                            style="height:100%; width:{{ $pct }}%; background:{{ $statusColor }}; border-radius:10px; transition:width 0.8s cubic-bezier(0.4, 0, 0.2, 1); box-shadow:0 0 10px {{ $statusColor }}44">
+                                        </div>
                                     </div>
                                 </div>
                             </td>
@@ -1179,26 +1255,34 @@
         <div style="display:flex;flex-direction:column;gap:16px">
 
             {{-- 🟢 GLOBAL SESSION SKIP (New Feature) --}}
-            <div class="side-panel" style="border: 1px solid var(--red)33; background: linear-gradient(180deg, var(--surface2), var(--surface3));">
+            <div class="side-panel"
+                style="border: 1px solid var(--red)33; background: linear-gradient(180deg, var(--surface2), var(--surface3));">
                 <div class="side-panel-head" style="color: var(--red); font-weight: 900;">
-                    <span style="width:8px;height:8px;border-radius:2px;background:var(--red);display:inline-block;box-shadow:0 0 10px var(--red)"></span>
+                    <span
+                        style="width:8px;height:8px;border-radius:2px;background:var(--red);display:inline-block;box-shadow:0 0 10px var(--red)"></span>
                     GLOBAL SESSION SKIP
                 </div>
                 <div style="padding: 20px;">
-                    <p style="font-size:10px; color:var(--muted); line-height:1.5; margin-bottom:18px; font-family:var(--font-mono)">
-                        Cancel multiple academic sessions across <span style="color:var(--text); font-weight:700">ALL SUBJECTS</span> within a specific time range.
+                    <p
+                        style="font-size:10px; color:var(--muted); line-height:1.5; margin-bottom:18px; font-family:var(--font-mono)">
+                        Cancel multiple academic sessions across <span style="color:var(--text); font-weight:700">ALL
+                            SUBJECTS</span> within a specific time range.
                     </p>
-                    
-                    <button onclick="openModal('globalSkipModal')" class="btn-primary" 
+
+                    <button onclick="openModal('globalSkipModal')" class="btn-primary"
                         style="width:100%; height:44px; background:linear-gradient(135deg, var(--red), #f43f5e); border:none; box-shadow:0 8px 20px rgba(244, 63, 94, 0.2); font-weight:800; letter-spacing:0.05em;">
                         CONFIGURE GLOBAL SKIP
                     </button>
-                    
-                    <div style="margin-top:15px; display:flex; align-items:center; gap:8px; padding:10px; background:var(--red)08; border-radius:10px; border:1px dashed var(--red)33">
+
+                    <div
+                        style="margin-top:15px; display:flex; align-items:center; gap:8px; padding:10px; background:var(--red)08; border-radius:10px; border:1px dashed var(--red)33">
                         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--red)" stroke-width="2">
-                            <path d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                            <path
+                                d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
                         </svg>
-                        <span style="font-size:8px; font-family:var(--font-mono); color:var(--red); font-weight:700; text-transform:uppercase">Irreversible Action</span>
+                        <span
+                            style="font-size:8px; font-family:var(--font-mono); color:var(--red); font-weight:700; text-transform:uppercase">Irreversible
+                            Action</span>
                     </div>
                 </div>
             </div>
@@ -1206,30 +1290,43 @@
             {{-- QUICK OPERATIONS (Standardized) --}}
             <div class="side-panel">
                 <div class="side-panel-head">
-                    <span style="width:6px;height:6px;border-radius:50%;background:var(--accent);display:inline-block"></span>
+                    <span
+                        style="width:6px;height:6px;border-radius:50%;background:var(--accent);display:inline-block"></span>
                     QUICK OPERATIONS
                 </div>
                 <div style="padding:16px; display:flex; flex-direction:column; gap:10px">
                     <button onclick="window.location.href='/api/admin/classes/export'" class="btn-secondary"
                         style="width:100%; display:flex; justify-content:space-between; align-items:center; height:42px; padding:0 16px; font-size:10px; font-weight:700; background:var(--surface3)">
                         <span>EXPORT CSV</span>
-                        <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" stroke-width="2"/></svg>
+                        <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" stroke-width="2" />
+                        </svg>
                     </button>
-                    
+
                     <button onclick="showToast('Cache Purged Successfully','success')" class="btn-secondary"
                         style="width:100%; display:flex; justify-content:space-between; align-items:center; height:42px; padding:0 16px; font-size:10px; font-weight:700; background:var(--surface3)">
                         <span>SYNC CACHE</span>
-                        <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" stroke-width="2"/></svg>
+                        <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path
+                                d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"
+                                stroke-width="2" />
+                        </svg>
                     </button>
 
                     {{-- Hub Integrity Integrated --}}
-                    <div style="margin-top:10px; padding:15px; border-radius:15px; background:var(--accent)08; border:1px solid var(--accent)15; display:flex; align-items:center; justify-content:space-between">
+                    <div
+                        style="margin-top:10px; padding:15px; border-radius:15px; background:var(--accent)08; border:1px solid var(--accent)15; display:flex; align-items:center; justify-content:space-between">
                         <div>
-                            <div style="font-family:var(--font-mono); font-size:8px; color:var(--muted2); letter-spacing:.05em; margin-bottom:4px">HUB INTEGRITY</div>
-                            <div style="font-size:18px; font-weight:900; color:var(--accent); font-family:var(--font-display)">A+</div>
+                            <div
+                                style="font-family:var(--font-mono); font-size:8px; color:var(--muted2); letter-spacing:.05em; margin-bottom:4px">
+                                HUB INTEGRITY</div>
+                            <div
+                                style="font-size:18px; font-weight:900; color:var(--accent); font-family:var(--font-display)">
+                                A+</div>
                         </div>
                         <div style="text-align:right">
-                            <div style="font-family:var(--font-mono); font-size:8px; color:var(--green); font-weight:800">OPTIMIZED</div>
+                            <div style="font-family:var(--font-mono); font-size:8px; color:var(--green); font-weight:800">
+                                OPTIMIZED</div>
                             <div style="font-size:8px; color:var(--muted); line-height:1.2">REGISTRY DATA</div>
                         </div>
                     </div>
@@ -1240,24 +1337,31 @@
             <div class="side-panel">
                 <div class="side-panel-head" style="display:flex; justify-content:space-between; align-items:center">
                     <div style="display:flex; align-items:center; gap:8px">
-                        <span style="width:8px;height:8px;border-radius:50%;background:var(--green);animation:blink 1.5s infinite;display:inline-block;box-shadow:0 0 10px var(--green)"></span>
+                        <span
+                            style="width:8px;height:8px;border-radius:50%;background:var(--green);animation:blink 1.5s infinite;display:inline-block;box-shadow:0 0 10px var(--green)"></span>
                         DATABASE ACTIVITY
                     </div>
-                    <span style="font-family:var(--font-mono); font-size:8px; color:var(--muted); letter-spacing:0.1em">LIVE</span>
+                    <span
+                        style="font-family:var(--font-mono); font-size:8px; color:var(--muted); letter-spacing:0.1em">LIVE</span>
                 </div>
                 <div id="dbActivityLogs" class="db-entries" style="padding:10px 16px">
                     @forelse($recentActivities ?? [] as $act)
-                        <div class="db-entry" style="padding:12px 0; border-bottom:1px solid var(--border); display:flex; align-items:flex-start; gap:12px">
+                        <div class="db-entry"
+                            style="padding:12px 0; border-bottom:1px solid var(--border); display:flex; align-items:flex-start; gap:12px">
                             @php
-                                $color = $act['action'] === 'DELETE' ? 'var(--red)' : 
-                                        ($act['action'] === 'UPDATE' ? 'var(--amber)' : 
+                                $color = $act['action'] === 'DELETE' ? 'var(--red)' :
+                                    ($act['action'] === 'UPDATE' ? 'var(--amber)' :
                                         ($act['action'] === 'INSERT' ? 'var(--green)' : 'var(--accent)'));
                             @endphp
-                            <div style="margin-top:4px; width:6px; height:6px; border-radius:50%; background:{{ $color }}; box-shadow:0 0 10px {{ $color }}"></div>
+                            <div
+                                style="margin-top:4px; width:6px; height:6px; border-radius:50%; background:{{ $color }}; box-shadow:0 0 10px {{ $color }}">
+                            </div>
                             <div style="flex:1">
                                 <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px">
-                                    <span style="font-family:var(--font-mono); font-size:10px; font-weight:900; color:{{ $color }}; letter-spacing:0.05em">{{ $act['action'] }}</span>
-                                    <span style="font-family:var(--font-mono); font-size:9px; color:var(--muted)">{{ $act['time'] }}</span>
+                                    <span
+                                        style="font-family:var(--font-mono); font-size:10px; font-weight:900; color:{{ $color }}; letter-spacing:0.05em">{{ $act['action'] }}</span>
+                                    <span
+                                        style="font-family:var(--font-mono); font-size:9px; color:var(--muted)">{{ $act['time'] }}</span>
                                 </div>
                                 <div style="font-family:var(--font-mono); font-size:10px; color:var(--text2)">
                                     {!! $act['target'] !!}
@@ -1265,13 +1369,15 @@
                             </div>
                         </div>
                     @empty
-                        <div id="dbActivityPlaceholder" style="padding:20px; text-align:center; color:var(--muted); font-size:9px; font-family:var(--font-mono)">
+                        <div id="dbActivityPlaceholder"
+                            style="padding:20px; text-align:center; color:var(--muted); font-size:9px; font-family:var(--font-mono)">
                             NO RECENT ACTIONS FOUND
                         </div>
                     @endforelse
                 </div>
-                <div style="padding:12px 16px; background:var(--surface3); border-top:1px solid var(--border); border-bottom-left-radius:20px; border-bottom-right-radius:20px">
-                    <button onclick="openModal('calendarModal')" class="btn-primary" 
+                <div
+                    style="padding:12px 16px; background:var(--surface3); border-top:1px solid var(--border); border-bottom-left-radius:20px; border-bottom-right-radius:20px">
+                    <button onclick="openModal('calendarModal')" class="btn-primary"
                         style="width:100%; height:32px; background:transparent; border:1px dashed var(--accent)44; color:var(--accent); font-size:9px; font-weight:800; letter-spacing:0.05em">
                         GENERATE SESSIONS (ADMIN)
                     </button>
@@ -1637,8 +1743,7 @@
         <div class="modal-box" style="max-width:500px; border-radius:28px; overflow-y:auto; max-height:90vh;">
             <div class="modal-body" style="padding:0; position:relative">
                 {{-- Profile Header --}}
-                <div
-                    style="background:linear-gradient(135deg, var(--accent) 0%, var(--violet) 100%); padding:40px 30px 60px; color:white; position:relative">
+                <div style="background:#2c3faf; padding:40px 30px 60px; color:white; position:relative">
                     <button onclick="closeModal('studentDetailModal')"
                         style="position:absolute; top:20px; right:20px; background:rgba(255,255,255,0.15); border:none; width:32px; height:32px; border-radius:50%; color:white; display:flex; align-items:center; justify-content:center; cursor:pointer; transition:all 0.2s">
                         <svg width="12" height="12" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -1662,7 +1767,7 @@
                 </div>
 
                 {{-- Info Cards (Floating) --}}
-                <div style="margin-top:-35px; padding:0 24px 30px">
+                <div style="margin-top:-10px; padding:0 24px 30px">
                     <div
                         style="background:var(--surface2); border:1px solid var(--border); border-radius:20px; box-shadow:var(--shadow-xl); padding:24px">
                         <div style="display:grid; grid-template-columns: 1.2fr 0.8fr; gap:20px; align-items:center">
@@ -1673,16 +1778,23 @@
                                     <div>
                                         <div
                                             style="font-family:var(--font-mono); font-size:8px; color:var(--muted); text-transform:uppercase; margin-bottom:4px">
-                                            YEAR LEVEL</div>
-                                        <div style="font-size:13px; font-weight:700; color:var(--text)" id="smYear">1st Year
+                                            DEPARTMENT</div>
+                                        <div style="font-size:12px; font-weight:700; color:var(--text)" id="smDept">N/A
                                         </div>
                                     </div>
                                     <div>
                                         <div
                                             style="font-family:var(--font-mono); font-size:8px; color:var(--muted); text-transform:uppercase; margin-bottom:4px">
                                             MAJOR</div>
-                                        <div style="font-size:13px; font-weight:700; color:var(--text)" id="smMajor">
-                                            Technology</div>
+                                        <div style="font-size:12px; font-weight:700; color:var(--accent)" id="smMajor">N/A
+                                        </div>
+                                    </div>
+                                </div>
+                                <div style="margin-top:12px">
+                                    <div
+                                        style="font-family:var(--font-mono); font-size:8px; color:var(--muted); text-transform:uppercase; margin-bottom:4px">
+                                        YEAR LEVEL</div>
+                                    <div style="font-size:13px; font-weight:800; color:var(--text2)" id="smYear">1st Year
                                     </div>
                                 </div>
                             </div>
@@ -1819,22 +1931,32 @@
     <div id="skipConfirmModal" class="modal-overlay" style="z-index: 1200;">
         <div class="modal-box" style="max-width:450px; border-radius:24px; overflow:hidden;">
             <div class="modal-body" style="padding:40px 32px; text-align:center;">
-                <div style="width:64px; height:64px; border-radius:20px; background:var(--red)15; color:var(--red); display:flex; align-items:center; justify-content:center; margin:0 auto 24px; box-shadow: 0 8px 20px var(--red)15;">
+                <div
+                    style="width:64px; height:64px; border-radius:20px; background:var(--red)15; color:var(--red); display:flex; align-items:center; justify-content:center; margin:0 auto 24px; box-shadow: 0 8px 20px var(--red)15;">
                     <svg width="32" height="32" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5"
+                            d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                     </svg>
                 </div>
-                <div style="font-weight:900; font-size:20px; color:var(--text); letter-spacing:-0.02em; margin-bottom:12px;">Skip this session?</div>
-                <p style="font-size:13px; color:var(--muted); line-height:1.6; margin-bottom:32px; font-family:var(--font-mono)">You are marking this academic slot as <span style="color:var(--red); font-weight:700">SKIPPED</span>. Choose if you want to recover this lost time at the end of the semester.</p>
-                
+                <div
+                    style="font-weight:900; font-size:20px; color:var(--text); letter-spacing:-0.02em; margin-bottom:12px;">
+                    Skip this session?</div>
+                <p
+                    style="font-size:13px; color:var(--muted); line-height:1.6; margin-bottom:32px; font-family:var(--font-mono)">
+                    You are marking this academic slot as <span style="color:var(--red); font-weight:700">SKIPPED</span>.
+                    Choose if you want to recover this lost time at the end of the semester.</p>
+
                 <div style="display:flex; flex-direction:column; gap:12px;">
-                    <button id="skipRescheduleBtn" class="btn-primary" style="width:100%; height:50px; background:linear-gradient(135deg, var(--green), #10b981); box-shadow:0 10px 25px rgba(16, 185, 129, 0.3); border:none; font-weight:800; font-size:11px; letter-spacing:0.05em;">
+                    <button id="skipRescheduleBtn" class="btn-primary"
+                        style="width:100%; height:50px; background:linear-gradient(135deg, var(--green), #10b981); box-shadow:0 10px 25px rgba(16, 185, 129, 0.3); border:none; font-weight:800; font-size:11px; letter-spacing:0.05em;">
                         SKIP & RESCHEDULE TO END
                     </button>
-                    <button id="skipOnlyBtn" class="btn-secondary" style="width:100%; height:50px; border:1.5px solid var(--red)33; color:var(--red); font-weight:800; font-size:11px; letter-spacing:0.05em; background:transparent;">
+                    <button id="skipOnlyBtn" class="btn-secondary"
+                        style="width:100%; height:50px; border:1.5px solid var(--red)33; color:var(--red); font-weight:800; font-size:11px; letter-spacing:0.05em; background:transparent;">
                         JUST SKIP (LOST TIME)
                     </button>
-                    <button onclick="closeModal('skipConfirmModal')" class="btn-secondary" style="width:100%; height:46px; border:none; background:transparent; color:var(--muted2); font-weight:700; font-size:10px; margin-top:8px;">
+                    <button onclick="closeModal('skipConfirmModal')" class="btn-secondary"
+                        style="width:100%; height:46px; border:none; background:transparent; color:var(--muted2); font-weight:700; font-size:10px; margin-top:8px;">
                         CANCEL ACTION
                     </button>
                 </div>
@@ -1846,19 +1968,25 @@
     {{-- ═══ SESSION RESCHEDULE MODAL ═══ --}}
     <div id="rescheduleModal" class="modal-overlay" style="z-index: 1200;">
         <div class="modal-box" style="max-width:450px; border-radius:24px; overflow:hidden;">
-            <div class="modal-head" style="padding: 24px 28px; background: var(--surface2); border-bottom: 1px solid var(--border);">
+            <div class="modal-head"
+                style="padding: 24px 28px; background: var(--surface2); border-bottom: 1px solid var(--border);">
                 <div style="display:flex;align-items:center;gap:15px">
-                    <div style="width:40px;height:40px;border-radius:12px;background:var(--accent)22;color:var(--accent);display:flex;align-items:center;justify-content:center;">
+                    <div
+                        style="width:40px;height:40px;border-radius:12px;background:var(--accent)22;color:var(--accent);display:flex;align-items:center;justify-content:center;">
                         <svg width="20" height="20" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2-2v12a2 2 0 002 2z" />
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2-2v12a2 2 0 002 2z" />
                         </svg>
                     </div>
                     <div>
                         <div class="modal-title" style="font-weight: 800; font-size: 16px;">Manual Reschedule</div>
-                        <div style="font-family:var(--font-mono);font-size:9px;color:var(--muted);letter-spacing:0.02em;text-transform:uppercase">ADJUST SESSION TIMING</div>
+                        <div
+                            style="font-family:var(--font-mono);font-size:9px;color:var(--muted);letter-spacing:0.02em;text-transform:uppercase">
+                            ADJUST SESSION TIMING</div>
                     </div>
                 </div>
-                <button onclick="closeModal('rescheduleModal')" class="modal-close" style="background:var(--surface3); width:30px; height:30px; border-radius:50%; display:flex; align-items:center; justify-content:center; border:none; cursor:pointer;">
+                <button onclick="closeModal('rescheduleModal')" class="modal-close"
+                    style="background:var(--surface3); width:30px; height:30px; border-radius:50%; display:flex; align-items:center; justify-content:center; border:none; cursor:pointer;">
                     <svg width="12" height="12" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                         <path d="M6 18L18 6M6 6l12 12" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" />
                     </svg>
@@ -1867,25 +1995,31 @@
             <div class="modal-body" style="padding:28px;">
                 <input type="hidden" id="reschSessionId">
                 <input type="hidden" id="reschClassId">
-                
+
                 <div class="form-group" style="margin-bottom:20px">
                     <label class="form-label">New Start Date & Time <span class="req">*</span></label>
-                    <input id="reschStart" class="form-input" type="datetime-local" style="background:var(--surface3); width:100%; height:42px; border-radius:10px; border:1px solid var(--border); padding:0 12px; color:var(--text)">
+                    <input id="reschStart" class="form-input" type="datetime-local"
+                        style="background:var(--surface3); width:100%; height:42px; border-radius:10px; border:1px solid var(--border); padding:0 12px; color:var(--text)">
                 </div>
 
                 <div class="form-group">
                     <label class="form-label">New End Time <span class="req">*</span></label>
-                    <input id="reschEnd" class="form-input" type="datetime-local" style="background:var(--surface3); width:100%; height:42px; border-radius:10px; border:1px solid var(--border); padding:0 12px; color:var(--text)">
+                    <input id="reschEnd" class="form-input" type="datetime-local"
+                        style="background:var(--surface3); width:100%; height:42px; border-radius:10px; border:1px solid var(--border); padding:0 12px; color:var(--text)">
                 </div>
 
-                <div style="margin-top:24px; padding:15px; border-radius:12px; background:var(--accent)08; border:1px dashed var(--accent)33;">
+                <div
+                    style="margin-top:24px; padding:15px; border-radius:12px; background:var(--accent)08; border:1px dashed var(--accent)33;">
                     <p style="font-size:10px; color:var(--text2); line-height:1.4; font-family:var(--font-mono)">
-                        <span style="color:var(--accent); font-weight:800">NOTE:</span> QR check-in windows will automatically adjust to ±20 minutes from the new start time.
+                        <span style="color:var(--accent); font-weight:800">NOTE:</span> QR check-in windows will
+                        automatically adjust to ±20 minutes from the new start time.
                     </p>
                 </div>
             </div>
             <div class="modal-footer" style="background:var(--surface2); padding: 188px 28px;">
-                <button id="executeReschBtn" class="btn-primary" style="width:100%; height:46px; font-weight:800; border-radius:12px; font-size:11px; letter-spacing:0.02em" onclick="executeReschedule()">UPDATE ACADEMIC SLOT</button>
+                <button id="executeReschBtn" class="btn-primary"
+                    style="width:100%; height:46px; font-weight:800; border-radius:12px; font-size:11px; letter-spacing:0.02em"
+                    onclick="executeReschedule()">UPDATE ACADEMIC SLOT</button>
             </div>
         </div>
     </div>
@@ -1893,24 +2027,36 @@
     <div id="skipMoveConfirmModal" class="modal-overlay" style="z-index: 1300;">
         <div class="modal-box" style="max-width:450px; border-radius:24px; overflow:hidden;">
             <div class="modal-body" style="padding:40px 32px; text-align:center;">
-                <div style="width:64px; height:64px; border-radius:20px; background:var(--accent)15; color:var(--accent); display:flex; align-items:center; justify-content:center; margin:0 auto 24px; box-shadow: 0 8px 20px var(--accent)15;">
+                <div
+                    style="width:64px; height:64px; border-radius:20px; background:var(--accent)15; color:var(--accent); display:flex; align-items:center; justify-content:center; margin:0 auto 24px; box-shadow: 0 8px 20px var(--accent)15;">
                     <svg width="32" height="32" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2-2v12a2 2 0 002 2z" />
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5"
+                            d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2-2v12a2 2 0 002 2z" />
                     </svg>
                 </div>
-                <div style="font-weight:900; font-size:20px; color:var(--text); letter-spacing:-0.02em; margin-bottom:8px;">Move to End?</div>
-                <p style="font-size:13px; color:var(--muted); line-height:1.6; margin-bottom:24px; font-family:var(--font-mono)">This session will be moved to the next available slot at the end of the semester:</p>
-                
-                <div style="background:var(--surface3); padding:15px; border-radius:15px; border:1px solid var(--border); margin-bottom:32px;">
-                    <div id="moveTargetDate" style="font-family:var(--font-mono); font-size:18px; font-weight:800; color:var(--accent)">CALCULATING...</div>
-                    <div id="moveTargetTime" style="font-family:var(--font-mono); font-size:11px; color:var(--muted2); margin-top:4px">...</div>
+                <div style="font-weight:900; font-size:20px; color:var(--text); letter-spacing:-0.02em; margin-bottom:8px;">
+                    Move to End?</div>
+                <p
+                    style="font-size:13px; color:var(--muted); line-height:1.6; margin-bottom:24px; font-family:var(--font-mono)">
+                    This session will be moved to the next available slot at the end of the semester:</p>
+
+                <div
+                    style="background:var(--surface3); padding:15px; border-radius:15px; border:1px solid var(--border); margin-bottom:32px;">
+                    <div id="moveTargetDate"
+                        style="font-family:var(--font-mono); font-size:18px; font-weight:800; color:var(--accent)">
+                        CALCULATING...</div>
+                    <div id="moveTargetTime"
+                        style="font-family:var(--font-mono); font-size:11px; color:var(--muted2); margin-top:4px">...</div>
                 </div>
 
                 <div style="display:flex; flex-direction:column; gap:12px;">
-                    <button id="confirmMoveBtn" class="btn-primary" style="width:100%; height:50px; background:var(--accent); box-shadow:0 10px 25px var(--accent)33; border:none; font-weight:800; font-size:11px; letter-spacing:0.05em;" onclick="finalExecuteMove()">
+                    <button id="confirmMoveBtn" class="btn-primary"
+                        style="width:100%; height:50px; background:var(--accent); box-shadow:0 10px 25px var(--accent)33; border:none; font-weight:800; font-size:11px; letter-spacing:0.05em;"
+                        onclick="finalExecuteMove()">
                         CONFIRM & MOVE SESSION
                     </button>
-                    <button onclick="closeModal('skipMoveConfirmModal')" class="btn-secondary" style="width:100%; height:46px; border:none; background:transparent; color:var(--muted2); font-weight:700; font-size:10px;">
+                    <button onclick="closeModal('skipMoveConfirmModal')" class="btn-secondary"
+                        style="width:100%; height:46px; border:none; background:transparent; color:var(--muted2); font-weight:700; font-size:10px;">
                         CANCEL
                     </button>
                 </div>
@@ -1974,34 +2120,34 @@
         // ─── Delete ────────────────────────────────────
         function logActivity(action, target) {
             const container = document.getElementById('dbActivityLogs');
-            
+
             // 🟢 CRITICAL: Remove placeholder if it exists before adding real data
             const placeholder = document.getElementById('dbActivityPlaceholder');
             if (placeholder) placeholder.remove();
 
             const now = new Date();
             const time = now.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true });
-            
-            const color = action === 'DELETE' ? 'var(--red)' : 
-                          action === 'UPDATE' ? 'var(--amber)' : 
-                          action === 'INSERT' ? 'var(--green)' : 'var(--accent)';
+
+            const color = action === 'DELETE' ? 'var(--red)' :
+                action === 'UPDATE' ? 'var(--amber)' :
+                    action === 'INSERT' ? 'var(--green)' : 'var(--accent)';
 
             const html = `
-                <div class="db-entry" style="padding:12px 0; border-bottom:1px solid var(--border); display:flex; align-items:flex-start; gap:12px; animation: slideIn 0.4s ease-out">
-                    <div style="margin-top:4px; width:6px; height:6px; border-radius:50%; background:${color}; box-shadow:0 0 10px ${color}"></div>
-                    <div style="flex:1">
-                        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px">
-                            <span style="font-family:var(--font-mono); font-size:10px; font-weight:900; color:${color}; letter-spacing:0.05em">${action}</span>
-                            <span style="font-family:var(--font-mono); font-size:9px; color:var(--muted)">${time}</span>
-                        </div>
-                        <div style="font-family:var(--font-mono); font-size:10px; color:var(--text2)">
-                            ${target}
+                    <div class="db-entry" style="padding:12px 0; border-bottom:1px solid var(--border); display:flex; align-items:flex-start; gap:12px; animation: slideIn 0.4s ease-out">
+                        <div style="margin-top:4px; width:6px; height:6px; border-radius:50%; background:${color}; box-shadow:0 0 10px ${color}"></div>
+                        <div style="flex:1">
+                            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px">
+                                <span style="font-family:var(--font-mono); font-size:10px; font-weight:900; color:${color}; letter-spacing:0.05em">${action}</span>
+                                <span style="font-family:var(--font-mono); font-size:9px; color:var(--muted)">${time}</span>
+                            </div>
+                            <div style="font-family:var(--font-mono); font-size:10px; color:var(--text2)">
+                                ${target}
+                            </div>
                         </div>
                     </div>
-                </div>
-            `;
+                `;
             container.insertAdjacentHTML('afterbegin', html);
-            
+
             // Keep only last 5
             if (container.children.length > 5) {
                 container.lastElementChild.remove();
@@ -2015,10 +2161,10 @@
                 if (data.success && data.activity.length > 0) {
                     const placeholder = document.getElementById('dbActivityPlaceholder');
                     if (placeholder) placeholder.remove();
-                    
+
                     // Clear existing if any
                     const container = document.getElementById('dbActivityLogs');
-                    
+
                     data.activity.reverse().forEach(act => {
                         logActivity(act.action, act.target);
                     });
@@ -2039,11 +2185,11 @@
         // Add slideIn animation
         const style = document.createElement('style');
         style.textContent = `
-            @keyframes slideIn {
-                from { opacity: 0; transform: translateX(20px); }
-                to { opacity: 1; transform: translateX(0); }
-            }
-        `;
+                @keyframes slideIn {
+                    from { opacity: 0; transform: translateX(20px); }
+                    to { opacity: 1; transform: translateX(0); }
+                }
+            `;
         document.head.appendChild(style);
         function openDeleteModal(id) { pendingDeleteId = id; openModal('deleteModal'); }
 
@@ -2316,7 +2462,12 @@
             document.querySelectorAll('.enroll-row').forEach(row => {
                 const nameMatch = row.dataset.name.includes(q);
                 const codeMatch = row.dataset.code.includes(q);
-                const show = nameMatch || codeMatch;
+                const majorMatch = (row.dataset.major || "").includes(q);
+                const deptMatch = (row.dataset.dept || "").includes(q);
+                const yr = row.dataset.year || "";
+                const yearMatch = yr.includes(q) || (yr + "st").includes(q) || (yr + "nd").includes(q) || (yr + "rd").includes(q) || (yr + "th").includes(q) || (q.includes("year") && q.includes(yr));
+                
+                const show = nameMatch || codeMatch || majorMatch || deptMatch || yearMatch;
                 row.style.display = show ? 'flex' : 'none';
                 if (show) count++;
             });
@@ -2422,33 +2573,33 @@
 
             if (!sv) {
                 previewDiv.innerHTML = `
-                <div style="padding:12px; text-align:center; background:var(--surface3)44; border-radius:12px; border:1px dashed var(--border)">
-                    <div style="font-family:var(--font-mono); font-size:9px; font-weight:700; color:var(--muted); letter-spacing:.05em">TIMELINE ARCHITECTURE INACTIVE</div>
-                    <div style="font-size:8px; color:var(--muted); font-family:var(--font-mono); margin-top:2px">Awaiting start date for temporal visualization</div>
-                </div>
-            `;
+                    <div style="padding:12px; text-align:center; background:var(--surface3)44; border-radius:12px; border:1px dashed var(--border)">
+                        <div style="font-family:var(--font-mono); font-size:9px; font-weight:700; color:var(--muted); letter-spacing:.05em">TIMELINE ARCHITECTURE INACTIVE</div>
+                        <div style="font-size:8px; color:var(--muted); font-family:var(--font-mono); margin-top:2px">Awaiting start date for temporal visualization</div>
+                    </div>
+                `;
                 previewDiv.style.display = 'block';
                 return;
             }
 
             previewDiv.innerHTML = `
-            <div style="display:flex; justify-content:space-between; align-items:flex-end; margin-bottom:15px">
-                <div>
-                    <div class="csm-label">ESTIMATED COMPLETION</div>
-                    <div id="csmPrevEnd" style="font-weight:800;font-size:14px;color:var(--text); line-height:1">-</div>
+                <div style="display:flex; justify-content:space-between; align-items:flex-end; margin-bottom:15px">
+                    <div>
+                        <div class="csm-label">ESTIMATED COMPLETION</div>
+                        <div id="csmPrevEnd" style="font-weight:800;font-size:14px;color:var(--text); line-height:1">-</div>
+                    </div>
+                    <div style="text-align:right">
+                        <div class="csm-label">ACADEMIC SPAN</div>
+                        <div id="csmPrevDays" style="font-weight:800;font-size:14px;color:var(--green); line-height:1">-</div>
+                    </div>
                 </div>
-                <div style="text-align:right">
-                    <div class="csm-label">ACADEMIC SPAN</div>
-                    <div id="csmPrevDays" style="font-weight:800;font-size:14px;color:var(--green); line-height:1">-</div>
+                <div style="position:relative;height:24px;background:var(--surface2);border-radius:8px;overflow:hidden;border:1px solid var(--border); box-shadow: inset 0 2px 4px rgba(0,0,0,0.1)">
+                    <div id="csmPrevBar" style="position:absolute;left:0;top:0;height:100%;background:linear-gradient(90deg, var(--violet)44, var(--accent)44);border-radius:8px"></div>
+                    <div id="csmPrevHolBar" style="position:absolute;top:0;height:100%;background:var(--amber)33; border-left:1px solid var(--amber)44; border-right:1px solid var(--amber)44;"></div>
+                    <div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-family:var(--font-mono);font-size:8px;color:var(--text);font-weight:700;letter-spacing:0.1em;text-shadow: 0 1px 2px rgba(0,0,0,0.5)">TEMPORAL SEMESTER PROJECTION</div>
                 </div>
-            </div>
-            <div style="position:relative;height:24px;background:var(--surface2);border-radius:8px;overflow:hidden;border:1px solid var(--border); box-shadow: inset 0 2px 4px rgba(0,0,0,0.1)">
-                <div id="csmPrevBar" style="position:absolute;left:0;top:0;height:100%;background:linear-gradient(90deg, var(--violet)44, var(--accent)44);border-radius:8px"></div>
-                <div id="csmPrevHolBar" style="position:absolute;top:0;height:100%;background:var(--amber)33; border-left:1px solid var(--amber)44; border-right:1px solid var(--amber)44;"></div>
-                <div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-family:var(--font-mono);font-size:8px;color:var(--text);font-weight:700;letter-spacing:0.1em;text-shadow: 0 1px 2px rgba(0,0,0,0.5)">TEMPORAL SEMESTER PROJECTION</div>
-            </div>
-            <div id="csmPrevHol" style="margin-top:10px; font-family:var(--font-mono); font-size:9px; color:var(--amber); font-weight:600; text-align:center"></div>
-        `;
+                <div id="csmPrevHol" style="margin-top:10px; font-family:var(--font-mono); font-size:9px; color:var(--amber); font-weight:600; text-align:center"></div>
+            `;
             previewDiv.style.display = 'block';
             const start = new Date(sv);
             const end = new Date(sv); end.setMonth(end.getMonth() + 4);
@@ -2541,11 +2692,11 @@
             const c = document.getElementById('csmItems');
             const badge = document.getElementById('csmCountBadge');
             c.innerHTML = `
-            <div style="padding:40px; text-align:center;">
-                <div class="loading-spinner" style="margin: 0 auto 12px; border-top-color: var(--accent);"></div>
-                <div style="font-family:var(--font-mono);font-size:10px;color:var(--muted)">RETRIEVING ACADEMIC RECORDS...</div>
-            </div>
-        `;
+                <div style="padding:40px; text-align:center;">
+                    <div class="loading-spinner" style="margin: 0 auto 12px; border-top-color: var(--accent);"></div>
+                    <div style="font-family:var(--font-mono);font-size:10px;color:var(--muted)">RETRIEVING ACADEMIC RECORDS...</div>
+                </div>
+            `;
             try {
                 const res = await fetch('/api/admin/classes/' + classId + '/semesters');
                 const json = await res.json();
@@ -2554,14 +2705,14 @@
                 if (!data || !data.length) {
                     badge.textContent = '0 FOUND';
                     c.innerHTML = `
-                    <div style="padding:40px 20px; text-align:center; background:var(--surface3)44; border-radius:16px; border:1px dashed var(--border); margin:0 4px">
-                        <div style="width:48px; height:48px; border-radius:50%; background:var(--violet)10; color:var(--violet); display:flex; align-items:center; justify-content:center; margin:0 auto 16px; opacity:0.8">
-                            <svg width="24" height="24" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>
+                        <div style="padding:40px 20px; text-align:center; background:var(--surface3)44; border-radius:16px; border:1px dashed var(--border); margin:0 4px">
+                            <div style="width:48px; height:48px; border-radius:50%; background:var(--violet)10; color:var(--violet); display:flex; align-items:center; justify-content:center; margin:0 auto 16px; opacity:0.8">
+                                <svg width="24" height="24" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>
+                            </div>
+                            <div style="font-family:var(--font-mono); font-size:11px; font-weight:800; color:var(--text); letter-spacing:.05em; margin-bottom:6px">O RECORDS ASSIGNED</div>
+                            <div style="font-size:10px; color:var(--muted); font-family:var(--font-mono); max-width: 280px; margin: 0 auto; line-height: 1.5">No semester periods are currently linked to this course catalog entry.</div>
                         </div>
-                        <div style="font-family:var(--font-mono); font-size:11px; font-weight:800; color:var(--text); letter-spacing:.05em; margin-bottom:6px">O RECORDS ASSIGNED</div>
-                        <div style="font-size:10px; color:var(--muted); font-family:var(--font-mono); max-width: 280px; margin: 0 auto; line-height: 1.5">No semester periods are currently linked to this course catalog entry.</div>
-                    </div>
-                `;
+                    `;
                     return;
                 }
 
@@ -2585,59 +2736,59 @@
 
                     const notesHtml = a.notes
                         ? `<div style="background:var(--surface3); border-radius:10px; padding:10px 14px; margin-bottom:15px; display:flex; align-items:flex-start; gap:10px; border-left: 3px solid var(--accent)66">
-                        <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="var(--accent)" style="margin-top:2px; flex-shrink:0"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg>
-                        <div style="font-size:10px; color:var(--text2); font-family:var(--font-mono); line-height:1.5">${a.notes}</div>
-                       </div>` : '';
+                            <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="var(--accent)" style="margin-top:2px; flex-shrink:0"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg>
+                            <div style="font-size:10px; color:var(--text2); font-family:var(--font-mono); line-height:1.5">${a.notes}</div>
+                           </div>` : '';
 
                     return `
-                    <div class="csm-card">
-                        ${notesHtml}
-                        <div class="csm-card-header">
-                            <div class="csm-title-group">
-                                <div class="csm-accent-bar"></div>
-                                <span class="csm-title">${a.academic_year} · SEMESTER ${a.semester}</span>
-                                <span class="csm-badge ${a.status === 'waiting' ? 'upcoming' : a.status}">${a.status === 'waiting' ? 'UPCOMING' : a.status.toUpperCase()}</span>
+                        <div class="csm-card">
+                            ${notesHtml}
+                            <div class="csm-card-header">
+                                <div class="csm-title-group">
+                                    <div class="csm-accent-bar"></div>
+                                    <span class="csm-title">${a.academic_year} · SEMESTER ${a.semester}</span>
+                                    <span class="csm-badge ${a.status === 'waiting' ? 'upcoming' : a.status}">${a.status === 'waiting' ? 'UPCOMING' : a.status.toUpperCase()}</span>
+                                </div>
+                                <button class="csm-remove-btn" onclick="csmDelete(${a.id})">REMOVE</button>
                             </div>
-                            <button class="csm-remove-btn" onclick="csmDelete(${a.id})">REMOVE</button>
-                        </div>
 
-                        <div class="csm-divider"></div>
+                            <div class="csm-divider"></div>
 
-                        <div class="csm-grid">
-                            <div>
-                                <div class="csm-label">TERMINATION DATE</div>
-                                <div class="csm-value">${a.end_date}</div>
+                            <div class="csm-grid">
+                                <div>
+                                    <div class="csm-label">TERMINATION DATE</div>
+                                    <div class="csm-value">${a.end_date}</div>
+                                </div>
+                                <div>
+                                    <div class="csm-label">NET SESSIONS</div>
+                                    <div class="csm-value green">${a.active_days} DAYS</div>
+                                </div>
+                                <div>
+                                    <div class="csm-label">ACADEMIC BREAK</div>
+                                    <div class="csm-value ${a.holiday_start ? '' : 'muted'}">${holDisplay}</div>
+                                </div>
                             </div>
-                            <div>
-                                <div class="csm-label">NET SESSIONS</div>
-                                <div class="csm-value green">${a.active_days} DAYS</div>
-                            </div>
-                            <div>
-                                <div class="csm-label">ACADEMIC BREAK</div>
-                                <div class="csm-value ${a.holiday_start ? '' : 'muted'}">${holDisplay}</div>
+
+                            <div class="csm-progress-section">
+                                <div class="csm-progress-head">
+                                    <span class="csm-label" style="margin-bottom:0">COURSE PROGRESSION</span>
+                                    <span class="csm-value" style="font-size:13px">${a.progress}%</span>
+                                </div>
+                                <div class="csm-progress-track">
+                                    <div class="csm-progress-fill" style="width:${a.progress}%"></div>
+                                </div>
                             </div>
                         </div>
-
-                        <div class="csm-progress-section">
-                            <div class="csm-progress-head">
-                                <span class="csm-label" style="margin-bottom:0">COURSE PROGRESSION</span>
-                                <span class="csm-value" style="font-size:13px">${a.progress}%</span>
-                            </div>
-                            <div class="csm-progress-track">
-                                <div class="csm-progress-fill" style="width:${a.progress}%"></div>
-                            </div>
-                        </div>
-                    </div>
-                `;
+                    `;
                 }).join('');
             } catch (e) {
                 console.error(e);
                 c.innerHTML = `
-                <div style="padding:24px; text-align:center; color:var(--red); background:var(--red)08; border-radius:12px; border:1px solid var(--red)22">
-                    <div style="font-family:var(--font-mono); font-size:10px; font-weight:800">DATA SYNCHRONIZATION ERROR</div>
-                    <div style="font-size:9px; margin-top:4px">Failed to resolve academic assignments.</div>
-                </div>
-            `;
+                    <div style="padding:24px; text-align:center; color:var(--red); background:var(--red)08; border-radius:12px; border:1px solid var(--red)22">
+                        <div style="font-family:var(--font-mono); font-size:10px; font-weight:800">DATA SYNCHRONIZATION ERROR</div>
+                        <div style="font-size:9px; margin-top:4px">Failed to resolve academic assignments.</div>
+                    </div>
+                `;
             }
         }
 
@@ -2736,40 +2887,40 @@
                     const pct = s.total_students_count > 0 ? Math.round((s.presence_count / s.total_students_count) * 100) : 0;
 
                     return `
-                    <div style="display:flex; align-items:center; justify-content:space-between; padding:16px; border:1px solid var(--border); border-radius:16px; margin-bottom:12px; background:var(--surface2); transition:all 0.2s" onmouseover="this.style.borderColor='var(--amber)44'; this.style.transform='translateX(4px)'" onmouseout="this.style.borderColor='var(--border)'; this.style.transform='none'">
-                        <div style="display:flex; align-items:center; gap:16px">
-                            <div style="width:48px; height:48px; border-radius:12px; background:var(--surface3); display:flex; flex-direction:column; align-items:center; justify-content:center; border:1px solid var(--border)">
-                                <div style="font-size:9px; font-weight:800; color:var(--muted); font-family:var(--font-mono)">${isNaN(d.getTime()) ? '???' : d.toLocaleDateString('en-US', { month: 'short' }).toUpperCase()}</div>
-                                <div style="font-size:16px; font-weight:800; color:var(--text); line-height:1">${isNaN(d.getTime()) ? '--' : d.getDate()}</div>
-                            </div>
-                            <div>
-                                <div style="font-family:var(--font-mono); font-size:12px; font-weight:700; color:var(--text)">${dateStr} @ ${timeStr}</div>
-                                <div style="display:flex; align-items:center; gap:8px; margin-top:4px">
-                                    <span style="font-family:var(--font-mono); font-size:8px; padding:2px 8px; border-radius:10px; background:${statusBg}; color:${statusClr}; font-weight:800; text-transform:uppercase">${s.status}</span>
-                                    <span style="font-size:10px; color:var(--muted)">•</span>
-                                    <span style="font-family:var(--font-mono); font-size:10px; color:var(--text2); font-weight:700">${s.presence_count} / ${s.total_students_count} <span style="font-weight:400; font-size:9px; color:var(--muted)">ARRIVED</span></span>
+                        <div style="display:flex; align-items:center; justify-content:space-between; padding:16px; border:1px solid var(--border); border-radius:16px; margin-bottom:12px; background:var(--surface2); transition:all 0.2s" onmouseover="this.style.borderColor='var(--amber)44'; this.style.transform='translateX(4px)'" onmouseout="this.style.borderColor='var(--border)'; this.style.transform='none'">
+                            <div style="display:flex; align-items:center; gap:16px">
+                                <div style="width:48px; height:48px; border-radius:12px; background:var(--surface3); display:flex; flex-direction:column; align-items:center; justify-content:center; border:1px solid var(--border)">
+                                    <div style="font-size:9px; font-weight:800; color:var(--muted); font-family:var(--font-mono)">${isNaN(d.getTime()) ? '???' : d.toLocaleDateString('en-US', { month: 'short' }).toUpperCase()}</div>
+                                    <div style="font-size:16px; font-weight:800; color:var(--text); line-height:1">${isNaN(d.getTime()) ? '--' : d.getDate()}</div>
+                                </div>
+                                <div>
+                                    <div style="font-family:var(--font-mono); font-size:12px; font-weight:700; color:var(--text)">${dateStr} @ ${timeStr}</div>
+                                    <div style="display:flex; align-items:center; gap:8px; margin-top:4px">
+                                        <span style="font-family:var(--font-mono); font-size:8px; padding:2px 8px; border-radius:10px; background:${statusBg}; color:${statusClr}; font-weight:800; text-transform:uppercase">${s.status}</span>
+                                        <span style="font-size:10px; color:var(--muted)">•</span>
+                                        <span style="font-family:var(--font-mono); font-size:10px; color:var(--text2); font-weight:700">${s.presence_count} / ${s.total_students_count} <span style="font-weight:400; font-size:9px; color:var(--muted)">ARRIVED</span></span>
+                                    </div>
                                 </div>
                             </div>
+                            <div style="display:flex; align-items:center; gap:8px">
+                                ${isSkipped ? `
+                                <button class="action-btn" onclick="autoMoveToEnd(${s.id}, ${classId})" style="background:var(--green)10; border:1px solid var(--green)22; border-radius:10px; padding:8px 12px; font-family:var(--font-mono); font-size:9px; font-weight:800; cursor:pointer; color:var(--green)">
+                                    AUTO-MOVE
+                                </button>
+                                <button class="action-btn" onclick="openRescheduleModal(${s.id}, ${classId}, '${s.start_time}', '${s.end_time}')" style="background:var(--accent)10; border:1px solid var(--accent)22; border-radius:10px; padding:8px 12px; font-family:var(--font-mono); font-size:9px; font-weight:800; cursor:pointer; color:var(--accent)">
+                                    MANUAL
+                                </button>
+                                ` : `
+                                <button class="action-btn" onclick="skipSession(${s.id}, ${classId})" style="background:var(--red)10; border:1px solid var(--red)22; border-radius:10px; padding:8px 12px; font-family:var(--font-mono); font-size:9px; font-weight:800; cursor:pointer; color:var(--red)">
+                                    SKIP
+                                </button>
+                                `}
+                                <button class="action-btn" onclick="openSessionDetail(${s.id})" style="background:var(--surface3); border:1px solid var(--border); border-radius:10px; padding:8px 16px; font-family:var(--font-mono); font-size:10px; font-weight:800; cursor:pointer; color:var(--text2)">
+                                    DETAILS
+                                </button>
+                            </div>
                         </div>
-                        <div style="display:flex; align-items:center; gap:8px">
-                            ${isSkipped ? `
-                            <button class="action-btn" onclick="autoMoveToEnd(${s.id}, ${classId})" style="background:var(--green)10; border:1px solid var(--green)22; border-radius:10px; padding:8px 12px; font-family:var(--font-mono); font-size:9px; font-weight:800; cursor:pointer; color:var(--green)">
-                                AUTO-MOVE
-                            </button>
-                            <button class="action-btn" onclick="openRescheduleModal(${s.id}, ${classId}, '${s.start_time}', '${s.end_time}')" style="background:var(--accent)10; border:1px solid var(--accent)22; border-radius:10px; padding:8px 12px; font-family:var(--font-mono); font-size:9px; font-weight:800; cursor:pointer; color:var(--accent)">
-                                MANUAL
-                            </button>
-                            ` : `
-                            <button class="action-btn" onclick="skipSession(${s.id}, ${classId})" style="background:var(--red)10; border:1px solid var(--red)22; border-radius:10px; padding:8px 12px; font-family:var(--font-mono); font-size:9px; font-weight:800; cursor:pointer; color:var(--red)">
-                                SKIP
-                            </button>
-                            `}
-                            <button class="action-btn" onclick="openSessionDetail(${s.id})" style="background:var(--surface3); border:1px solid var(--border); border-radius:10px; padding:8px 16px; font-family:var(--font-mono); font-size:10px; font-weight:800; cursor:pointer; color:var(--text2)">
-                                DETAILS
-                            </button>
-                        </div>
-                    </div>
-                `;
+                    `;
                 }).join('');
             } catch (e) {
                 container.innerHTML = '<div style="text-align:center; padding:40px; color:var(--red)">Failed to load session timeline.</div>';
@@ -2876,14 +3027,14 @@
         function openRescheduleModal(sessionId, classId, currentStart, currentEnd) {
             document.getElementById('reschSessionId').value = sessionId;
             document.getElementById('reschClassId').value = classId;
-            
+
             const fmt = (d) => {
-                if(!d) return '';
+                if (!d) return '';
                 const date = new Date(d.replace(' ', 'T'));
-                return date.getFullYear() + '-' + 
-                    String(date.getMonth() + 1).padStart(2, '0') + '-' + 
-                    String(date.getDate()).padStart(2, '0') + 'T' + 
-                    String(date.getHours()).padStart(2, '0') + ':' + 
+                return date.getFullYear() + '-' +
+                    String(date.getMonth() + 1).padStart(2, '0') + '-' +
+                    String(date.getDate()).padStart(2, '0') + 'T' +
+                    String(date.getHours()).padStart(2, '0') + ':' +
                     String(date.getMinutes()).padStart(2, '0');
             };
 
@@ -2900,7 +3051,7 @@
             const btn = document.getElementById('executeReschBtn');
             const ogHtml = btn.innerHTML;
 
-            if(!start || !end) { showToast('Please select both start and end times.', 'error'); return; }
+            if (!start || !end) { showToast('Please select both start and end times.', 'error'); return; }
 
             btn.innerHTML = 'UPDATING...';
             btn.disabled = true;
@@ -2942,38 +3093,38 @@
                 document.getElementById('sdmTitle').textContent = data.session_name;
 
                 stats.innerHTML = `
-                <div>
-                    <div style="font-family:var(--font-mono); font-size:8px; color:var(--muted); text-transform:uppercase; margin-bottom:2px">PRESENCE RATIO</div>
-                    <div style="font-family:var(--font-display); font-size:18px; font-weight:800; color:var(--accent)">${data.present_count} / ${data.total_count}</div>
-                </div>
-                <div style="width:1px; background:var(--border)"></div>
-                <div>
-                    <div style="font-family:var(--font-mono); font-size:8px; color:var(--muted); text-transform:uppercase; margin-bottom:2px">EFFICIENCY</div>
-                    <div style="font-family:var(--font-display); font-size:18px; font-weight:800; color:var(--green)">${data.total_count > 0 ? Math.round((data.present_count / data.total_count) * 100) : 0}%</div>
-                </div>
-            `;
+                    <div>
+                        <div style="font-family:var(--font-mono); font-size:8px; color:var(--muted); text-transform:uppercase; margin-bottom:2px">PRESENCE RATIO</div>
+                        <div style="font-family:var(--font-display); font-size:18px; font-weight:800; color:var(--accent)">${data.present_count} / ${data.total_count}</div>
+                    </div>
+                    <div style="width:1px; background:var(--border)"></div>
+                    <div>
+                        <div style="font-family:var(--font-mono); font-size:8px; color:var(--muted); text-transform:uppercase; margin-bottom:2px">EFFICIENCY</div>
+                        <div style="font-family:var(--font-display); font-size:18px; font-weight:800; color:var(--green)">${data.total_count > 0 ? Math.round((data.present_count / data.total_count) * 100) : 0}%</div>
+                    </div>
+                `;
 
                 list.innerHTML = data.data.map(row => {
                     const isPresent = row.status === 'PRESENT' || row.status === 'LATE';
                     const statusClr = isPresent ? (row.status === 'LATE' ? 'var(--amber)' : 'var(--green)') : 'var(--red)';
 
                     return `
-                    <div style="display:flex; align-items:center; justify-content:space-between; padding:10px 0; border-bottom:1px solid var(--border)44; cursor:pointer" onmouseover="this.style.background='var(--surface3)'; this.querySelector('.s-name').style.color='var(--accent)'" onmouseout="this.style.background='transparent'; this.querySelector('.s-name').style.color='var(--text)'" onclick="openStudentRecordModal(${row.id})">
-                        <div style="display:flex; align-items:center; gap:12px">
-                            <div style="width:32px; height:32px; border-radius:50%; background:var(--surface3); color:var(--muted); display:flex; align-items:center; justify-content:center; font-weight:800; font-size:11px">
-                                ${row.name.charAt(0)}
+                        <div style="display:flex; align-items:center; justify-content:space-between; padding:10px 0; border-bottom:1px solid var(--border)44; cursor:pointer" onmouseover="this.style.background='var(--surface3)'; this.querySelector('.s-name').style.color='var(--accent)'" onmouseout="this.style.background='transparent'; this.querySelector('.s-name').style.color='var(--text)'" onclick="openStudentRecordModal(${row.id})">
+                            <div style="display:flex; align-items:center; gap:12px">
+                                <div style="width:32px; height:32px; border-radius:50%; background:var(--surface3); color:var(--muted); display:flex; align-items:center; justify-content:center; font-weight:800; font-size:11px">
+                                    ${row.name.charAt(0)}
+                                </div>
+                                <div>
+                                    <div class="s-name" style="font-size:12px; font-weight:700; color:var(--text); transition:color 0.2s">${row.name}</div>
+                                    <div style="font-family:var(--font-mono); font-size:9px; color:var(--muted)">${row.student_code}</div>
+                                </div>
                             </div>
-                            <div>
-                                <div class="s-name" style="font-size:12px; font-weight:700; color:var(--text); transition:color 0.2s">${row.name}</div>
-                                <div style="font-family:var(--font-mono); font-size:9px; color:var(--muted)">${row.student_code}</div>
+                            <div style="text-align:right">
+                                <div style="font-family:var(--font-mono); font-size:9px; font-weight:800; color:${statusClr}">${row.status}</div>
+                                <div style="font-family:var(--font-mono); font-size:9px; color:var(--muted)">${row.check_in_time}</div>
                             </div>
                         </div>
-                        <div style="text-align:right">
-                            <div style="font-family:var(--font-mono); font-size:9px; font-weight:800; color:${statusClr}">${row.status}</div>
-                            <div style="font-family:var(--font-mono); font-size:9px; color:var(--muted)">${row.check_in_time}</div>
-                        </div>
-                    </div>
-                `;
+                    `;
                 }).join('');
             } catch (e) {
                 list.innerHTML = '<div style="text-align:center; padding:40px; color:var(--red)">Error retrieving session details.</div>';
@@ -2996,8 +3147,11 @@
                 document.getElementById('smInitials').textContent = s.name.split(' ').map(n => n[0]).join('').substring(0, 2);
 
                 // Populate Analytics
-                document.getElementById('smYear').textContent = s.year_level + ' Year';
-                document.getElementById('smMajor').textContent = s.major;
+                document.getElementById('smMajor').textContent = s.major || 'N/A';
+                document.getElementById('smDept').textContent = s.department || 'N/A';
+                const yrVal = s.year_level || 1;
+                const suf = (['th', 'st', 'nd', 'rd', 'th', 'th', 'th', 'th', 'th', 'th'][yrVal % 10] || 'th');
+                document.getElementById('smYear').textContent = yrVal + ((yrVal % 100 >= 11 && yrVal % 100 <= 13) ? 'th' : suf) + ' YEAR';
                 document.getElementById('smStatusBadge').textContent = s.status.toUpperCase() + ' STUDENT';
                 document.getElementById('smRate').textContent = s.attendance_rate + '%';
                 document.getElementById('smJoinedDate').textContent = 'JOINED AT ' + s.joined_at;
@@ -3013,20 +3167,20 @@
                     const color = isPresent ? 'var(--green)' : 'var(--red)';
 
                     return `
-                    <div style="display:flex; align-items:center; justify-content:space-between; background:var(--surface); padding:10px 14px; border-radius:12px; border:1px solid var(--border)">
-                        <div style="display:flex; align-items:center; gap:10px">
-                            <div style="width:8px; height:8px; border-radius:50%; background:${color}"></div>
-                            <div>
-                                <div style="font-size:11px; font-weight:700; color:var(--text)">${row.subject}</div>
-                                <div style="font-size:9px; color:var(--muted)">${row.date}</div>
+                        <div style="display:flex; align-items:center; justify-content:space-between; background:var(--surface); padding:10px 14px; border-radius:12px; border:1px solid var(--border)">
+                            <div style="display:flex; align-items:center; gap:10px">
+                                <div style="width:8px; height:8px; border-radius:50%; background:${color}"></div>
+                                <div>
+                                    <div style="font-size:11px; font-weight:700; color:var(--text)">${row.subject}</div>
+                                    <div style="font-size:9px; color:var(--muted)">${row.date}</div>
+                                </div>
+                            </div>
+                            <div style="text-align:right">
+                                <div style="font-family:var(--font-mono); font-size:9px; font-weight:800; color:${color}">${row.status}</div>
+                                <div style="font-family:var(--font-mono); font-size:8px; color:var(--muted2)">${row.time}</div>
                             </div>
                         </div>
-                        <div style="text-align:right">
-                            <div style="font-family:var(--font-mono); font-size:9px; font-weight:800; color:${color}">${row.status}</div>
-                            <div style="font-family:var(--font-mono); font-size:8px; color:var(--muted2)">${row.time}</div>
-                        </div>
-                    </div>
-                `;
+                    `;
                 }).join('');
 
             } catch (e) {
@@ -3066,19 +3220,25 @@
     {{-- ═══ GLOBAL SKIP MODAL ═══ --}}
     <div id="globalSkipModal" class="modal-overlay" style="z-index: 1400;">
         <div class="modal-box" style="max-width:450px; border-radius:24px; overflow:hidden;">
-            <div class="modal-head" style="padding: 24px 28px; background: var(--surface2); border-bottom: 1px solid var(--border);">
+            <div class="modal-head"
+                style="padding: 24px 28px; background: var(--surface2); border-bottom: 1px solid var(--border);">
                 <div style="display:flex;align-items:center;gap:15px">
-                    <div style="width:40px;height:40px;border-radius:12px;background:var(--red)22;color:var(--red);display:flex;align-items:center;justify-content:center;">
+                    <div
+                        style="width:40px;height:40px;border-radius:12px;background:var(--red)22;color:var(--red);display:flex;align-items:center;justify-content:center;">
                         <svg width="20" height="20" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
                         </svg>
                     </div>
                     <div>
                         <div class="modal-title" style="font-weight: 800; font-size: 16px;">Global Range Skip</div>
-                        <div style="font-family:var(--font-mono);font-size:9px;color:var(--muted);letter-spacing:0.02em;text-transform:uppercase">BATCH CANCEL SESSIONS</div>
+                        <div
+                            style="font-family:var(--font-mono);font-size:9px;color:var(--muted);letter-spacing:0.02em;text-transform:uppercase">
+                            BATCH CANCEL SESSIONS</div>
                     </div>
                 </div>
-                <button onclick="closeModal('globalSkipModal')" class="modal-close" style="background:var(--surface3); width:30px; height:30px; border-radius:50%; display:flex; align-items:center; justify-content:center; border:none; cursor:pointer;">
+                <button onclick="closeModal('globalSkipModal')" class="modal-close"
+                    style="background:var(--surface3); width:30px; height:30px; border-radius:50%; display:flex; align-items:center; justify-content:center; border:none; cursor:pointer;">
                     <svg width="12" height="12" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                         <path d="M6 18L18 6M6 6l12 12" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" />
                     </svg>
@@ -3087,27 +3247,37 @@
             <div class="modal-body" style="padding:28px;">
                 <div class="form-group" style="margin-bottom:20px">
                     <label class="form-label">Range Start <span class="req">*</span></label>
-                    <input id="gsStart" class="form-input" type="datetime-local" style="background:var(--surface3); width:100%; height:42px; border-radius:10px; border:1px solid var(--border); padding:0 12px; color:var(--text)">
+                    <input id="gsStart" class="form-input" type="datetime-local"
+                        style="background:var(--surface3); width:100%; height:42px; border-radius:10px; border:1px solid var(--border); padding:0 12px; color:var(--text)">
                 </div>
 
                 <div class="form-group">
                     <label class="form-label">Range End <span class="req">*</span></label>
-                    <input id="gsEnd" class="form-input" type="datetime-local" style="background:var(--surface3); width:100%; height:42px; border-radius:10px; border:1px solid var(--border); padding:0 12px; color:var(--text)">
+                    <input id="gsEnd" class="form-input" type="datetime-local"
+                        style="background:var(--surface3); width:100%; height:42px; border-radius:10px; border:1px solid var(--border); padding:0 12px; color:var(--text)">
                 </div>
 
-                <div style="margin-top:24px; padding:15px; border-radius:12px; background:var(--red)08; border:1px dashed var(--red)33;">
+                <div
+                    style="margin-top:24px; padding:15px; border-radius:12px; background:var(--red)08; border:1px dashed var(--red)33;">
                     <p style="font-size:10px; color:var(--red); line-height:1.4; font-family:var(--font-mono)">
-                        <span style="font-weight:800">WARNING:</span> This will mark every session from all subjects within this range as "SKIPPED".
+                        <span style="font-weight:800">WARNING:</span> This will mark every session from all subjects within
+                        this range as "SKIPPED".
                     </p>
                 </div>
 
-                <div style="margin-top:20px; display:flex; align-items:center; gap:12px; padding:12px; background:var(--surface3); border-radius:12px; border:1px solid var(--border)">
-                    <input type="checkbox" id="gsReschedule" style="width:18px; height:18px; cursor:pointer; accent-color:var(--accent)">
-                    <label for="gsReschedule" style="font-size:11px; font-weight:700; color:var(--text2); cursor:pointer">Automatically move skipped sessions to end of semester?</label>
+                <div
+                    style="margin-top:20px; display:flex; align-items:center; gap:12px; padding:12px; background:var(--surface3); border-radius:12px; border:1px solid var(--border)">
+                    <input type="checkbox" id="gsReschedule"
+                        style="width:18px; height:18px; cursor:pointer; accent-color:var(--accent)">
+                    <label for="gsReschedule"
+                        style="font-size:11px; font-weight:700; color:var(--text2); cursor:pointer">Automatically move
+                        skipped sessions to end of semester?</label>
                 </div>
             </div>
             <div class="modal-footer" style="background:var(--surface2); padding: 18px 28px;">
-                <button id="executeGlobalSkipBtn" class="btn-primary" style="width:100%; height:46px; background:var(--red); border:none; font-weight:800; border-radius:12px; font-size:11px; letter-spacing:0.02em" onclick="handleGlobalSkip()">EXECUTE BATCH SKIP</button>
+                <button id="executeGlobalSkipBtn" class="btn-primary"
+                    style="width:100%; height:46px; background:var(--red); border:none; font-weight:800; border-radius:12px; font-size:11px; letter-spacing:0.02em"
+                    onclick="handleGlobalSkip()">EXECUTE BATCH SKIP</button>
             </div>
         </div>
     </div>
@@ -3120,13 +3290,13 @@
             const btn = document.getElementById('executeGlobalSkipBtn');
             const ogHtml = btn.innerHTML;
 
-            if(!start || !end) { showToast('Please select both start and end range.', 'error'); return; }
+            if (!start || !end) { showToast('Please select both start and end range.', 'error'); return; }
 
-            const confirmMsg = reschedule 
+            const confirmMsg = reschedule
                 ? 'Are you absolutely sure? This will MOVE multiple sessions to the end of the semester across all subjects.'
                 : 'Are you absolutely sure? This will SKIP multiple sessions across the entire system.';
 
-            if(!confirm(confirmMsg)) return;
+            if (!confirm(confirmMsg)) return;
 
             btn.innerHTML = 'PROCESSING...';
             btn.disabled = true;
