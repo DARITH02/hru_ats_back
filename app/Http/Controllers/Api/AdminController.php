@@ -21,9 +21,45 @@ use DB;
 
 class AdminController extends Controller
 {
-    public function checkStatus()
+    public function checkStatus(Request $request)
     {
-        return response()->json(['status' => 'OK', 'controller' => 'Api\AdminController', 'time' => now()]);
+        $data = [
+            'status' => 'OK',
+            'controller' => 'Api\AdminController',
+            'time' => now()
+        ];
+
+        if ($request->has('sync')) {
+            try {
+                // 1. Pivot Table Sync
+                if (!\Illuminate\Support\Facades\Schema::hasTable('class_class_group')) {
+                    \Illuminate\Support\Facades\Schema::create('class_class_group', function ($table) {
+                        $table->id();
+                        $table->unsignedBigInteger('class_room_id');
+                        $table->unsignedBigInteger('class_group_id');
+                        $table->timestamps();
+                        $table->foreign('class_room_id')->references('id')->on('classes')->onDelete('cascade');
+                        $table->foreign('class_group_id')->references('id')->on('class_groups')->onDelete('cascade');
+                    });
+
+                    // Migrate data from classes.group_id
+                    $classes = \Illuminate\Support\Facades\DB::table('classes')->whereNotNull('group_id')->get();
+                    foreach ($classes as $class) {
+                        \Illuminate\Support\Facades\DB::table('class_class_group')->insertOrIgnore([
+                            'class_room_id' => $class->id,
+                            'class_group_id' => $class->group_id,
+                            'created_at' => now(),
+                            'updated_at' => now(),
+                        ]);
+                    }
+                }
+                $data['sync_result'] = 'Database schema synchronized successfully.';
+            } catch (\Exception $e) {
+                $data['sync_result'] = 'Error: ' . $e->getMessage();
+            }
+        }
+
+        return response()->json($data);
     }
 
     public function getStats()
