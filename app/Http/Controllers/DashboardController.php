@@ -81,12 +81,16 @@ class DashboardController extends Controller
                 ->where('start_date', '<=', now()->toDateString())
                 ->where('end_date', '>=', now()->toDateString())
                 ->whereHas('student', function ($q) use ($activeSession) {
-                    $q->where('group_id', $activeSession->classRoom->group_id);
+                    $groupIds = $activeSession->classRoom->groups->pluck('id');
+                    $q->whereIn('group_id', $groupIds);
                 })
                 ->get()
                 ->keyBy('student_id');
 
-            $activeStudents = $activeSession->classRoom->students->map(function ($student) use ($sessionAttendance, $activePermissions) {
+            $groupIds = $activeSession->classRoom->groups->pluck('id');
+            $allStudents = \App\Models\Student::with(['user', 'group.major', 'major'])->whereIn('group_id', $groupIds)->get();
+
+            $activeStudents = $allStudents->map(function ($student) use ($sessionAttendance, $activePermissions) {
                 $att = $sessionAttendance->get($student->id);
                 $perm = $activePermissions->get($student->id);
 
@@ -143,64 +147,68 @@ class DashboardController extends Controller
     private function getTopAbsentStudents()
     {
         // Students with most absences in completed sessions
-        return Student::with(['user', 'major'])
+        return Student::with(['user'])
             ->get()
-            ->map(function ($student) {
-                // Count completed sessions for this student's class
-                $totalSessions = AttendanceSession::where('class_id', $student->class_id)
+            ->map(function($student) {
+                // Count relevant completed sessions
+                $sessionIds = AttendanceSession::whereHas('classRoom.groups', function($q) use ($student) {
+                        $q->where('class_groups.id', $student->group_id);
+                    })
                     ->where('status', 'completed')
-                    ->count();
+                    ->pluck('id');
+                
+                $totalSessions = $sessionIds->count();
+                if ($totalSessions === 0) return null;
 
-                // Count presence/late/excused
                 $attendedCount = Attendance::where('student_id', $student->id)
+                    ->whereIn('session_id', $sessionIds)
                     ->whereIn('status', ['present', 'late', 'excused', 'PRESENT', 'LATE', 'EXCUSED'])
                     ->count();
-
+                
                 $absentCount = max(0, $totalSessions - $attendedCount);
-                $rate = $totalSessions > 0 ? ($absentCount / $totalSessions) * 100 : 0;
-
+                $rate = ($absentCount / $totalSessions) * 100;
+                
                 return [
                     'id' => $student->id,
-                    'name' => $student->user->name,
+                    'name' => $student->user->name ?? 'Unknown',
                     'absent_count' => $absentCount,
                     'absence_rate' => round($rate),
-                    'initials' => collect(explode(' ', $student->user->name))->map(fn($n) => substr($n, 0, 1))->join(''),
+                    'initials' => collect(explode(' ', $student->user->name ?? 'U'))->map(fn($n) => substr($n, 0, 1))->join(''),
                 ];
             })
-            ->filter(fn($s) => $s['absent_count'] > 0)
+            ->filter(fn($s) => $s !== null && $s['absent_count'] > 0)
             ->sortByDesc('absent_count')
             ->take(5);
     }
 
     private function getTopAbsentClasses()
     {
-        return ClassRoom::with(['subject', 'teacher.user'])
+        return ClassRoom::with(['subject', 'teacher.user', 'groups'])
             ->get()
-            ->map(function ($class) {
+            ->map(function($class) {
                 $sessions = AttendanceSession::where('class_id', $class->id)->where('status', 'completed')->pluck('id');
-                if ($sessions->isEmpty())
-                    return null;
+                if ($sessions->isEmpty()) return null;
 
-                $totalStudents = $class->students()->count();
-                if ($totalStudents === 0)
-                    return null;
+                $groupIds = $class->groups->pluck('id');
+                $totalStudents = Student::whereIn('group_id', $groupIds)->count();
+                if ($totalStudents === 0) return null;
 
                 $totalPossibleAttendances = $sessions->count() * $totalStudents;
                 $actualAttendances = Attendance::whereIn('session_id', $sessions)
                     ->whereIn('status', ['present', 'late', 'excused', 'PRESENT', 'LATE', 'EXCUSED'])
                     ->count();
-
+                
                 $absences = max(0, $totalPossibleAttendances - $actualAttendances);
                 $absenceRate = $totalPossibleAttendances > 0 ? ($absences / $totalPossibleAttendances) * 100 : 0;
 
                 return [
                     'id' => $class->id,
-                    'name' => $class->subject->name,
+                    'name' => $class->subject->name ?? 'Unknown',
                     'teacher' => $class->teacher->user->name ?? 'Unknown',
                     'absence_rate' => round($absenceRate),
                 ];
             })
-            ->filter()
+            ->filter(fn($c) => $c !== null && $c['absence_rate'] > 0)
             ->sortByDesc('absence_rate')
             ->take(5);
     }
@@ -211,7 +219,7 @@ class DashboardController extends Controller
 
         foreach ($stats as $year => $val) {
             // Get all sessions for groups in this year
-            $sessions = AttendanceSession::whereHas('classRoom.group', function ($q) use ($year) {
+            $sessions = AttendanceSession::whereHas('classRoom.groups', function ($q) use ($year) {
                 $q->where('year_level', $year);
             })
                 ->where('status', 'completed')

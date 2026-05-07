@@ -147,14 +147,15 @@ class TeacherController extends Controller
 
         $rows = $allStudents->map(function ($student) use ($attendances) {
             $att = $attendances->get($student->id);
-            $names = explode(' ', $student->name);
+            $userName = $student->user->name ?? 'Unknown Student';
+            $names = explode(' ', $userName);
             $initials = (isset($names[0]) ? substr($names[0], 0, 1) : '') . (isset($names[1]) ? substr($names[1], 0, 1) : '');
             
             return [
                 'id' => $student->id,
                 'attendance_id' => $att?->id,
                 'initials' => strtoupper($initials),
-                'name' => $student->name,
+                'name' => $userName,
                 'student_code' => $student->student_code,
                 'status' => $att ? strtoupper($att->status) : 'ABSENT',
                 'check_in_time' => $att && $att->scan_time ? Carbon::parse($att->scan_time)->format('H:i') : '—',

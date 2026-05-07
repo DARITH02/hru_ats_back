@@ -49,9 +49,10 @@ class AttendanceService
         // 3. 📍 LOCATION VALIDATION (GEOFENCING)
         $this->validateLocation($latitude, $longitude, $accuracy);
 
-        // 4. Validate Student via Group
+        // 4. Validate Student via Groups
+        $groupIds = $session->classRoom->groups->pluck('id');
         $student = Student::where('student_code', $studentCode)
-            ->where('group_id', $session->classRoom->group_id)
+            ->whereIn('group_id', $groupIds)
             ->first();
 
         if (!$student) {
