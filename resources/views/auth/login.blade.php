@@ -135,19 +135,25 @@
         }
 
         .brand-mark {
-            width: 32px; height: 32px;
+            width: 52px; height: 52px;
             border-radius: 8px;
-            background: linear-gradient(135deg, #633BF6, #16C4A7);
             display: flex; align-items: center; justify-content: center;
             flex-shrink: 0;
+            overflow: hidden;
+        }
+
+        .brand-mark img {
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
         }
 
         .brand-text {
             font-family: 'Syne', sans-serif;
-            font-weight: 800;
-            font-size: 16px;
-            letter-spacing: .12em;
-            color: var(--text);
+            font-weight: 700;
+            font-size: 25px;
+            letter-spacing: .20em;
+            color: blue;
             transition: color .35s;
         }
 
@@ -455,12 +461,9 @@
     <div class="top-row">
         <div class="brand">
             <div class="brand-mark">
-                <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
-                    <circle cx="8" cy="8" r="3" fill="white" fill-opacity=".95"/>
-                    <circle cx="8" cy="8" r="6" stroke="white" stroke-opacity=".3" stroke-width="1.5"/>
-                </svg>
+                <img src="https://res.cloudinary.com/dnrblpkal/image/upload/q_auto/f_auto/v1775536855/branding/k6obqtagifkszo8pehnd.png" alt="Logo">
             </div>
-            <div class="brand-text">ATTEND<span>AI</span></div>
+            <div class="brand-text">HRU <span>ATS</span></div>
         </div>
 
         <button class="theme-btn" id="themeBtn" type="button" title="Toggle light / dark">
@@ -590,7 +593,7 @@
     </div>
 
     {{-- ── SSO buttons ──────────────────────────────────────────── --}}
-    <div class="sso-row">
+    <!-- <div class="sso-row">
         <a href="#" class="sso-btn">
             {{-- Google --}}
             <svg width="15" height="15" viewBox="0 0 48 48" fill="none">
@@ -611,7 +614,7 @@
             </svg>
             Microsoft
         </a>
-    </div>
+    </div> -->
 
     {{-- ── Footer ────────────────────────────────────────────────── --}}
     <div class="card-footer">

@@ -129,7 +129,7 @@ class TeacherController extends Controller
                 'code' => $session->classRoom->subject->code,
             ],
             'presence_count' => Attendance::where('session_id', $session->id)->whereIn('status', ['present', 'late', 'PRESENT', 'LATE'])->count(),
-            'total_students_count' => $session->classRoom->group_id ? \App\Models\Student::where('group_id', $session->classRoom->group_id)->count() : 0,
+            'total_students_count' => $session->classRoom ? \App\Models\Student::whereIn('group_id', $session->classRoom->groups->pluck('id'))->count() : 0,
         ];
     }
 
@@ -138,8 +138,9 @@ class TeacherController extends Controller
         $session = AttendanceSession::with('classRoom.subject')->findOrFail($sessionId);
         $attendances = Attendance::where('session_id', $sessionId)->get()->keyBy('student_id');
         $allStudents = collect();
-        if ($session->classRoom && $session->classRoom->group_id) {
-            $allStudents = \App\Models\Student::where('group_id', $session->classRoom->group_id)->get();
+        if ($session->classRoom) {
+            $groupIds = $session->classRoom->groups->pluck('id');
+            $allStudents = \App\Models\Student::whereIn('group_id', $groupIds)->get();
         }
 
         $sessionsCount = AttendanceSession::where('class_id', $session->class_id)->count();
@@ -267,11 +268,10 @@ class TeacherController extends Controller
         $totalStudents = 0;
         $totalPossible = 0;
         foreach ($classes as $class) {
-            if ($class->group_id) {
-                $count = \App\Models\Student::where('group_id', $class->group_id)->count();
-                $totalStudents += $count;
-                $totalPossible += $count * $sessions->where('class_id', $class->id)->count();
-            }
+            $groupIds = $class->groups->pluck('id');
+            $count = \App\Models\Student::whereIn('group_id', $groupIds)->count();
+            $totalStudents += $count;
+            $totalPossible += $count * $sessions->where('class_id', $class->id)->count();
         }
         $totalAttendance = Attendance::whereIn('session_id', $sessions->pluck('id'))->count();
         $rate = $totalPossible > 0 ? round(($totalAttendance / $totalPossible) * 100) : 0;
@@ -296,14 +296,16 @@ class TeacherController extends Controller
         $teacher = Teacher::where('user_id', $user->id)->first();
         if (!$teacher) return response()->json(['error' => 'Teacher not found'], 404);
 
-        $classes = \App\Models\ClassRoom::where('teacher_id', $teacher->id)->get();
-        $groupIds = $classes->pluck('group_id')->filter()->unique();
+        $classes = \App\Models\ClassRoom::where('teacher_id', $teacher->id)->with('groups')->get();
+        $groupIds = $classes->flatMap(fn($c) => $c->groups->pluck('id'))->unique();
         $students = \App\Models\Student::with(['user', 'group', 'major.department'])
             ->whereIn('group_id', $groupIds)
             ->get();
 
         return response()->json($students->map(function ($student) use ($classes) {
-            $myClassIds = $classes->where('group_id', $student->group_id)->pluck('id');
+            $myClassIds = $classes->filter(function($c) use ($student) {
+                return $c->groups->contains($student->group_id);
+            })->pluck('id');
             $totalSessions = \App\Models\AttendanceSession::whereIn('class_id', $myClassIds)->count();
             $attended = \App\Models\Attendance::where('student_id', $student->id)
                 ->whereIn('status', ['present', 'late', 'PRESENT', 'LATE'])
@@ -341,10 +343,10 @@ class TeacherController extends Controller
         $teacher = Teacher::where('user_id', $user->id)->first();
         if (!$teacher) return response()->json(['error' => 'Teacher not found'], 404);
 
-        $class = \App\Models\ClassRoom::where('id', $classId)->where('teacher_id', $teacher->id)->firstOrFail();
+        $class = \App\Models\ClassRoom::with('groups')->where('id', $classId)->where('teacher_id', $teacher->id)->firstOrFail();
         
         $students = \App\Models\Student::with(['user', 'group', 'major.department'])
-            ->where('group_id', $class->group_id)
+            ->whereIn('group_id', $class->groups->pluck('id'))
             ->get();
 
         $sessionIds = \App\Models\AttendanceSession::where('class_id', $class->id)->pluck('id');
@@ -390,14 +392,14 @@ class TeacherController extends Controller
         $teacher = Teacher::where('user_id', $user->id)->first();
         if (!$teacher) return response()->json(['error' => 'Teacher record not found'], 404);
 
-        $classes = \App\Models\ClassRoom::with(['subject', 'group'])
+        $classes = \App\Models\ClassRoom::with(['subject', 'groups'])
             ->where('teacher_id', $teacher->id)
             ->get();
 
         $classes->transform(function ($class) {
             $sessions = AttendanceSession::where('class_id', $class->id)->get();
             $sessionsCount = $sessions->count();
-            $totalStudents = $class->group_id ? \App\Models\Student::where('group_id', $class->group_id)->count() : 0;
+            $totalStudents = \App\Models\Student::whereIn('group_id', $class->groups->pluck('id'))->count();
             
             $attended = Attendance::whereIn('session_id', $sessions->pluck('id'))->whereIn('status', ['present', 'late', 'PRESENT', 'LATE'])->count();
             $totalPossible = $sessionsCount * $totalStudents;
@@ -408,7 +410,7 @@ class TeacherController extends Controller
                 'name' => $class->subject->name ?? 'N/A',
                 'code' => $class->subject->code ?? 'N/A',
                 'room' => $class->room_number,
-                'group_name' => $class->group->name ?? 'N/A',
+                'group_name' => $class->groups->pluck('name')->join(', ') ?: 'N/A',
                 'schedule' => $class->schedule,
                 'sessions_count' => $sessionsCount,
                 'total_students_count' => $totalStudents,
@@ -521,14 +523,16 @@ class TeacherController extends Controller
         $student = \App\Models\Student::findOrFail($studentId);
         
         // Ensure student is in one of teacher's class groups
-        $isMyStudent = \App\Models\ClassRoom::where('group_id', $student->group_id)
+        $isMyStudent = \App\Models\ClassRoom::whereHas('groups', function($q) use ($student) {
+                $q->where('class_groups.id', $student->group_id);
+            })
             ->where('teacher_id', $teacher->id)
             ->exists();
             
         if (!$isMyStudent) return response()->json(['error' => 'Unauthorized'], 403);
 
-        $sessions = AttendanceSession::whereHas('classRoom', function($q) use ($student) {
-                $q->where('group_id', $student->group_id);
+        $sessions = AttendanceSession::whereHas('classRoom.groups', function($q) use ($student) {
+                $q->where('class_groups.id', $student->group_id);
             })
             ->with('classRoom.subject')
             ->orderBy('id', 'desc')
@@ -600,7 +604,7 @@ class TeacherController extends Controller
 
         $stats = [
             'present_count' => Attendance::where('session_id', $sessionId)->whereIn('status', ['present', 'late', 'PRESENT', 'LATE'])->count(),
-            'total_students' => $session->classRoom->group_id ? \App\Models\Student::where('group_id', $session->classRoom->group_id)->count() : 0,
+            'total_students' => $session->classRoom ? \App\Models\Student::whereIn('group_id', $session->classRoom->groups->pluck('id'))->count() : 0,
         ];
 
         return response()->json([

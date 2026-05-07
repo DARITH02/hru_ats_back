@@ -151,10 +151,10 @@
 
         .brand-text {
             font-family: 'Syne', sans-serif;
-            font-weight: 800;
-            font-size: 16px;
-            letter-spacing: .12em;
-            color: var(--text);
+            font-weight: 700;
+            font-size: 25px;
+            letter-spacing: .20em;
+            color: blue;
             transition: color .35s;
         }
 
@@ -447,14 +447,12 @@
     {{-- ── Top row: brand + theme toggle ──────────────────────── --}}
     <div class="top-row">
         <div class="brand">
-            <div class="brand-mark">
-                <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
-                    <circle cx="8" cy="8" r="3" fill="white" fill-opacity=".95"/>
-                    <circle cx="8" cy="8" r="6" stroke="white" stroke-opacity=".3" stroke-width="1.5"/>
-                </svg>
+     <div class="brand-mark">
+                <img src="https://res.cloudinary.com/dnrblpkal/image/upload/q_auto/f_auto/v1775536855/branding/k6obqtagifkszo8pehnd.png" alt="Logo">
             </div>
-            <div class="brand-text">ATTEND<span>AI</span></div>
-        </div>
+            <div class="brand-text">HRU <span>ATS</span></div>
+        
+    </div>
 
         <button class="theme-btn" id="themeBtn" type="button" title="Toggle light / dark">
             {{-- Moon icon (shown in dark mode) --}}

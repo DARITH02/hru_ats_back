@@ -88,8 +88,8 @@ class AttendanceController extends Controller
         }
 
         // 1. Active/Scheduled Session
-        $session = \App\Models\AttendanceSession::whereHas('classRoom', function ($q) use ($student) {
-                $q->where('group_id', $student->group_id);
+        $session = \App\Models\AttendanceSession::whereHas('classRoom.groups', function ($q) use ($student) {
+                $q->where('class_groups.id', $student->group_id);
             })
             ->whereIn('status', ['active', 'scheduled'])
             ->with(['classRoom.subject', 'classRoom.teacher.user'])
@@ -110,8 +110,8 @@ class AttendanceController extends Controller
         }
 
         // 2. Stats
-        $allSessions = \App\Models\AttendanceSession::whereHas('classRoom', function($q) use ($student) {
-                $q->where('group_id', $student->group_id);
+        $allSessions = \App\Models\AttendanceSession::whereHas('classRoom.groups', function($q) use ($student) {
+                $q->where('class_groups.id', $student->group_id);
             })
             ->get();
 
@@ -145,8 +145,8 @@ class AttendanceController extends Controller
         $student = \App\Models\Student::where('user_id', $user->id)->first();
         if (!$student) return response()->json(['message' => 'Student record not found'], 404);
 
-        $session = \App\Models\AttendanceSession::whereHas('classRoom', function ($q) use ($student) {
-                $q->where('group_id', $student->group_id);
+        $session = \App\Models\AttendanceSession::whereHas('classRoom.groups', function ($q) use ($student) {
+                $q->where('class_groups.id', $student->group_id);
             })
             ->whereIn('status', ['active', 'scheduled'])
             ->with(['classRoom.subject', 'classRoom.teacher.user'])
@@ -173,8 +173,8 @@ class AttendanceController extends Controller
         $student = \App\Models\Student::with(['group', 'user'])->where('student_code', $request->student_code)->first();
         if (!$student) return response()->json(['success' => false, 'message' => 'Student not found'], 404);
 
-        $sessions = \App\Models\AttendanceSession::whereHas('classRoom', function($q) use ($student) {
-                $q->where('group_id', $student->group_id);
+        $sessions = \App\Models\AttendanceSession::whereHas('classRoom.groups', function($q) use ($student) {
+                $q->where('class_groups.id', $student->group_id);
             })
             ->with(['classRoom.subject', 'classRoom.teacher.user'])
             ->orderBy('id', 'desc')
@@ -231,7 +231,9 @@ class AttendanceController extends Controller
         if (!$student) return response()->json(['message' => 'Student record not found'], 404);
 
         $classes = \App\Models\ClassRoom::with(['subject', 'teacher.user'])
-            ->where('group_id', $student->group_id)
+            ->whereHas('groups', function($q) use ($student) {
+                $q->where('class_groups.id', $student->group_id);
+            })
             ->get();
 
         return response()->json($classes->map(function ($class) use ($student) {
@@ -265,7 +267,7 @@ class AttendanceController extends Controller
 
         $class = \App\Models\ClassRoom::with(['subject', 'teacher.user'])->findOrFail($classId);
         
-        if ($class->group_id !== $student->group_id) {
+        if (!$class->groups->contains($student->group_id)) {
             return response()->json(['message' => 'Unauthorized'], 403);
         }
 

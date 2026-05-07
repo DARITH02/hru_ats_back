@@ -27,6 +27,9 @@ class TelegramService
             return false;
         }
 
+        // Mark as sent immediately to prevent duplicate triggers during long-running network tasks
+        $session->update(['telegram_sent' => true]);
+
         $bot = TelegramBot::where('is_active', true)->first();
         if (!$bot || !$bot->chat_id) {
             Log::warning("Telegram report skipped for session {$sessionId}. No active bot or chat_id found.");
@@ -34,14 +37,17 @@ class TelegramService
         }
 
         try {
-            // 1. Prepare Summary
-            $total = $session->classRoom->group_id ? \App\Models\Student::where('group_id', $session->classRoom->group_id)->count() : $session->attendanceRecords->count();
+            // 1. Prepare Summary (Support Multi-Group)
+            $groupIds = $session->classRoom->groups->pluck('id');
+            $total = \App\Models\Student::whereIn('group_id', $groupIds)->count();
+            if ($total === 0) $total = $session->attendanceRecords->count();
+            
             $present = $session->attendanceRecords->whereIn('status', ['present', 'late', 'PRESENT', 'LATE'])->count();
             $absent = max(0, $total - $present);
             
             $subjectName = $session->classRoom->subject->name ?? 'Unknown Subject';
             $subjectCode = $session->classRoom->subject->code ?? 'N/A';
-            $className = $session->classRoom->group->name ?? 'Unknown Class';
+            $className = $session->classRoom->groups->pluck('name')->join(', ') ?: 'Unknown Class';
             $room = $session->classRoom->room_number ?? 'TBD';
             $teacher = $session->classRoom->teacher->user->name ?? 'Unknown';
             $date = $session->start_time;
@@ -72,9 +78,6 @@ class TelegramService
 
             // Cleanup
             Storage::disk('local')->delete($filePath);
-
-            // Mark as sent
-            $session->update(['telegram_sent' => true]);
 
             return true;
 
@@ -155,7 +158,7 @@ class TelegramService
     public function checkAbsenceThresholds($classId)
     {
         try {
-            $class = \App\Models\ClassRoom::with(['students.user', 'subject'])->find($classId);
+            $class = \App\Models\ClassRoom::with(['groups', 'subject'])->find($classId);
             if (!$class) return;
 
             $completedSessionIds = AttendanceSession::where('class_id', $classId)
@@ -165,7 +168,10 @@ class TelegramService
             $sessionCount = $completedSessionIds->count();
             if ($sessionCount < 10) return;
 
-            foreach ($class->students as $student) {
+            $groupIds = $class->groups->pluck('id');
+            $students = \App\Models\Student::with('user')->whereIn('group_id', $groupIds)->get();
+
+            foreach ($students as $student) {
                 // Check 1: Per-Subject Absence (Alert at 10)
                 $attendedCount = \App\Models\Attendance::where('student_id', $student->id)
                     ->whereIn('session_id', $completedSessionIds)
@@ -196,7 +202,10 @@ class TelegramService
                 // Assuming students are in multiple classes.
                 
                 // Let's get all classes for this student
-                $studentClasses = \App\Models\ClassRoom::where('group_id', $student->group_id)->pluck('id');
+                // Let's get all classes for this student
+                $studentClasses = \App\Models\ClassRoom::whereHas('groups', function($q) use ($student) {
+                        $q->where('class_groups.id', $student->group_id);
+                    })->pluck('id');
                 $relevantSessionIds = AttendanceSession::whereIn('class_id', $studentClasses)
                     ->where('status', 'completed')
                     ->pluck('id');

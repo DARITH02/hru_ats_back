@@ -18,9 +18,9 @@ class ClassRoom extends Model
         return $this->belongsTo(Subject::class, 'subject_id');
     }
 
-    public function group()
+    public function groups()
     {
-        return $this->belongsTo(ClassGroup::class, 'group_id');
+        return $this->belongsToMany(ClassGroup::class, 'class_class_group', 'class_room_id', 'class_group_id');
     }
 
     public function teacher()

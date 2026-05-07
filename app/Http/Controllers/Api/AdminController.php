@@ -42,13 +42,14 @@ class AdminController extends Controller
 
     private function getGlobalAttendanceRate()
     {
-        $sessions = AttendanceSession::with('classRoom')
+        $sessions = AttendanceSession::with('classRoom.groups')
             ->where('status', '!=', 'skipped')
             ->get();
         $totalPossible = 0;
         foreach ($sessions as $s) {
-            if ($s->classRoom && $s->classRoom->group_id) {
-                $totalPossible += Student::where('group_id', $s->classRoom->group_id)->count();
+            if ($s->classRoom) {
+                $groupIds = $s->classRoom->groups->pluck('id');
+                $totalPossible += Student::whereIn('group_id', $groupIds)->count();
             }
         }
         $scans = Attendance::count();
@@ -160,7 +161,7 @@ class AdminController extends Controller
 
     public function listClasses()
     {
-        return response()->json(ClassRoom::with(['subject', 'teacher.user'])->get());
+        return response()->json(ClassRoom::with(['subject', 'teacher.user', 'groups'])->get());
     }
 
     public function assignSemester(Request $request, $classId)
@@ -379,7 +380,10 @@ class AdminController extends Controller
             $data['schedule'] = $request->schedule_days . ' (' . $request->time_start . '-' . $request->time_end . ')';
         }
         $class = ClassRoom::create($data);
-        return response()->json(['success' => true, 'class' => $class]);
+        if ($request->has('group_ids')) {
+            $class->groups()->sync($request->group_ids);
+        }
+        return response()->json(['success' => true, 'class' => $class->load('groups')]);
     }
 
     public function updateClass(Request $request, $classId)
@@ -390,6 +394,9 @@ class AdminController extends Controller
             $data['schedule'] = $request->schedule_days . ' (' . $request->time_start . '-' . $request->time_end . ')';
         }
         $class->update($data);
+        if ($request->has('group_ids')) {
+            $class->groups()->sync($request->group_ids);
+        }
         ActivityLog::create([
             'action' => 'UPDATE',
             'target' => "catalog.classes#{$classId}"
@@ -410,7 +417,7 @@ class AdminController extends Controller
 
     public function listSessions($classId)
     {
-        $sessions = AttendanceSession::with(['classRoom.subject'])
+        $sessions = AttendanceSession::with(['classRoom.subject', 'classRoom.groups'])
             ->where('class_id', $classId)
             ->orderBy('start_time', 'asc')
             ->get();
@@ -431,7 +438,7 @@ class AdminController extends Controller
                     'code' => $subject->code ?? 'N/A',
                 ],
                 'presence_count'       => Attendance::where('session_id', $s->id)->whereIn('status', ['present', 'late', 'PRESENT', 'LATE'])->count(),
-                'total_students_count' => $class && $class->group_id ? Student::where('group_id', $class->group_id)->count() : 0,
+                'total_students_count' => $class ? Student::whereIn('group_id', $class->groups->pluck('id'))->count() : 0,
             ];
         });
 
@@ -576,8 +583,9 @@ class AdminController extends Controller
         $attendances = Attendance::where('session_id', $sessionId)->get()->keyBy('student_id');
         
         $allStudents = collect();
-        if ($session->classRoom && $session->classRoom->group_id) {
-            $allStudents = Student::with('user')->where('group_id', $session->classRoom->group_id)->get();
+        if ($session->classRoom) {
+            $groupIds = $session->classRoom->groups->pluck('id');
+            $allStudents = Student::with('user')->whereIn('group_id', $groupIds)->get();
         }
 
         $rows = $allStudents->map(function ($student) use ($attendances) {
@@ -812,9 +820,18 @@ class AdminController extends Controller
             $studentUpdates = $request->only(['student_code', 'group_id', 'major_id', 'status', 'class_id']);
             
             if ($request->has('class_id') && $request->class_id) {
-                $class = \App\Models\ClassRoom::find($request->class_id);
-                if ($class && $class->group_id) {
-                    $studentUpdates['group_id'] = $class->group_id;
+                $class = \App\Models\ClassRoom::with('groups')->find($request->class_id);
+                if ($class && $class->groups->isNotEmpty()) {
+                    // Try to find a group associated with this class that matches the student's major
+                    $matchingGroup = $class->groups->where('major_id', $student->major_id)->first();
+                    
+                    if ($matchingGroup) {
+                        $studentUpdates['group_id'] = $matchingGroup->id;
+                    } else {
+                        // If no exact major match, use the first group associated with the class
+                        // This ensures the student is technically "in" the class's scope
+                        $studentUpdates['group_id'] = $class->groups->first()->id;
+                    }
                 }
             }
             
@@ -850,8 +867,8 @@ class AdminController extends Controller
         $student = Student::with(['user', 'major.department', 'group.major.department'])->findOrFail($studentId);
         
         // Fetch the most recent 10 sessions for the student's group
-        $sessions = AttendanceSession::whereHas('classRoom', function($q) use ($student) {
-                $q->where('group_id', $student->group_id);
+        $sessions = AttendanceSession::whereHas('classRoom.groups', function($q) use ($student) {
+                $q->where('class_groups.id', $student->group_id);
             })
             ->where('start_time', '<=', now())
             ->latest('start_time')
@@ -875,14 +892,15 @@ class AdminController extends Controller
 
         $presentCount = Attendance::where('student_id', $studentId)->whereIn('status', ['present', 'late', 'PRESENT', 'LATE'])->count();
         $absentCount  = $sessions->count() - $presentCount;
-        $totalSessions = AttendanceSession::whereHas('classRoom', function($q) use ($student) {
-                $q->where('group_id', $student->group_id);
+        $totalSessions = AttendanceSession::whereHas('classRoom.groups', function($q) use ($student) {
+                $q->where('class_groups.id', $student->group_id);
             })->where('start_time', '<=', now())->count();
         $rate = $totalSessions === 0 ? 0 : round(($presentCount / $totalSessions) * 100);
 
-        $majorObj = $student->major ?? ($student->group->major ?? null);
-        $deptName = $majorObj ? ($majorObj->department->name ?? 'N/A') : 'N/A';
-        $majorName = $majorObj ? ($majorObj->name ?? 'N/A') : 'N/A';
+        // Explicitly check for Major model instance to avoid conflict with legacy 'major' column
+        $majorObj = ($student->major instanceof \App\Models\Major) ? $student->major : ($student->group->major ?? null);
+        $deptName = ($majorObj instanceof \App\Models\Major) ? ($majorObj->department->name ?? 'N/A') : 'N/A';
+        $majorName = ($majorObj instanceof \App\Models\Major) ? ($majorObj->name ?? 'N/A') : 'N/A';
         $yearLevel = $student->group->year_level ?? 1;
 
         return response()->json([

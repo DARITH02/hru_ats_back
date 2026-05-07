@@ -162,9 +162,8 @@
                             </select>
                         </div>
                         <div class="form-group">
-                            <label class="form-label">Class Group</label>
-                            <select id="editClassGroup" name="group_id" class="form-input">
-                                <option value="">No Group Assigned</option>
+                            <label class="form-label">Class Group(s)</label>
+                            <select id="editClassGroup" name="group_ids[]" class="form-input" multiple style="height: auto; min-height: 100px;">
                                 @foreach($classGroups as $group)
                                     <option value="{{ $group->id }}">{{ $group->name }}</option>
                                 @endforeach
@@ -260,9 +259,8 @@
                             </select>
                         </div>
                         <div class="form-group">
-                            <label class="form-label">Class Group <span class="req">*</span></label>
-                            <select name="group_id" class="form-input" required>
-                                <option value="" disabled selected>Target Student Cohort...</option>
+                            <label class="form-label">Class Group(s) <span class="req">*</span></label>
+                            <select name="group_ids[]" class="form-input" required multiple style="height: auto; min-height: 100px;">
                                 @foreach($classGroups as $group)
                                     <option value="{{ $group->id }}">{{ $group->name }}</option>
                                 @endforeach
@@ -490,8 +488,8 @@
                         <div class="enroll-row" data-id="{{ $s->id }}" data-name="{{ strtolower($s->user->name) }}"
                             data-code="{{ strtolower($s->student_code) }}" data-class="{{ $s->class_id ?? 0 }}"
                             data-group="{{ $s->group_id ?? 0 }}" @php
-                                $m = $s->major ?? ($s->group->major ?? null);
-                                $d = $m ? ($m->department ?? null) : null;
+                                $m = ($s->major instanceof \App\Models\Major) ? $s->major : ($s->group->major ?? null);
+                                $d = ($m instanceof \App\Models\Major) ? ($m->department ?? null) : null;
                                 $yr = $s->group->year_level ?? 1;
                             @endphp data-major="{{ strtolower($m->name ?? "") }}"
                             data-dept="{{ strtolower($d->name ?? "") }}"
@@ -513,8 +511,9 @@
                                             style="color:var(--text2); font-weight:700">{{ $s->student_code }}</span>
                                         <span style="opacity:0.3">/</span>
                                         @php
-                                            $major = $s->major ?? ($s->group->major ?? null);
-                                            $dept = $major ? ($major->department ?? null) : null;
+                                            // Prioritize the Major relationship object over the legacy 'major' string column
+                                            $major = ($s->major instanceof \App\Models\Major) ? $s->major : ($s->group->major ?? null);
+                                            $dept = ($major instanceof \App\Models\Major) ? ($major->department ?? null) : null;
                                             $yr = $s->group->year_level ?? 1;
                                             $suffix = ['th', 'st', 'nd', 'rd', 'th', 'th', 'th', 'th', 'th', 'th'][$yr % 10];
                                             if ($yr % 100 >= 11 && $yr % 100 <= 13)
@@ -1030,7 +1029,7 @@
                     @forelse($classes as $class)
                         <tr data-id="{{ $class->id }}" data-status="{{ $class->status ?? 'active' }}" class="fade-up">
                             {{-- Subject --}}
-                            <td style="padding-left:25px">
+                            <td style="padding-left:25px;width:100px">
                                 <div class="subject-cell">
                                     @php
                                         $subName = $class->subject->name ?? 'Unknown';
@@ -1042,16 +1041,16 @@
                                         style="background:{{ $clr }}22;color:{{ $clr }};border:1px solid {{ $clr }}33">
                                         {{ $initials }}
                                     </div>
-                                    <div>
+                                    <div style="width: 150px; ">
                                         <div class="subject-name">{{ $subName }}</div>
-                                        <div style="display:flex; align-items:center; gap:5px; margin-top:2px;">
+                                        <div style="display:flex ;flex-wrap: wrap; align-items:center; gap:5px; margin-top:2px;">
                                             <div class="subject-id">#{{ str_pad($class->id, 4, '0', STR_PAD_LEFT) }}</div>
-                                            @if($class->group)
+                                            @foreach($class->groups as $group)
                                                 <div
-                                                    style="font-family:var(--font-mono); font-size:8px; background:var(--surface3); border:1px solid var(--border); color:var(--text2); padding:1px 6px; border-radius:4px; font-weight:700">
-                                                    {{ $class->group->name }}
+                                                    style="font-family:var(--font-mono); font-size:10px; background:var(--surface3); border:1px solid var(--border); color:var(--text2); padding:1px 6px; border-radius:4px; font-weight:700">
+                                                    {{ $group->name }}
                                                 </div>
-                                            @endif
+                                            @endforeach
                                         </div>
                                     </div>
                                 </div>
@@ -1102,7 +1101,7 @@
                             <td>
                                 <div style="display:flex; align-items:baseline; gap:4px">
                                     <span
-                                        style="font-family:var(--font-display);font-weight:800;font-size:16px;color:var(--text)">{{ $class->students_count }}</span>
+                                        style="font-family:var(--font-display);font-weight:800;font-size:16px;color:var(--text)">{{ $class->groups->sum('students_count') }}</span>
                                     <span style="font-family:var(--font-mono);font-size:8px;color:var(--muted)">STU</span>
                                 </div>
                             </td>
@@ -1167,7 +1166,7 @@
                             <td style="text-align:right; padding-right:25px">
                                 <div style="display:flex; align-items:center; justify-content:flex-end; gap:6px;">
                                     <button class="action-btn btn-view" title="View"
-                                        onclick="openViewModal({{ $class->id }}, '{{ $class->subject_id }}', '{{ $class->teacher_id }}', '{{ addslashes($class->room_number ?? '') }}', '{{ addslashes($class->schedule ?? '') }}', '{{ $class->status ?? 'active' }}', '{{ $class->group_id }}')">
+                                        onclick="openViewModal({{ $class->id }}, '{{ $class->subject_id }}', '{{ $class->teacher_id }}', '{{ addslashes($class->room_number ?? '') }}', '{{ addslashes($class->schedule ?? '') }}', '{{ $class->status ?? 'active' }}', '{{ $class->groups->pluck('id')->join(',') }}')">
                                         <svg width="12" height="12" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                                                 d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
@@ -1176,14 +1175,14 @@
                                         </svg>
                                     </button>
                                     <button class="action-btn btn-edit" title="Edit"
-                                        onclick="openEditModal({{ $class->id }}, '{{ $class->subject_id }}', '{{ $class->teacher_id }}', '{{ addslashes($class->room_number ?? '') }}', '{{ addslashes($class->schedule ?? '') }}', '{{ $class->status ?? 'active' }}', '{{ $class->group_id }}')">
+                                        onclick="openEditModal({{ $class->id }}, '{{ $class->subject_id }}', '{{ $class->teacher_id }}', '{{ addslashes($class->room_number ?? '') }}', '{{ addslashes($class->schedule ?? '') }}', '{{ $class->status ?? 'active' }}', '{{ $class->groups->pluck('id')->join(',') }}')">
                                         <svg width="12" height="12" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                                                 d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
                                         </svg>
                                     </button>
                                     <button class="action-btn btn-enroll" title="Enroll students"
-                                        onclick="openEnrollModal({{ $class->id }}, '{{ addslashes($subName) }}', {{ $class->group_id ?? 0 }})">
+                                        onclick="openEnrollModal({{ $class->id }}, '{{ addslashes($subName) }}', '{{ $class->groups->pluck('id')->join(',') }}')">
                                         <svg width="12" height="12" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                                                 d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z" />
@@ -2229,7 +2228,11 @@
             document.getElementById('editSubjectName').value = subject;
             document.getElementById('editInstructor').value = instructor;
             document.getElementById('editRoom').value = room;
-            document.getElementById('editClassGroup').value = groupId || '';
+            const gEl = document.getElementById('editClassGroup');
+            if (gEl) {
+                const ids = groupId ? groupId.toString().split(',') : [];
+                Array.from(gEl.options).forEach(opt => opt.selected = ids.includes(opt.value));
+            }
 
             // Sync Day Chips
             const syncDayChips = (selectorId, sched) => {
@@ -2278,7 +2281,11 @@
             document.getElementById('editSubjectName').value = subject;
             document.getElementById('editInstructor').value = instructor;
             document.getElementById('editRoom').value = room;
-            document.getElementById('editClassGroup').value = groupId || '';
+            const editGEl = document.getElementById('editClassGroup');
+            if (editGEl) {
+                const ids = groupId ? groupId.toString().split(',') : [];
+                Array.from(editGEl.options).forEach(opt => opt.selected = ids.includes(opt.value));
+            }
 
             // Sync Day Chips
             const syncDayChips = (selectorId, sched) => {
@@ -2350,7 +2357,7 @@
                 const payload = {
                     subject_id: formData.get('subject_id'),
                     teacher_id: formData.get('teacher_id'),
-                    group_id: formData.get('group_id'),
+                    group_ids: formData.getAll('group_ids[]'),
                     room_number: formData.get('room_number'),
                     schedule: scheduleStr,
                     status: formData.get('status')
@@ -2414,7 +2421,7 @@
                     name: subName + ' Class', // "name" goes directly to DB classes.name
                     subject_id: formData.get('subject_id'),
                     teacher_id: formData.get('teacher_id'),
-                    group_id: formData.get('group_id'),
+                    group_ids: formData.getAll('group_ids[]'),
                     room_number: formData.get('room_number'),
                     schedule: scheduleStr,
                     status: formData.get('status')
@@ -2447,10 +2454,10 @@
 
         // ─── Enrollment Management ──────────────────────
         let enrollingClassId = null;
-        let enrollingGroupId = 0;
-        function openEnrollModal(classId, className, groupId) {
+        let enrollingGroupIds = [];
+        function openEnrollModal(classId, className, groupIds) {
             enrollingClassId = classId;
-            enrollingGroupId = groupId || 0;
+            enrollingGroupIds = groupIds ? groupIds.toString().split(',').map(id => parseInt(id)) : [];
             document.getElementById('enrollModalTitle').textContent = `Manage Enrollment: ${className}`;
             refreshEnrollList();
             openModal('enrollModal');
@@ -2483,7 +2490,7 @@
                 btn.className = 'enroll-btn';
 
                 const isCurrentClass = (rowClassId === enrollingClassId);
-                const isCurrentGroup = (enrollingGroupId > 0 && rowGroupId === enrollingGroupId);
+                const isCurrentGroup = (enrollingGroupIds.length > 0 && enrollingGroupIds.includes(rowGroupId));
 
                 if (isCurrentClass || isCurrentGroup) {
                     btn.classList.add('active');
@@ -2496,7 +2503,12 @@
         async function toggleEnroll(studentId) {
             const row = document.querySelector(`.enroll-row[data-id="${studentId}"]`);
             const btn = row.querySelector('.enroll-btn');
-            const isEnrolled = parseInt(row.dataset.class) === enrollingClassId;
+            
+            const rowGroupId = parseInt(row.dataset.group || 0);
+            const isEnrolledByGroup = enrollingGroupIds.includes(rowGroupId);
+            const isEnrolledDirectly = parseInt(row.dataset.class) === enrollingClassId;
+            const isEnrolled = isEnrolledByGroup || isEnrolledDirectly;
+            
             const newClassId = isEnrolled ? null : enrollingClassId;
 
             btn.classList.add('loading');
@@ -2513,7 +2525,8 @@
                 });
                 const data = await res.json();
                 if (data.success) {
-                    row.dataset.class = newClassId || 0;
+                    row.dataset.class = data.student.class_id || 0;
+                    row.dataset.group = data.student.group_id || 0;
                     refreshEnrollList();
                     showToast(newClassId ? 'Student cohort updated.' : 'Removed from manual enrollment.', 'success');
                 } else {

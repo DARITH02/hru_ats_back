@@ -24,6 +24,6 @@ class ClassGroup extends Model
 
     public function classes()
     {
-        return $this->hasMany(ClassRoom::class, 'group_id');
+        return $this->belongsToMany(ClassRoom::class, 'class_class_group', 'class_group_id', 'class_room_id');
     }
 }

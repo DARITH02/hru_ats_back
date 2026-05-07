@@ -181,7 +181,9 @@ class AdminController extends Controller
     public function courses(Request $request)
     {
         $this->syncDatabaseSchema();
-        $query = ClassRoom::with(['subject', 'teacher.user', 'group'])->withCount('students');
+        $query = ClassRoom::with(['subject', 'teacher.user', 'groups' => function($q) {
+            $q->withCount('students');
+        }]);
 
         if ($request->filled('search')) {
             $q = $request->search;
@@ -193,7 +195,7 @@ class AdminController extends Controller
                   ->orWhereHas('teacher.user', function($u) use ($q) {
                       $u->where('name', 'like', "%$q%");
                   })
-                  ->orWhereHas('group', function($g) use ($q) {
+                  ->orWhereHas('groups', function($g) use ($q) {
                       $g->where('name', 'like', "%$q%");
                   });
             });
@@ -480,6 +482,14 @@ class AdminController extends Controller
                     $table->unsignedBigInteger('major_id')->nullable();
                     $table->string('name');
                     $table->integer('year_level')->nullable();
+                    $table->timestamps();
+                });
+            }
+            if (!\Schema::hasTable('class_class_group')) {
+                \Schema::create('class_class_group', function ($table) {
+                    $table->id();
+                    $table->unsignedBigInteger('class_room_id');
+                    $table->unsignedBigInteger('class_group_id');
                     $table->timestamps();
                 });
             }

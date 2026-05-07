@@ -23,14 +23,14 @@ class AttendanceExport implements FromCollection, WithHeadings, WithMapping
      */
     public function collection()
     {
-        $session = \App\Models\AttendanceSession::with('classRoom.group')->find($this->sessionId);
-        $groupId = $session->classRoom->group_id ?? null;
+        $session = \App\Models\AttendanceSession::with('classRoom.groups')->find($this->sessionId);
+        $groupIds = $session->classRoom ? $session->classRoom->groups->pluck('id') : collect();
 
         $attendances = Attendance::where('session_id', $this->sessionId)->get()->keyBy('student_id');
 
-        if ($groupId) {
+        if ($groupIds->isNotEmpty()) {
             $students = \App\Models\Student::with(['user', 'major', 'group'])
-                ->where('group_id', $groupId)
+                ->whereIn('group_id', $groupIds)
                 ->get();
 
             // Get active permissions for this session's date
@@ -47,12 +47,15 @@ class AttendanceExport implements FromCollection, WithHeadings, WithMapping
                 
                 $status = $att ? $att->status : ($perm ? 'excused' : 'absent');
                 
+                // For Major, handle the legacy 'major' column vs relationship conflict
+                $majorObj = ($student->major instanceof \App\Models\Major) ? $student->major : ($student->group->major ?? null);
+
                 return (object) [
                     'id' => $student->student_code ?? $student->id,
                     'name' => $student->user->name ?? $student->name,
                     'status' => $status,
                     'time' => $att ? $att->scan_time : 'N/A',
-                    'major'       => $student->major->name ?? ($student->group->major->name ?? 'N/A'),
+                    'major'       => $majorObj->name ?? 'N/A',
                     'group'       => $student->group->name ?? 'N/A',
                     'year_level'  => $student->group->year_level ?? 'N/A',
                     'room'        => $session->classRoom->room_number ?? 'N/A',
