@@ -5,7 +5,8 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="csrf-token" content="{{ csrf_token() }}">
-    <title>{{ $title ?? 'AttendAI · Dashboard' }}</title>
+    <link rel="icon" href="https://res.cloudinary.com/dnrblpkal/image/upload/q_auto/f_auto/v1775536855/branding/k6obqtagifkszo8pehnd.png" type="image/png" sizes="32x32"/>
+    <title>{{ $title ?? 'HRU · Dashboard' }}</title>
     <script>
         (function () {
             const theme = localStorage.getItem('theme') || 'dark';
