@@ -58,7 +58,7 @@ class SystemSummaryExport implements FromCollection, WithHeadings, WithMapping, 
         // Get all classes for this semester/year
         $classes = ClassRoom::where('academic_year', $this->academicYear)
             ->where('semester', $this->semester)
-            ->with(['subject', 'group'])
+            ->with(['subject', 'groups'])
             ->get();
 
         $data = collect();
@@ -94,8 +94,9 @@ class SystemSummaryExport implements FromCollection, WithHeadings, WithMapping, 
 
             if ($sessionIds->isEmpty()) continue;
 
-            // Get students in the group with user relationship
-            $students = Student::where('group_id', $class->group_id)->with('user')->get();
+            // Get students in the groups with user relationship
+            $groupIds = $class->groups->pluck('id');
+            $students = Student::whereIn('group_id', $groupIds)->with('user')->get();
 
             foreach ($students as $student) {
                 $presentCount = Attendance::where('student_id', $student->id)
@@ -111,7 +112,7 @@ class SystemSummaryExport implements FromCollection, WithHeadings, WithMapping, 
                     'student_code' => $student->student_code,
                     'student_name' => $student->user->name ?? 'N/A',
                     'subject'      => $class->subject->name ?? 'N/A',
-                    'class_name'   => $class->group->name ?? 'N/A',
+                    'class_name'   => $class->groups->first()->name ?? 'N/A',
                     'total'        => $totalSessions,
                     'present'      => $presentCount,
                     'absent'       => $absentCount,

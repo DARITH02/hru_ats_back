@@ -101,6 +101,109 @@
             scrollbar-width: thin;
             scrollbar-color: var(--border) transparent;
         }
+
+        /* Action Dropdown Menu */
+        .action-dropdown {
+            position: relative;
+            display: inline-block;
+        }
+
+        .action-dropdown-menu {
+            position: absolute;
+            right: 0;
+            top: 100%;
+            background: var(--surface2);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.25);
+            z-index: 1000;
+            min-width: 180px;
+            display: none;
+            margin-top: 5px;
+            padding: 6px;
+            backdrop-filter: blur(10px);
+        }
+
+        .action-dropdown-menu.show {
+            display: block;
+            animation: dropdownFadeIn 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        @keyframes dropdownFadeIn {
+            from {
+                opacity: 0;
+                transform: translateY(-10px) scale(0.95);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0) scale(1);
+            }
+        }
+
+        .dropdown-item {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 10px 14px;
+            color: var(--text2);
+            font-size: 10px;
+            font-family: var(--font-mono);
+            font-weight: 800;
+            letter-spacing: 0.02em;
+            text-transform: uppercase;
+            text-decoration: none;
+            border-radius: 8px;
+            transition: all 0.2s;
+            cursor: pointer;
+            background: transparent;
+            border: none;
+            width: 100%;
+            text-align: left;
+        }
+
+        .dropdown-item:hover {
+            background: var(--surface3);
+            color: var(--accent);
+            transform: translateX(4px);
+        }
+
+        .dropdown-item svg {
+            width: 14px;
+            height: 14px;
+            opacity: 0.7;
+        }
+
+        .dropdown-item:hover svg {
+            opacity: 1;
+        }
+
+        .dropdown-item.text-red:hover {
+            color: var(--red);
+            background: var(--red)08;
+        }
+
+        .more-btn {
+            width: 32px;
+            height: 32px;
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: var(--surface2);
+            border: 1px solid var(--border);
+            color: var(--muted);
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .more-btn:hover,
+        .more-btn.active {
+            background: var(--accent)11;
+            color: var(--accent);
+            border-color: var(--accent)44;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+        }
     </style>
 
     {{-- ═══ TOAST ═══ --}}
@@ -163,7 +266,8 @@
                         </div>
                         <div class="form-group">
                             <label class="form-label">Class Group(s)</label>
-                            <select id="editClassGroup" name="group_ids[]" class="form-input" multiple style="height: auto; min-height: 100px;">
+                            <select id="editClassGroup" name="group_ids[]" class="form-input" multiple
+                                style="height: auto; min-height: 100px;">
                                 @foreach($classGroups as $group)
                                     <option value="{{ $group->id }}">{{ $group->name }}</option>
                                 @endforeach
@@ -260,7 +364,8 @@
                         </div>
                         <div class="form-group">
                             <label class="form-label">Class Group(s) <span class="req">*</span></label>
-                            <select name="group_ids[]" class="form-input" required multiple style="height: auto; min-height: 100px;">
+                            <select name="group_ids[]" class="form-input" required multiple
+                                style="height: auto; min-height: 100px;">
                                 @foreach($classGroups as $group)
                                     <option value="{{ $group->id }}">{{ $group->name }}</option>
                                 @endforeach
@@ -492,8 +597,7 @@
                                 $d = ($m instanceof \App\Models\Major) ? ($m->department ?? null) : null;
                                 $yr = $s->group->year_level ?? 1;
                             @endphp data-major="{{ strtolower($m->name ?? "") }}"
-                            data-dept="{{ strtolower($d->name ?? "") }}"
-                            data-year="{{ $yr }}">
+                            data-dept="{{ strtolower($d->name ?? "") }}" data-year="{{ $yr }}">
                             <div class="enroll-info" onclick="openStudentRecordModal({{ $s->id }})" style="cursor:pointer"
                                 onmouseover="this.querySelector('.enroll-name').style.color='var(--accent)'"
                                 onmouseout="this.querySelector('.enroll-name').style.color='var(--text)'">
@@ -976,12 +1080,23 @@
                             style="border: none; background: transparent; color: var(--text); font-size: 11px; padding-left: 10px; width: 100%; outline: none;">
                     </div>
 
+                    <select class="filter-select" onchange="filterByDept(this.value)"
+                        style="height: 36px; background: var(--surface3); border: 1px solid var(--border); border-radius: 10px; color: var(--text2); font-family: var(--font-mono); font-size: 9px; padding: 0 35px 0 15px; cursor: pointer;">
+                        <option value="">ALL DEPARTMENTS</option>
+                        @foreach($departments as $d)
+                            <option value="{{ $d->id }}" {{ request('dept') == $d->id ? 'selected' : '' }}>
+                                {{ strtoupper($d->name) }}
+                            </option>
+                        @endforeach
+                    </select>
+
                     <select class="filter-select" onchange="filterByStatus(this.value)"
                         style="height: 36px; background: var(--surface3); border: 1px solid var(--border); border-radius: 10px; color: var(--text2); font-family: var(--font-mono); font-size: 9px; padding: 0 35px 0 15px; cursor: pointer;">
                         <option value="">ALL STATUS</option>
-                        <option value="active">ACTIVE</option>
-                        <option value="waiting">WAITING</option>
-                        <option value="ready">READY</option>
+                        <option value="active" {{ request('status') == 'active' ? 'selected' : '' }}>ACTIVE</option>
+                        <option value="waiting" {{ request('status') == 'waiting' ? 'selected' : '' }}>WAITING</option>
+                        <option value="ready" {{ request('status') == 'ready' ? 'selected' : '' }}>READY</option>
+                        <option value="archived" {{ request('status') == 'archived' ? 'selected' : '' }}>ARCHIVED</option>
                     </select>
 
                     <div
@@ -1026,228 +1141,228 @@
                     </tr>
                 </thead>
                 <tbody id="tableBody">
-                    @forelse($classes as $class)
-                        <tr data-id="{{ $class->id }}" data-status="{{ $class->status ?? 'active' }}" class="fade-up">
-                            {{-- Subject --}}
-                            <td style="padding-left:25px;width:100px">
-                                <div class="subject-cell">
-                                    @php
-                                        $subName = $class->subject->name ?? 'Unknown';
-                                        $initials = strtoupper(substr($subName, 0, 1));
-                                        $allClr = ['#4f8ef7', '#34d399', '#a78bfa', '#f0a732', '#38d9a9', '#f25757'];
-                                        $clr = $allClr[$class->subject_id % count($allClr)];
-                                    @endphp
-                                    <div class="subject-avatar"
-                                        style="background:{{ $clr }}22;color:{{ $clr }};border:1px solid {{ $clr }}33">
-                                        {{ $initials }}
-                                    </div>
-                                    <div style="width: 150px; ">
-                                        <div class="subject-name">{{ $subName }}</div>
-                                        <div style="display:flex ;flex-wrap: wrap; align-items:center; gap:5px; margin-top:2px;">
-                                            <div class="subject-id">#{{ str_pad($class->id, 4, '0', STR_PAD_LEFT) }}</div>
-                                            @foreach($class->groups as $group)
-                                                <div
-                                                    style="font-family:var(--font-mono); font-size:10px; background:var(--surface3); border:1px solid var(--border); color:var(--text2); padding:1px 6px; border-radius:4px; font-weight:700">
-                                                    {{ $group->name }}
-                                                </div>
-                                            @endforeach
-                                        </div>
-                                    </div>
-                                </div>
-                            </td>
-                            {{-- Instructor --}}
-                            <td>
-                                @if($class->teacher && $class->teacher->user)
-                                    <div class="instructor-cell">
-                                        <div class="instructor-dot">{{ strtoupper(substr($class->teacher->user->name, 0, 1)) }}
-                                        </div>
-                                        <span class="instructor-name">{{ $class->teacher->user->name }}</span>
-                                    </div>
-                                @else
-                                    <span class="instructor-empty">— unassigned —</span>
-                                @endif
-                            </td>
-                            {{-- Room & Schedule --}}
-                            <td>
-                                <div style="display:flex; flex-direction:column; gap:5px">
-                                    <span class="room-badge"
-                                        style="background:var(--surface3); border:1px solid var(--border); padding:3px 8px; border-radius:6px; font-size:10px; font-weight:800; color:var(--text2); display:inline-flex; align-items:center; gap:5px; width:fit-content">
-                                        <svg width="10" height="10" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5"
-                                                d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
-                                        </svg>
-                                        RM {{ $class->room_number ?? 'TBD' }}
-                                    </span>
-                                    @if($class->schedule)
-                                        @php
-                                            $sched = explode(' ', $class->schedule);
-                                            $days = $sched[0] ?? 'TBD';
-                                            $times = $sched[1] ?? '';
-                                        @endphp
-                                        <div style="display:flex; align-items:center; gap:6px">
-                                            <span
-                                                style="font-family:var(--font-mono); font-size:9px; background:var(--accent)12; color:var(--accent); padding:1px 5px; border-radius:4px; font-weight:800">{{ strtoupper($days) }}</span>
-                                            <span
-                                                style="font-family:var(--font-mono); font-size:9px; color:var(--muted); font-weight:600">{{ str_replace(['(', ')'], '', $times) }}</span>
-                                        </div>
-                                    @else
-                                        <span
-                                            style="font-family:var(--font-mono); font-size:8px; color:var(--red); font-weight:700">NO
-                                            SCHEDULE SET</span>
-                                    @endif
-                                </div>
-                            </td>
-                            {{-- Enrolled --}}
-                            <td>
-                                <div style="display:flex; align-items:baseline; gap:4px">
-                                    <span
-                                        style="font-family:var(--font-display);font-weight:800;font-size:16px;color:var(--text)">{{ $class->groups->sum('students_count') }}</span>
-                                    <span style="font-family:var(--font-mono);font-size:8px;color:var(--muted)">STU</span>
-                                </div>
-                            </td>
-                            {{-- Workload / Generation Progress --}}
-                            <td>
-                                @php
-                                    $totalSessions = $class->sessions()
-                                        ->when($class->academic_year, fn($q) => $q->where('academic_year', $class->academic_year))
-                                        ->when($class->semester, fn($q) => $q->where('semester', $class->semester))
-                                        ->count();
-
-                                    $currentSessionsCount = $class->sessions()
-                                        ->whereIn('status', ['completed', 'passed'])
-                                        ->when($class->academic_year, fn($q) => $q->where('academic_year', $class->academic_year))
-                                        ->when($class->semester, fn($q) => $q->where('semester', $class->semester))
-                                        ->count();
-
-                                    $target = $totalSessions > 0 ? $totalSessions : 30;
-                                    $pct = min(100, $target > 0 ? round(($currentSessionsCount / $target) * 100) : 0);
-
-                                    // Visual color logic
-                                    $statusColor = 'var(--accent)';
-                                    if ($pct >= 100)
-                                        $statusColor = 'var(--green)';
-                                    elseif ($pct >= 50)
-                                        $statusColor = 'var(--amber)';
-                                    elseif ($pct > 0)
-                                        $statusColor = 'var(--violet)';
-                                @endphp
-                                <div style="display:flex; flex-direction:column; gap:6px">
-                                    <div style="display:flex; justify-content:space-between; align-items:flex-end">
-                                        <div style="display:flex; align-items:baseline; gap:3px">
-                                            <span
-                                                style="font-family:var(--font-display); font-size:15px; font-weight:900; color:{{ $statusColor }}; line-height:1">{{ $currentSessionsCount }}</span>
-                                            <span
-                                                style="font-family:var(--font-mono); font-size:9px; color:var(--muted); font-weight:700">/{{ $target }}</span>
-                                        </div>
-                                        <span
-                                            style="font-family:var(--font-mono); font-size:8px; font-weight:800; color:var(--muted2); text-transform:uppercase; letter-spacing:0.02em">{{ $pct }}%
-                                            LOAD</span>
-                                    </div>
+                    @forelse($groupedClasses as $dept => $majors)
+                        {{-- Department Header --}}
+                        <tr style="background:var(--surface3);">
+                            <td colspan="7" style="padding:15px 25px;">
+                                <div style="display:flex; align-items:center; gap:12px;">
                                     <div
-                                        style="height:5px; background:var(--surface3); border-radius:10px; overflow:hidden; border:1px solid var(--border); padding:1px">
-                                        <div
-                                            style="height:100%; width:{{ $pct }}%; background:{{ $statusColor }}; border-radius:10px; transition:width 0.8s cubic-bezier(0.4, 0, 0.2, 1); box-shadow:0 0 10px {{ $statusColor }}44">
-                                        </div>
+                                        style="width:10px; height:10px; border-radius:50%; background:var(--accent); box-shadow:0 0 10px var(--accent)">
                                     </div>
-                                </div>
-                            </td>
-                            {{-- Status --}}
-                            <td>
-                                @php $st = strtolower($class->status ?? 'active'); @endphp
-                                @if($st === 'active')
-                                    <span class="status-tag tag-active">ACTIVE</span>
-                                @elseif($st === 'waiting')
-                                    <span class="status-tag tag-waiting">WAITING</span>
-                                @else
-                                    <span class="status-tag tag-ready">{{ strtoupper($st) }}</span>
-                                @endif
-                            </td>
-                            {{-- Actions --}}
-                            <td style="text-align:right; padding-right:25px">
-                                <div style="display:flex; align-items:center; justify-content:flex-end; gap:6px;">
-                                    <button class="action-btn btn-view" title="View"
-                                        onclick="openViewModal({{ $class->id }}, '{{ $class->subject_id }}', '{{ $class->teacher_id }}', '{{ addslashes($class->room_number ?? '') }}', '{{ addslashes($class->schedule ?? '') }}', '{{ $class->status ?? 'active' }}', '{{ $class->groups->pluck('id')->join(',') }}')">
-                                        <svg width="12" height="12" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                                d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                                d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
-                                        </svg>
-                                    </button>
-                                    <button class="action-btn btn-edit" title="Edit"
-                                        onclick="openEditModal({{ $class->id }}, '{{ $class->subject_id }}', '{{ $class->teacher_id }}', '{{ addslashes($class->room_number ?? '') }}', '{{ addslashes($class->schedule ?? '') }}', '{{ $class->status ?? 'active' }}', '{{ $class->groups->pluck('id')->join(',') }}')">
-                                        <svg width="12" height="12" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                                d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-                                        </svg>
-                                    </button>
-                                    <button class="action-btn btn-enroll" title="Enroll students"
-                                        onclick="openEnrollModal({{ $class->id }}, '{{ addslashes($subName) }}', '{{ $class->groups->pluck('id')->join(',') }}')">
-                                        <svg width="12" height="12" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                                d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z" />
-                                        </svg>
-                                    </button>
-                                    <button class="action-btn" title="View Sessions"
-                                        onclick="openSessionsModal({{ $class->id }}, '{{ addslashes($class->subject->name ?? 'Unknown Class') }}')"
-                                        style="background:var(--amber)18;border-color:var(--amber)44;color:var(--amber)">
-                                        <svg width="12" height="12" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                                d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-                                        </svg>
-                                    </button>
-                                    <button class="action-btn" title="Semester Assignment"
-                                        onclick="openCourseSemesterModal({{ $class->id }}, '{{ addslashes($class->subject->name ?? 'Unknown Class') }}', '{{ addslashes($class->schedule ?? '') }}')"
-                                        style="background:var(--violet)18;border-color:var(--violet)44;color:var(--violet)">
-                                        <svg width="12" height="12" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                                d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                                        </svg>
-                                    </button>
-                                    <button class="action-btn btn-del" title="Delete"
-                                        onclick="openDeleteModal({{ $class->id }})">
-                                        <svg width="12" height="12" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                                d="M6 18L18 6M6 6l12 12" />
-                                        </svg>
-                                    </button>
+                                    <span
+                                        style="font-family:var(--font-display); font-size:16px; font-weight:900; color:var(--text); text-transform:uppercase; letter-spacing:0.02em;">{{ $dept }}</span>
                                 </div>
                             </td>
                         </tr>
+
+                        @foreach($majors as $major => $years)
+                            {{-- Major Header --}}
+                            <tr style="background:var(--surface2);">
+                                <td colspan="7" style="padding:10px 40px; border-bottom:1px solid var(--border);">
+                                    <div style="display:flex; align-items:center; gap:8px;">
+                                        <span
+                                            style="font-family:var(--font-mono); font-size:11px; font-weight:800; color:var(--accent); text-transform:uppercase;">{{ $major }}</span>
+                                    </div>
+                                </td>
+                            </tr>
+
+                            @foreach($years as $year => $groups)
+                                @foreach($groups as $groupName => $classes)
+                                    {{-- Group Subheader --}}
+                                    <tr style="background:var(--surface1);">
+                                        <td colspan="7" style="padding:8px 55px; border-bottom:1px solid var(--border);">
+                                            <div style="display:flex; align-items:center; gap:15px; opacity:0.8;">
+                                                <span
+                                                    style="font-family:var(--font-mono); font-size:10px; font-weight:700; color:var(--muted); background:var(--surface3); padding:2px 8px; border-radius:4px;">{{ $year }}</span>
+                                                <span
+                                                    style="font-family:var(--font-mono); font-size:10px; font-weight:800; color:var(--text2);">{{ $groupName }}</span>
+                                                <div
+                                                    style="flex:1; height:1px; background:linear-gradient(to right, var(--border), transparent);">
+                                                </div>
+                                            </div>
+                                        </td>
+                                    </tr>
+
+                                    @foreach($classes as $class)
+                                        <tr data-id="{{ $class->id }}" data-status="{{ $class->status ?? 'active' }}" class="fade-up">
+                                            {{-- Subject --}}
+                                            <td style="padding-left:65px; width:250px">
+                                                <div class="subject-cell">
+                                                    @php
+                                                        $subName = $class->subject->name ?? 'Unknown';
+                                                        $initials = strtoupper(substr($subName, 0, 1));
+                                                        $allClr = ['#4f8ef7', '#34d399', '#a78bfa', '#f0a732', '#38d9a9', '#f25757'];
+                                                        $clr = $allClr[$class->subject_id % count($allClr)];
+                                                    @endphp
+                                                    <div class="subject-avatar"
+                                                        style="background:{{ $clr }}22;color:{{ $clr }};border:1px solid {{ $clr }}33">
+                                                        {{ $initials }}
+                                                    </div>
+                                                    <div>
+                                                        <div class="subject-name">{{ $subName }}</div>
+                                                        <div class="subject-id">#{{ str_pad($class->id, 4, '0', STR_PAD_LEFT) }}</div>
+                                                    </div>
+                                                </div>
+                                            </td>
+                                            {{-- Instructor --}}
+                                            <td>
+                                                @if($class->teacher && $class->teacher->user)
+                                                    <div class="instructor-cell">
+                                                        <div class="instructor-dot">{{ strtoupper(substr($class->teacher->user->name, 0, 1)) }}
+                                                        </div>
+                                                        <span class="instructor-name">{{ $class->teacher->user->name }}</span>
+                                                    </div>
+                                                @else
+                                                    <span class="instructor-empty">— unassigned —</span>
+                                                @endif
+                                            </td>
+                                            {{-- Room & Schedule --}}
+                                            <td>
+                                                <div style="display:flex; flex-direction:column; gap:5px">
+                                                    <span class="room-badge">RM {{ $class->room_number ?? 'TBD' }}</span>
+                                                    @if($class->schedule)
+                                                        @php
+                                                            $sched = explode(' ', $class->schedule);
+                                                            $days = $sched[0] ?? 'TBD';
+                                                            $times = $sched[1] ?? '';
+                                                        @endphp
+                                                        <div style="display:flex; align-items:center; gap:6px">
+                                                            <span
+                                                                style="font-family:var(--font-mono); font-size:9px; background:var(--accent)12; color:var(--accent); padding:1px 5px; border-radius:4px; font-weight:800">{{ strtoupper($days) }}</span>
+                                                            <span
+                                                                style="font-family:var(--font-mono); font-size:9px; color:var(--muted); font-weight:600">{{ str_replace(['(', ')'], '', $times) }}</span>
+                                                        </div>
+                                                    @endif
+                                                </div>
+                                            </td>
+                                            {{-- Enrolled --}}
+                                            <td><span
+                                                    style="font-family:var(--font-mono); font-size:12px; font-weight:800; color:var(--text2)">{{ $class->all_students->count() }}</span>
+                                            </td>
+                                            {{-- Workload --}}
+                                            <td>
+                                                <div style="display:flex; flex-direction:column; gap:5px">
+                                                    <div style="display:flex; justify-content:space-between; align-items:center;">
+                                                        <span
+                                                            style="font-family:var(--font-mono); font-size:9px; font-weight:800; color:var(--muted)">PROGRESS</span>
+                                                        <span
+                                                            style="font-family:var(--font-mono); font-size:9px; font-weight:800; color:var(--accent)">{{ $class->sessions->count() }}/30</span>
+                                                    </div>
+                                                    <div
+                                                        style="width:100%; height:4px; background:var(--surface3); border-radius:2px; overflow:hidden;">
+                                                        <div
+                                                            style="width:{{ ($class->sessions->count() / 30) * 100 }}%; height:100%; background:var(--accent); box-shadow:0 0 10px var(--accent)66;">
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </td>
+                                            {{-- Status --}}
+                                            <td>
+                                                @php $st = strtolower($class->status ?? 'active'); @endphp
+                                                @if($st === 'active')
+                                                    <span class="status-tag tag-active">ACTIVE</span>
+                                                @elseif($st === 'archived')
+                                                    <span class="status-tag"
+                                                        style="background:var(--surface3); color:var(--muted); border:1px solid var(--border);">ARCHIVED</span>
+                                                @else
+                                                    <span class="status-tag tag-ready">{{ strtoupper($st) }}</span>
+                                                @endif
+                                            </td>
+                                            {{-- Actions --}}
+                                            <td style="text-align:right; padding-right:25px">
+                                                <div style="display:flex; align-items:center; justify-content:flex-end; gap:6px;">
+                                                    <button class="action-btn btn-view" title="View Detail"
+                                                        onclick="openViewModal({{ $class->id }}, '{{ $class->subject_id }}', '{{ $class->teacher_id }}', '{{ addslashes($class->room_number ?? '') }}', '{{ addslashes($class->schedule ?? '') }}', '{{ $class->status ?? 'active' }}', '{{ $class->groups->pluck('id')->join(',') }}')">
+                                                        <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                                                d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                                                d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                                                        </svg>
+                                                    </button>
+
+                                                    <button class="action-btn btn-edit" title="Edit Metadata"
+                                                        onclick="openEditModal({{ $class->id }}, '{{ $class->subject_id }}', '{{ $class->teacher_id }}', '{{ addslashes($class->room_number ?? '') }}', '{{ addslashes($class->schedule ?? '') }}', '{{ $class->status ?? 'active' }}', '{{ $class->groups->pluck('id')->join(',') }}')">
+                                                        <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                                                d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                                                        </svg>
+                                                    </button>
+
+                                                    <div class="action-dropdown">
+                                                        <button class="more-btn" onclick="toggleActionMenu(event, this)" title="More Options">
+                                                            <svg width="18" height="18" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="3"
+                                                                    d="M5 12h.01M12 12h.01M19 12h.01" />
+                                                            </svg>
+                                                        </button>
+                                                        <div class="action-dropdown-menu">
+                                                            <button class="dropdown-item"
+                                                                onclick="openEnrollModal({{ $class->id }}, '{{ addslashes($subName) }}', '{{ $class->groups->pluck('id')->join(',') }}')">
+                                                                <svg fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                                                        d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z" />
+                                                                </svg>
+                                                                Enroll Students
+                                                            </button>
+                                                            <button class="dropdown-item"
+                                                                onclick="openSessionsModal({{ $class->id }}, '{{ addslashes($class->subject->name ?? 'Unknown Class') }}')">
+                                                                <svg fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                                                        d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                                                </svg>
+                                                                View Sessions
+                                                            </button>
+                                                            <button class="dropdown-item"
+                                                                onclick="openCourseSemesterModal({{ $class->id }}, '{{ addslashes($class->subject->name ?? 'Unknown Class') }}', '{{ addslashes($class->schedule ?? '') }}')">
+                                                                <svg fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                                                        d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2-2v12a2 2 0 002 2z" />
+                                                                </svg>
+                                                                Semesters
+                                                            </button>
+                                                            <div style="height:1px; background:var(--border); margin:4px 8px;"></div>
+                                                            <a href="{{ route('admin.courses.pre-end', $class->id) }}" target="_blank"
+                                                                class="dropdown-item"
+                                                                style="color:var(--amber); text-decoration:none; display:flex; align-items:center; gap:10px;">
+                                                                <svg fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                                                        d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01" />
+                                                                </svg>
+                                                                Pre-End Schedule
+                                                            </a>
+                                                            <button class="dropdown-item text-red" onclick="openDeleteModal({{ $class->id }})">
+                                                                <svg fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                                                        d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                                                                </svg>
+                                                                Delete Class
+                                                            </button>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </td>
+                                        </tr>
+                                    @endforeach
+                                @endforeach
+                            @endforeach
+                        @endforeach
                     @empty
                         <tr>
                             <td colspan="7">
-                                <div class="empty-state" style="padding: 60px 0;">
-                                    <div class="empty-icon"
-                                        style="background:var(--surface3); color:var(--muted); margin-bottom:15px">
-                                        <svg width="24" height="24" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"
-                                                d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
-                                        </svg>
-                                    </div>
+                                <div class="empty-state" style="padding: 60px 0; text-align:center;">
                                     <div class="empty-title"
                                         style="font-family:var(--font-display); font-size:16px; font-weight:700; color:var(--text)">
                                         Catalog is Empty</div>
                                     <div class="empty-desc"
                                         style="font-family:var(--font-mono); font-size:10px; color:var(--muted); max-width:260px; margin:0 auto">
-                                        Register your first subject above to begin the academic lifecycle.</div>
+                                        No classes found for the selected filters.</div>
                                 </div>
                             </td>
                         </tr>
                     @endforelse
                 </tbody>
             </table>
-
-            {{-- Pagination --}}
-            @if($classes instanceof \Illuminate\Pagination\LengthAwarePaginator)
-                <div
-                    style="padding:12px 18px;border-top:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;">
-                    <span style="font-family:var(--font-mono);font-size:9px;color:var(--muted);letter-spacing:.08em">
-                        SHOWING {{ $classes->firstItem() }}–{{ $classes->lastItem() }} OF {{ $classes->total() }}
-                    </span>
-                    {{ $classes->links('vendor.pagination.academy') }}
-                </div>
-            @endif
         </div>
 
         {{-- RIGHT: Sidebar panel --}}
@@ -1963,6 +2078,243 @@
         </div>
     </div>
 
+    </div>
+
+    {{-- ═══ GRADING & REVIEW MODAL ═══ --}}
+    <div id="gradingModal" class="modal-overlay" style="z-index: 1250;">
+        <div class="modal-box" style="max-width:500px; border-radius:24px; overflow:hidden;">
+            <div class="modal-head"
+                style="padding: 24px 28px; background: var(--surface2); border-bottom: 1px solid var(--border);">
+                <div style="display:flex;align-items:center;gap:15px">
+                    <div
+                        style="width:40px;height:40px;border-radius:12px;background:var(--accent)22;color:var(--accent);display:flex;align-items:center;justify-content:center;">
+                        <svg width="20" height="20" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01" />
+                        </svg>
+                    </div>
+                    <div>
+                        <div class="modal-title" style="font-weight: 800; font-size: 16px;">Grading & Review</div>
+                        <div id="gradingModalSubtitle"
+                            style="font-family:var(--font-mono);font-size:9px;color:var(--muted);letter-spacing:0.02em;text-transform:uppercase">
+                            CLASS PERFORMANCE REVIEW</div>
+                    </div>
+                </div>
+                <button onclick="closeModal('gradingModal')" class="modal-close"
+                    style="background:var(--surface3); width:30px; height:30px; border-radius:50%; display:flex; align-items:center; justify-content:center; border:none; cursor:pointer;">
+                    <svg width="12" height="12" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path d="M6 18L18 6M6 6l12 12" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" />
+                    </svg>
+                </button>
+            </div>
+            <div class="modal-body" style="padding:28px; max-height: 70vh; overflow-y: auto;">
+                <input type="hidden" id="gradingAssignmentId">
+                <input type="hidden" id="gradingClassId">
+
+                {{-- Stats Cards --}}
+                <div style="display:grid; grid-template-columns:repeat(3, 1fr); gap:12px; margin-bottom:24px;">
+                    <div
+                        style="background:var(--surface3); padding:12px; border-radius:14px; border:1px solid var(--border); text-align:center;">
+                        <div
+                            style="font-size:9px; color:var(--muted); font-weight:800; text-transform:uppercase; margin-bottom:4px;">
+                            Students</div>
+                        <div id="gradeStatStudents"
+                            style="font-size:16px; font-weight:900; color:var(--text); font-family:var(--font-display);">0
+                        </div>
+                    </div>
+                    <div
+                        style="background:var(--surface3); padding:12px; border-radius:14px; border:1px solid var(--border); text-align:center;">
+                        <div
+                            style="font-size:9px; color:var(--muted); font-weight:800; text-transform:uppercase; margin-bottom:4px;">
+                            Sessions</div>
+                        <div id="gradeStatSessions"
+                            style="font-size:16px; font-weight:900; color:var(--text); font-family:var(--font-display);">0
+                        </div>
+                    </div>
+                    <div
+                        style="background:var(--surface3); padding:12px; border-radius:14px; border:1px solid var(--border); text-align:center;">
+                        <div
+                            style="font-size:9px; color:var(--muted); font-weight:800; text-transform:uppercase; margin-bottom:4px;">
+                            Avg Att.</div>
+                        <div id="gradeStatRate"
+                            style="font-size:16px; font-weight:900; color:var(--accent); font-family:var(--font-display);">
+                            0%</div>
+                    </div>
+                </div>
+
+                <div style="display:grid; grid-template-columns:1fr 1fr; gap:15px; margin-bottom:20px;">
+                    <div class="form-group">
+                        <label class="form-label"
+                            style="font-size:10px; color:var(--muted); letter-spacing:0.05em">TEACHER'S INPUT SCORE</label>
+                        <div id="teacherScoreDisplay"
+                            style="height:44px; background:var(--surface3); border-radius:10px; border:1px solid var(--border); display:flex; align-items:center; padding:0 12px; font-family:var(--font-mono); font-weight:800; color:var(--violet)">
+                            —</div>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label" style="font-size:10px; color:var(--text); letter-spacing:0.05em">FINAL
+                            ADMIN SCORE</label>
+                        <input id="adminScoreInput" class="form-input" type="number" step="0.1" min="0" max="100"
+                            placeholder="0.0"
+                            style="background:var(--surface3); width:100%; height:44px; border-radius:10px; border:1px solid var(--border); padding:0 12px; color:var(--text); font-family:var(--font-mono); font-weight:800; border-color:var(--accent)33">
+                    </div>
+                </div>
+
+                <div class="form-group" style="margin-bottom:24px">
+                    <label class="form-label" style="font-size:10px; color:var(--muted)">REVIEWER NOTES</label>
+                    <textarea id="gradingNotesInput" class="form-input"
+                        placeholder="Enter class performance observations..."
+                        style="background:var(--surface3); width:100%; height:70px; border-radius:12px; border:1px solid var(--border); padding:12px; color:var(--text); resize:none; font-size:11px; line-height:1.4"></textarea>
+                </div>
+
+                {{-- Student Performance Preview --}}
+                <div style="margin-bottom:24px">
+                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
+                        <label class="form-label" style="margin:0; font-size:10px; color:var(--muted)">STUDENT PERFORMANCE
+                            PREVIEW</label>
+                        <span style="font-size:9px; font-family:var(--font-mono); color:var(--muted2)">TOP 15 RECORDS</span>
+                    </div>
+                    <div
+                        style="border:1px solid var(--border); border-radius:12px; overflow:hidden; background:var(--surface2)">
+                        <div style="max-height:200px; overflow-y:auto;">
+                            <table style="width:100%; border-collapse:collapse; font-size:10px;">
+                                <thead style="background:var(--surface3); position:sticky; top:0; z-index:10">
+                                    <tr>
+                                        <th
+                                            style="padding:8px 12px; text-align:left; color:var(--muted2); font-weight:800;">
+                                            STUDENT</th>
+                                        <th
+                                            style="padding:8px 12px; text-align:center; color:var(--muted2); font-weight:800;">
+                                            RATE</th>
+                                        <th
+                                            style="padding:8px 12px; text-align:right; color:var(--muted2); font-weight:800; width:80px;">
+                                            SCORE</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="gradingStudentPreviewBody">
+                                    {{-- Injected --}}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                    <div style="margin-top:10px; display:flex; justify-content:flex-end;">
+                        <button id="saveStudentScoresBtn" onclick="saveStudentScores()" class="btn-primary"
+                            style="height:32px; padding:0 15px; font-size:9px; background:var(--surface3); color:var(--text); border:1px solid var(--border); font-weight:700;">SAVE
+                            STUDENT SCORES</button>
+                    </div>
+                </div>
+
+                <div id="gradingStatusSection">
+                    <label class="form-label" style="font-size:10px; color:var(--muted)">SELECTION STATUS</label>
+                    <select id="gradingStatusSelect" class="form-input"
+                        style="background:var(--surface3); width:100%; height:44px; border-radius:12px; border:1px solid var(--border); padding:0 12px; color:var(--text); font-weight:700">
+                        <option value="pending">PENDING (STILL REVIEWING)</option>
+                        <option value="reviewed">REVIEWED (LOCKED FOR TEACHER)</option>
+                        <option value="finalized">FINALIZED (READY TO TERMINATE)</option>
+                    </select>
+                </div>
+
+                <div id="gradingIncompleteWarning"
+                    style="display:none; margin-top:20px; padding:15px; background:var(--red)08; border:1px dashed var(--red)33; border-radius:12px;">
+                    <div
+                        style="display:flex; align-items:center; gap:10px; color:var(--red); font-weight:800; font-size:11px; margin-bottom:5px;">
+                        <svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                        </svg>
+                        INCOMPLETE SESSIONS DETECTED
+                    </div>
+                    <p style="font-size:10px; color:var(--red); line-height:1.4; opacity:0.8;">
+                        This class still has <span id="incompleteSessionCount" style="font-weight:900">0</span> scheduled
+                        sessions remaining. You cannot finalize or end this schedule until all sessions are either completed
+                        or marked as skipped.
+                    </p>
+                </div>
+
+                <div id="gradingReportSection" style="margin-top:24px; display:none;">
+                    <button onclick="downloadSemesterReport()" class="btn-secondary"
+                        style="width:100%; height:42px; border:1px solid var(--border); background:var(--surface3); color:var(--text2); font-weight:700; display:flex; align-items:center; justify-content:center; gap:8px; font-size:11px;">
+                        <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" stroke-width="2"
+                                stroke-linecap="round" stroke-linejoin="round" />
+                        </svg>
+                        GENERATE PERFORMANCE REPORT
+                    </button>
+                </div>
+            </div>
+            <div class="modal-footer" style="background:var(--surface2); padding: 18px 28px; display:flex; gap:10px;">
+                <button id="saveGradingBtn" class="btn-primary"
+                    style="flex:1; height:46px; background:var(--accent); border:none; font-weight:800; border-radius:12px; font-size:11px;"
+                    onclick="saveGrading()">SAVE REVIEW</button>
+                <button id="proceedToEndBtn" class="btn-primary"
+                    style="flex:1; height:46px; background:var(--red); border:none; font-weight:800; border-radius:12px; font-size:11px; display:none;"
+                    onclick="triggerEndFromGrading()">END SCHEDULE</button>
+            </div>
+        </div>
+    </div>
+
+    {{-- ═══ NO SEMESTER WARNING MODAL ═══ --}}
+    <div id="noSemesterModal" class="modal-overlay" style="z-index: 1500;">
+        <div class="modal-box" style="max-width:400px; border-radius:24px; overflow:hidden;">
+            <div class="modal-body" style="padding:40px 30px; text-align:center;">
+                <div
+                    style="width:60px; height:60px; border-radius:20px; background:var(--amber)15; color:var(--amber); display:flex; align-items:center; justify-content:center; margin:0 auto 24px;">
+                    <svg width="28" height="28" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                    </svg>
+                </div>
+                <h3 style="font-size:18px; font-weight:800; color:var(--text); margin-bottom:12px;">No Active Semester</h3>
+                <p style="font-size:11px; color:var(--muted); line-height:1.6; margin-bottom:24px;">
+                    This class hasn't been assigned to a semester yet. You can either end it directly without grading or
+                    close this to assign a semester first.
+                </p>
+                <input type="hidden" id="noSemClassId">
+                <input type="hidden" id="noSemClassName">
+                <div style="display:flex; flex-direction:column; gap:10px;">
+                    <button onclick="triggerEndNoSem()" class="btn-primary"
+                        style="width:100%; height:46px; background:var(--red); border:none; font-weight:800; border-radius:12px; font-size:11px;">END
+                        SCHEDULE DIRECTLY</button>
+                    <button onclick="closeModal('noSemesterModal')" class="btn-secondary"
+                        style="width:100%; height:46px; border:1px solid var(--border); background:var(--surface3); color:var(--text2); font-weight:700; border-radius:12px; font-size:11px;">CANCEL
+                        & REVIEW</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    {{-- ═══ END SCHEDULE CONFIRMATION MODAL ═══ --}}
+    <div id="endScheduleModal" class="modal-overlay" style="z-index: 1200;">
+        <div class="modal-box" style="max-width:450px; border-radius:24px; overflow:hidden;">
+            <div class="modal-body" style="padding:40px 32px; text-align:center;">
+                <div
+                    style="width:64px; height:64px; border-radius:20px; background:var(--red)15; color:var(--red); display:flex; align-items:center; justify-content:center; margin:0 auto 24px; box-shadow: 0 8px 20px var(--red)15;">
+                    <svg width="32" height="32" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5"
+                            d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01" />
+                    </svg>
+                </div>
+                <div id="endScheduleTitle"
+                    style="font-weight:900; font-size:20px; color:var(--text); letter-spacing:-0.02em; margin-bottom:12px;">
+                    End Course Schedule?</div>
+                <p id="endScheduleDesc"
+                    style="font-size:13px; color:var(--muted); line-height:1.6; margin-bottom:32px; font-family:var(--font-mono)">
+                    This will mark all <span style="color:var(--accent); font-weight:700">future sessions</span> for this
+                    course as skipped and finalize the current semester assignment.</p>
+
+                <div style="display:flex; flex-direction:column; gap:12px;">
+                    <button id="confirmEndScheduleBtn" class="btn-primary"
+                        style="width:100%; height:50px; background:linear-gradient(135deg, var(--red), #f43f5e); box-shadow:0 10px 25px rgba(244, 63, 94, 0.3); border:none; font-weight:800; font-size:11px; letter-spacing:0.05em;">
+                        CONFIRM & END SCHEDULE
+                    </button>
+                    <button onclick="closeModal('endScheduleModal')" class="btn-secondary"
+                        style="width:100%; height:46px; border:none; background:transparent; color:var(--muted2); font-weight:700; font-size:10px; margin-top:8px;">
+                        CANCEL ACTION
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
 
     {{-- ═══ SESSION RESCHEDULE MODAL ═══ --}}
     <div id="rescheduleModal" class="modal-overlay" style="z-index: 1200;">
@@ -2066,6 +2418,36 @@
 
     <script>
         // ─── Modals ────────────────────────────────────
+        // ═════════════════════════════════════════════════════════════════════
+        // ACTION DROPDOWN LOGIC
+        // ═════════════════════════════════════════════════════════════════════
+        function toggleActionMenu(e, btn) {
+            e.stopPropagation();
+
+            // Close all other menus first
+            document.querySelectorAll('.action-dropdown-menu').forEach(m => {
+                if (m !== btn.nextElementSibling) m.classList.remove('show');
+            });
+            document.querySelectorAll('.more-btn').forEach(b => {
+                if (b !== btn) b.classList.remove('active');
+            });
+
+            const menu = btn.nextElementSibling;
+            menu.classList.toggle('show');
+            btn.classList.toggle('active');
+        }
+
+        // Close menu when clicking anywhere else
+        window.addEventListener('click', function () {
+            document.querySelectorAll('.action-dropdown-menu').forEach(m => m.classList.remove('show'));
+            document.querySelectorAll('.more-btn').forEach(b => b.classList.remove('active'));
+        });
+
+        // Prevent menu from closing when clicking inside it
+        document.querySelectorAll('.action-dropdown-menu').forEach(m => {
+            m.addEventListener('click', e => e.stopPropagation());
+        });
+
         function openModal(id) { document.getElementById(id).classList.add('open'); }
         function closeModal(id) { document.getElementById(id).classList.remove('open'); }
 
@@ -2109,11 +2491,16 @@
             window.location.href = `${window.location.pathname}?${params.toString()}`;
         }
 
-        function filterByStatus(val) {
-            const params = new URLSearchParams(window.location.search);
-            if (val) params.set('status', val); else params.delete('status');
-            params.set('page', 1);
-            window.location.href = `${window.location.pathname}?${params.toString()}`;
+        function filterByStatus(status) {
+            const url = new URL(window.location.href);
+            if (status) url.searchParams.set('status', status); else url.searchParams.delete('status');
+            window.location.href = url.toString();
+        }
+
+        function filterByDept(deptId) {
+            const url = new URL(window.location.href);
+            if (deptId) url.searchParams.set('dept', deptId); else url.searchParams.delete('dept');
+            window.location.href = url.toString();
         }
 
         // ─── Delete ────────────────────────────────────
@@ -2132,19 +2519,19 @@
                     action === 'INSERT' ? 'var(--green)' : 'var(--accent)';
 
             const html = `
-                    <div class="db-entry" style="padding:12px 0; border-bottom:1px solid var(--border); display:flex; align-items:flex-start; gap:12px; animation: slideIn 0.4s ease-out">
-                        <div style="margin-top:4px; width:6px; height:6px; border-radius:50%; background:${color}; box-shadow:0 0 10px ${color}"></div>
-                        <div style="flex:1">
-                            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px">
-                                <span style="font-family:var(--font-mono); font-size:10px; font-weight:900; color:${color}; letter-spacing:0.05em">${action}</span>
-                                <span style="font-family:var(--font-mono); font-size:9px; color:var(--muted)">${time}</span>
-                            </div>
-                            <div style="font-family:var(--font-mono); font-size:10px; color:var(--text2)">
-                                ${target}
-                            </div>
-                        </div>
-                    </div>
-                `;
+                                    <div class="db-entry" style="padding:12px 0; border-bottom:1px solid var(--border); display:flex; align-items:flex-start; gap:12px; animation: slideIn 0.4s ease-out">
+                                        <div style="margin-top:4px; width:6px; height:6px; border-radius:50%; background:${color}; box-shadow:0 0 10px ${color}"></div>
+                                        <div style="flex:1">
+                                            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px">
+                                                <span style="font-family:var(--font-mono); font-size:10px; font-weight:900; color:${color}; letter-spacing:0.05em">${action}</span>
+                                                <span style="font-family:var(--font-mono); font-size:9px; color:var(--muted)">${time}</span>
+                                            </div>
+                                            <div style="font-family:var(--font-mono); font-size:10px; color:var(--text2)">
+                                                ${target}
+                                            </div>
+                                        </div>
+                                    </div>
+                                `;
             container.insertAdjacentHTML('afterbegin', html);
 
             // Keep only last 5
@@ -2184,11 +2571,11 @@
         // Add slideIn animation
         const style = document.createElement('style');
         style.textContent = `
-                @keyframes slideIn {
-                    from { opacity: 0; transform: translateX(20px); }
-                    to { opacity: 1; transform: translateX(0); }
-                }
-            `;
+                                @keyframes slideIn {
+                                    from { opacity: 0; transform: translateX(20px); }
+                                    to { opacity: 1; transform: translateX(0); }
+                                }
+                            `;
         document.head.appendChild(style);
         function openDeleteModal(id) { pendingDeleteId = id; openModal('deleteModal'); }
 
@@ -2473,7 +2860,7 @@
                 const deptMatch = (row.dataset.dept || "").includes(q);
                 const yr = row.dataset.year || "";
                 const yearMatch = yr.includes(q) || (yr + "st").includes(q) || (yr + "nd").includes(q) || (yr + "rd").includes(q) || (yr + "th").includes(q) || (q.includes("year") && q.includes(yr));
-                
+
                 const show = nameMatch || codeMatch || majorMatch || deptMatch || yearMatch;
                 row.style.display = show ? 'flex' : 'none';
                 if (show) count++;
@@ -2503,12 +2890,12 @@
         async function toggleEnroll(studentId) {
             const row = document.querySelector(`.enroll-row[data-id="${studentId}"]`);
             const btn = row.querySelector('.enroll-btn');
-            
+
             const rowGroupId = parseInt(row.dataset.group || 0);
             const isEnrolledByGroup = enrollingGroupIds.includes(rowGroupId);
             const isEnrolledDirectly = parseInt(row.dataset.class) === enrollingClassId;
             const isEnrolled = isEnrolledByGroup || isEnrolledDirectly;
-            
+
             const newClassId = isEnrolled ? null : enrollingClassId;
 
             btn.classList.add('loading');
@@ -2586,33 +2973,33 @@
 
             if (!sv) {
                 previewDiv.innerHTML = `
-                    <div style="padding:12px; text-align:center; background:var(--surface3)44; border-radius:12px; border:1px dashed var(--border)">
-                        <div style="font-family:var(--font-mono); font-size:9px; font-weight:700; color:var(--muted); letter-spacing:.05em">TIMELINE ARCHITECTURE INACTIVE</div>
-                        <div style="font-size:8px; color:var(--muted); font-family:var(--font-mono); margin-top:2px">Awaiting start date for temporal visualization</div>
-                    </div>
-                `;
+                                    <div style="padding:12px; text-align:center; background:var(--surface3)44; border-radius:12px; border:1px dashed var(--border)">
+                                        <div style="font-family:var(--font-mono); font-size:9px; font-weight:700; color:var(--muted); letter-spacing:.05em">TIMELINE ARCHITECTURE INACTIVE</div>
+                                        <div style="font-size:8px; color:var(--muted); font-family:var(--font-mono); margin-top:2px">Awaiting start date for temporal visualization</div>
+                                    </div>
+                                `;
                 previewDiv.style.display = 'block';
                 return;
             }
 
             previewDiv.innerHTML = `
-                <div style="display:flex; justify-content:space-between; align-items:flex-end; margin-bottom:15px">
-                    <div>
-                        <div class="csm-label">ESTIMATED COMPLETION</div>
-                        <div id="csmPrevEnd" style="font-weight:800;font-size:14px;color:var(--text); line-height:1">-</div>
-                    </div>
-                    <div style="text-align:right">
-                        <div class="csm-label">ACADEMIC SPAN</div>
-                        <div id="csmPrevDays" style="font-weight:800;font-size:14px;color:var(--green); line-height:1">-</div>
-                    </div>
-                </div>
-                <div style="position:relative;height:24px;background:var(--surface2);border-radius:8px;overflow:hidden;border:1px solid var(--border); box-shadow: inset 0 2px 4px rgba(0,0,0,0.1)">
-                    <div id="csmPrevBar" style="position:absolute;left:0;top:0;height:100%;background:linear-gradient(90deg, var(--violet)44, var(--accent)44);border-radius:8px"></div>
-                    <div id="csmPrevHolBar" style="position:absolute;top:0;height:100%;background:var(--amber)33; border-left:1px solid var(--amber)44; border-right:1px solid var(--amber)44;"></div>
-                    <div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-family:var(--font-mono);font-size:8px;color:var(--text);font-weight:700;letter-spacing:0.1em;text-shadow: 0 1px 2px rgba(0,0,0,0.5)">TEMPORAL SEMESTER PROJECTION</div>
-                </div>
-                <div id="csmPrevHol" style="margin-top:10px; font-family:var(--font-mono); font-size:9px; color:var(--amber); font-weight:600; text-align:center"></div>
-            `;
+                                <div style="display:flex; justify-content:space-between; align-items:flex-end; margin-bottom:15px">
+                                    <div>
+                                        <div class="csm-label">ESTIMATED COMPLETION</div>
+                                        <div id="csmPrevEnd" style="font-weight:800;font-size:14px;color:var(--text); line-height:1">-</div>
+                                    </div>
+                                    <div style="text-align:right">
+                                        <div class="csm-label">ACADEMIC SPAN</div>
+                                        <div id="csmPrevDays" style="font-weight:800;font-size:14px;color:var(--green); line-height:1">-</div>
+                                    </div>
+                                </div>
+                                <div style="position:relative;height:24px;background:var(--surface2);border-radius:8px;overflow:hidden;border:1px solid var(--border); box-shadow: inset 0 2px 4px rgba(0,0,0,0.1)">
+                                    <div id="csmPrevBar" style="position:absolute;left:0;top:0;height:100%;background:linear-gradient(90deg, var(--violet)44, var(--accent)44);border-radius:8px"></div>
+                                    <div id="csmPrevHolBar" style="position:absolute;top:0;height:100%;background:var(--amber)33; border-left:1px solid var(--amber)44; border-right:1px solid var(--amber)44;"></div>
+                                    <div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-family:var(--font-mono);font-size:8px;color:var(--text);font-weight:700;letter-spacing:0.1em;text-shadow: 0 1px 2px rgba(0,0,0,0.5)">TEMPORAL SEMESTER PROJECTION</div>
+                                </div>
+                                <div id="csmPrevHol" style="margin-top:10px; font-family:var(--font-mono); font-size:9px; color:var(--amber); font-weight:600; text-align:center"></div>
+                            `;
             previewDiv.style.display = 'block';
             const start = new Date(sv);
             const end = new Date(sv); end.setMonth(end.getMonth() + 4);
@@ -2705,11 +3092,11 @@
             const c = document.getElementById('csmItems');
             const badge = document.getElementById('csmCountBadge');
             c.innerHTML = `
-                <div style="padding:40px; text-align:center;">
-                    <div class="loading-spinner" style="margin: 0 auto 12px; border-top-color: var(--accent);"></div>
-                    <div style="font-family:var(--font-mono);font-size:10px;color:var(--muted)">RETRIEVING ACADEMIC RECORDS...</div>
-                </div>
-            `;
+                                <div style="padding:40px; text-align:center;">
+                                    <div class="loading-spinner" style="margin: 0 auto 12px; border-top-color: var(--accent);"></div>
+                                    <div style="font-family:var(--font-mono);font-size:10px;color:var(--muted)">RETRIEVING ACADEMIC RECORDS...</div>
+                                </div>
+                            `;
             try {
                 const res = await fetch('/api/admin/classes/' + classId + '/semesters');
                 const json = await res.json();
@@ -2718,14 +3105,14 @@
                 if (!data || !data.length) {
                     badge.textContent = '0 FOUND';
                     c.innerHTML = `
-                        <div style="padding:40px 20px; text-align:center; background:var(--surface3)44; border-radius:16px; border:1px dashed var(--border); margin:0 4px">
-                            <div style="width:48px; height:48px; border-radius:50%; background:var(--violet)10; color:var(--violet); display:flex; align-items:center; justify-content:center; margin:0 auto 16px; opacity:0.8">
-                                <svg width="24" height="24" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>
-                            </div>
-                            <div style="font-family:var(--font-mono); font-size:11px; font-weight:800; color:var(--text); letter-spacing:.05em; margin-bottom:6px">O RECORDS ASSIGNED</div>
-                            <div style="font-size:10px; color:var(--muted); font-family:var(--font-mono); max-width: 280px; margin: 0 auto; line-height: 1.5">No semester periods are currently linked to this course catalog entry.</div>
-                        </div>
-                    `;
+                                        <div style="padding:40px 20px; text-align:center; background:var(--surface3)44; border-radius:16px; border:1px dashed var(--border); margin:0 4px">
+                                            <div style="width:48px; height:48px; border-radius:50%; background:var(--violet)10; color:var(--violet); display:flex; align-items:center; justify-content:center; margin:0 auto 16px; opacity:0.8">
+                                                <svg width="24" height="24" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>
+                                            </div>
+                                            <div style="font-family:var(--font-mono); font-size:11px; font-weight:800; color:var(--text); letter-spacing:.05em; margin-bottom:6px">O RECORDS ASSIGNED</div>
+                                            <div style="font-size:10px; color:var(--muted); font-family:var(--font-mono); max-width: 280px; margin: 0 auto; line-height: 1.5">No semester periods are currently linked to this course catalog entry.</div>
+                                        </div>
+                                    `;
                     return;
                 }
 
@@ -2749,59 +3136,59 @@
 
                     const notesHtml = a.notes
                         ? `<div style="background:var(--surface3); border-radius:10px; padding:10px 14px; margin-bottom:15px; display:flex; align-items:flex-start; gap:10px; border-left: 3px solid var(--accent)66">
-                            <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="var(--accent)" style="margin-top:2px; flex-shrink:0"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg>
-                            <div style="font-size:10px; color:var(--text2); font-family:var(--font-mono); line-height:1.5">${a.notes}</div>
-                           </div>` : '';
+                                            <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="var(--accent)" style="margin-top:2px; flex-shrink:0"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg>
+                                            <div style="font-size:10px; color:var(--text2); font-family:var(--font-mono); line-height:1.5">${a.notes}</div>
+                                           </div>` : '';
 
                     return `
-                        <div class="csm-card">
-                            ${notesHtml}
-                            <div class="csm-card-header">
-                                <div class="csm-title-group">
-                                    <div class="csm-accent-bar"></div>
-                                    <span class="csm-title">${a.academic_year} · SEMESTER ${a.semester}</span>
-                                    <span class="csm-badge ${a.status === 'waiting' ? 'upcoming' : a.status}">${a.status === 'waiting' ? 'UPCOMING' : a.status.toUpperCase()}</span>
-                                </div>
-                                <button class="csm-remove-btn" onclick="csmDelete(${a.id})">REMOVE</button>
-                            </div>
+                                        <div class="csm-card">
+                                            ${notesHtml}
+                                            <div class="csm-card-header">
+                                                <div class="csm-title-group">
+                                                    <div class="csm-accent-bar"></div>
+                                                    <span class="csm-title">${a.academic_year} · SEMESTER ${a.semester}</span>
+                                                    <span class="csm-badge ${a.status === 'waiting' ? 'upcoming' : a.status}">${a.status === 'waiting' ? 'UPCOMING' : a.status.toUpperCase()}</span>
+                                                </div>
+                                                <button class="csm-remove-btn" onclick="csmDelete(${a.id})">REMOVE</button>
+                                            </div>
 
-                            <div class="csm-divider"></div>
+                                            <div class="csm-divider"></div>
 
-                            <div class="csm-grid">
-                                <div>
-                                    <div class="csm-label">TERMINATION DATE</div>
-                                    <div class="csm-value">${a.end_date}</div>
-                                </div>
-                                <div>
-                                    <div class="csm-label">NET SESSIONS</div>
-                                    <div class="csm-value green">${a.active_days} DAYS</div>
-                                </div>
-                                <div>
-                                    <div class="csm-label">ACADEMIC BREAK</div>
-                                    <div class="csm-value ${a.holiday_start ? '' : 'muted'}">${holDisplay}</div>
-                                </div>
-                            </div>
+                                            <div class="csm-grid">
+                                                <div>
+                                                    <div class="csm-label">TERMINATION DATE</div>
+                                                    <div class="csm-value">${a.end_date}</div>
+                                                </div>
+                                                <div>
+                                                    <div class="csm-label">NET SESSIONS</div>
+                                                    <div class="csm-value green">${a.active_days} DAYS</div>
+                                                </div>
+                                                <div>
+                                                    <div class="csm-label">ACADEMIC BREAK</div>
+                                                    <div class="csm-value ${a.holiday_start ? '' : 'muted'}">${holDisplay}</div>
+                                                </div>
+                                            </div>
 
-                            <div class="csm-progress-section">
-                                <div class="csm-progress-head">
-                                    <span class="csm-label" style="margin-bottom:0">COURSE PROGRESSION</span>
-                                    <span class="csm-value" style="font-size:13px">${a.progress}%</span>
-                                </div>
-                                <div class="csm-progress-track">
-                                    <div class="csm-progress-fill" style="width:${a.progress}%"></div>
-                                </div>
-                            </div>
-                        </div>
-                    `;
+                                            <div class="csm-progress-section">
+                                                <div class="csm-progress-head">
+                                                    <span class="csm-label" style="margin-bottom:0">COURSE PROGRESSION</span>
+                                                    <span class="csm-value" style="font-size:13px">${a.progress}%</span>
+                                                </div>
+                                                <div class="csm-progress-track">
+                                                    <div class="csm-progress-fill" style="width:${a.progress}%"></div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    `;
                 }).join('');
             } catch (e) {
                 console.error(e);
                 c.innerHTML = `
-                    <div style="padding:24px; text-align:center; color:var(--red); background:var(--red)08; border-radius:12px; border:1px solid var(--red)22">
-                        <div style="font-family:var(--font-mono); font-size:10px; font-weight:800">DATA SYNCHRONIZATION ERROR</div>
-                        <div style="font-size:9px; margin-top:4px">Failed to resolve academic assignments.</div>
-                    </div>
-                `;
+                                    <div style="padding:24px; text-align:center; color:var(--red); background:var(--red)08; border-radius:12px; border:1px solid var(--red)22">
+                                        <div style="font-family:var(--font-mono); font-size:10px; font-weight:800">DATA SYNCHRONIZATION ERROR</div>
+                                        <div style="font-size:9px; margin-top:4px">Failed to resolve academic assignments.</div>
+                                    </div>
+                                `;
             }
         }
 
@@ -2900,40 +3287,40 @@
                     const pct = s.total_students_count > 0 ? Math.round((s.presence_count / s.total_students_count) * 100) : 0;
 
                     return `
-                        <div style="display:flex; align-items:center; justify-content:space-between; padding:16px; border:1px solid var(--border); border-radius:16px; margin-bottom:12px; background:var(--surface2); transition:all 0.2s" onmouseover="this.style.borderColor='var(--amber)44'; this.style.transform='translateX(4px)'" onmouseout="this.style.borderColor='var(--border)'; this.style.transform='none'">
-                            <div style="display:flex; align-items:center; gap:16px">
-                                <div style="width:48px; height:48px; border-radius:12px; background:var(--surface3); display:flex; flex-direction:column; align-items:center; justify-content:center; border:1px solid var(--border)">
-                                    <div style="font-size:9px; font-weight:800; color:var(--muted); font-family:var(--font-mono)">${isNaN(d.getTime()) ? '???' : d.toLocaleDateString('en-US', { month: 'short' }).toUpperCase()}</div>
-                                    <div style="font-size:16px; font-weight:800; color:var(--text); line-height:1">${isNaN(d.getTime()) ? '--' : d.getDate()}</div>
-                                </div>
-                                <div>
-                                    <div style="font-family:var(--font-mono); font-size:12px; font-weight:700; color:var(--text)">${dateStr} @ ${timeStr}</div>
-                                    <div style="display:flex; align-items:center; gap:8px; margin-top:4px">
-                                        <span style="font-family:var(--font-mono); font-size:8px; padding:2px 8px; border-radius:10px; background:${statusBg}; color:${statusClr}; font-weight:800; text-transform:uppercase">${s.status}</span>
-                                        <span style="font-size:10px; color:var(--muted)">•</span>
-                                        <span style="font-family:var(--font-mono); font-size:10px; color:var(--text2); font-weight:700">${s.presence_count} / ${s.total_students_count} <span style="font-weight:400; font-size:9px; color:var(--muted)">ARRIVED</span></span>
-                                    </div>
-                                </div>
-                            </div>
-                            <div style="display:flex; align-items:center; gap:8px">
-                                ${isSkipped ? `
-                                <button class="action-btn" onclick="autoMoveToEnd(${s.id}, ${classId})" style="background:var(--green)10; border:1px solid var(--green)22; border-radius:10px; padding:8px 12px; font-family:var(--font-mono); font-size:9px; font-weight:800; cursor:pointer; color:var(--green)">
-                                    AUTO-MOVE
-                                </button>
-                                <button class="action-btn" onclick="openRescheduleModal(${s.id}, ${classId}, '${s.start_time}', '${s.end_time}')" style="background:var(--accent)10; border:1px solid var(--accent)22; border-radius:10px; padding:8px 12px; font-family:var(--font-mono); font-size:9px; font-weight:800; cursor:pointer; color:var(--accent)">
-                                    MANUAL
-                                </button>
-                                ` : `
-                                <button class="action-btn" onclick="skipSession(${s.id}, ${classId})" style="background:var(--red)10; border:1px solid var(--red)22; border-radius:10px; padding:8px 12px; font-family:var(--font-mono); font-size:9px; font-weight:800; cursor:pointer; color:var(--red)">
-                                    SKIP
-                                </button>
-                                `}
-                                <button class="action-btn" onclick="openSessionDetail(${s.id})" style="background:var(--surface3); border:1px solid var(--border); border-radius:10px; padding:8px 16px; font-family:var(--font-mono); font-size:10px; font-weight:800; cursor:pointer; color:var(--text2)">
-                                    DETAILS
-                                </button>
-                            </div>
-                        </div>
-                    `;
+                                        <div style="display:flex; align-items:center; justify-content:space-between; padding:16px; border:1px solid var(--border); border-radius:16px; margin-bottom:12px; background:var(--surface2); transition:all 0.2s" onmouseover="this.style.borderColor='var(--amber)44'; this.style.transform='translateX(4px)'" onmouseout="this.style.borderColor='var(--border)'; this.style.transform='none'">
+                                            <div style="display:flex; align-items:center; gap:16px">
+                                                <div style="width:48px; height:48px; border-radius:12px; background:var(--surface3); display:flex; flex-direction:column; align-items:center; justify-content:center; border:1px solid var(--border)">
+                                                    <div style="font-size:9px; font-weight:800; color:var(--muted); font-family:var(--font-mono)">${isNaN(d.getTime()) ? '???' : d.toLocaleDateString('en-US', { month: 'short' }).toUpperCase()}</div>
+                                                    <div style="font-size:16px; font-weight:800; color:var(--text); line-height:1">${isNaN(d.getTime()) ? '--' : d.getDate()}</div>
+                                                </div>
+                                                <div>
+                                                    <div style="font-family:var(--font-mono); font-size:12px; font-weight:700; color:var(--text)">${dateStr} @ ${timeStr}</div>
+                                                    <div style="display:flex; align-items:center; gap:8px; margin-top:4px">
+                                                        <span style="font-family:var(--font-mono); font-size:8px; padding:2px 8px; border-radius:10px; background:${statusBg}; color:${statusClr}; font-weight:800; text-transform:uppercase">${s.status}</span>
+                                                        <span style="font-size:10px; color:var(--muted)">•</span>
+                                                        <span style="font-family:var(--font-mono); font-size:10px; color:var(--text2); font-weight:700">${s.presence_count} / ${s.total_students_count} <span style="font-weight:400; font-size:9px; color:var(--muted)">ARRIVED</span></span>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                            <div style="display:flex; align-items:center; gap:8px">
+                                                ${isSkipped ? `
+                                                <button class="action-btn" onclick="autoMoveToEnd(${s.id}, ${classId})" style="background:var(--green)10; border:1px solid var(--green)22; border-radius:10px; padding:8px 12px; font-family:var(--font-mono); font-size:9px; font-weight:800; cursor:pointer; color:var(--green)">
+                                                    AUTO-MOVE
+                                                </button>
+                                                <button class="action-btn" onclick="openRescheduleModal(${s.id}, ${classId}, '${s.start_time}', '${s.end_time}')" style="background:var(--accent)10; border:1px solid var(--accent)22; border-radius:10px; padding:8px 12px; font-family:var(--font-mono); font-size:9px; font-weight:800; cursor:pointer; color:var(--accent)">
+                                                    MANUAL
+                                                </button>
+                                                ` : `
+                                                <button class="action-btn" onclick="skipSession(${s.id}, ${classId})" style="background:var(--red)10; border:1px solid var(--red)22; border-radius:10px; padding:8px 12px; font-family:var(--font-mono); font-size:9px; font-weight:800; cursor:pointer; color:var(--red)">
+                                                    SKIP
+                                                </button>
+                                                `}
+                                                <button class="action-btn" onclick="openSessionDetail(${s.id})" style="background:var(--surface3); border:1px solid var(--border); border-radius:10px; padding:8px 16px; font-family:var(--font-mono); font-size:10px; font-weight:800; cursor:pointer; color:var(--text2)">
+                                                    DETAILS
+                                                </button>
+                                            </div>
+                                        </div>
+                                    `;
                 }).join('');
             } catch (e) {
                 container.innerHTML = '<div style="text-align:center; padding:40px; color:var(--red)">Failed to load session timeline.</div>';
@@ -3037,6 +3424,231 @@
             }
         }
 
+        let _pendingEndScheduleId = null;
+        function openEndScheduleModal(classId, className) {
+            _pendingEndScheduleId = classId;
+            document.getElementById('endScheduleTitle').textContent = `End Schedule: ${className}`;
+            openModal('endScheduleModal');
+        }
+
+        document.getElementById('confirmEndScheduleBtn').onclick = async () => {
+            if (!_pendingEndScheduleId) return;
+            const btn = document.getElementById('confirmEndScheduleBtn');
+            const ogHtml = btn.innerHTML;
+            btn.innerHTML = 'PROCESSING...';
+            btn.disabled = true;
+
+            try {
+                const res = await fetch(`/api/admin/terminate-class/${_pendingEndScheduleId}`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Accept': 'application/json',
+                        'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.content || ''
+                    }
+                });
+                const data = await res.json();
+                if (data.success) {
+                    showToast(data.message, 'success');
+                    closeModal('endScheduleModal');
+                    setTimeout(() => window.location.reload(), 1000);
+                } else {
+                    showToast(data.error || 'Failed to end schedule.', 'error');
+                }
+            } catch (err) {
+                showToast('Network error occurred.', 'error');
+            } finally {
+                btn.innerHTML = ogHtml;
+                btn.disabled = false;
+                _pendingEndScheduleId = null;
+            }
+        };
+
+        async function openGradingModal(classId, className) {
+            document.getElementById('gradingClassId').value = classId;
+            document.getElementById('gradingModalSubtitle').textContent = className;
+
+            // Fetch semester assignments to find the active one
+            try {
+                const res = await fetch(`/api/admin/classes/${classId}/semesters`);
+                const data = await res.json();
+                if (data.success && data.data.length > 0) {
+                    const active = data.data.find(a => a.status === 'active' || a.status === 'completed');
+                    if (!active) {
+                        document.getElementById('noSemClassId').value = classId;
+                        document.getElementById('noSemClassName').value = className;
+                        openModal('noSemesterModal');
+                        return;
+                    }
+
+                    document.getElementById('gradingAssignmentId').value = active.id;
+                    document.getElementById('teacherScoreDisplay').textContent = active.teacher_score || 'PENDING';
+                    document.getElementById('adminScoreInput').value = active.admin_score || '';
+                    document.getElementById('gradingNotesInput').value = active.notes || '';
+                    document.getElementById('gradingStatusSelect').value = active.grading_status || 'pending';
+
+                    // Toggle visibility based on status
+                    const isFinalized = active.grading_status === 'finalized';
+                    document.getElementById('proceedToEndBtn').style.display = isFinalized ? 'block' : 'none';
+                    document.getElementById('gradingReportSection').style.display = (isFinalized || active.status === 'completed') ? 'block' : 'none';
+
+                    // Fetch detailed preview
+                    fetchGradingPreview(active.id);
+
+                    openModal('gradingModal');
+                }
+            } catch (err) {
+                showToast('Failed to load grading details.', 'error');
+            }
+        }
+
+        async function fetchGradingPreview(assignmentId) {
+            const body = document.getElementById('gradingStudentPreviewBody');
+            body.innerHTML = '<tr><td colspan="3" style="padding:20px; text-align:center; color:var(--muted)">Loading performance data...</td></tr>';
+
+            try {
+                const res = await fetch(`/api/admin/semesters/${assignmentId}/preview`);
+                const data = await res.json();
+                if (data.success) {
+                    document.getElementById('gradeStatStudents').textContent = data.stats.total_students;
+                    document.getElementById('gradeStatSessions').textContent = data.stats.total_sessions;
+                    document.getElementById('gradeStatRate').textContent = data.stats.avg_attendance + '%';
+
+                    // Incomplete session validation
+                    const scheduled = data.stats.scheduled_count || 0;
+                    const warning = document.getElementById('gradingIncompleteWarning');
+                    const statusSelect = document.getElementById('gradingStatusSelect');
+                    const saveBtn = document.getElementById('saveGradingBtn');
+
+                    if (scheduled > 0) {
+                        warning.style.display = 'block';
+                        document.getElementById('incompleteSessionCount').textContent = scheduled;
+                        statusSelect.disabled = true;
+                        statusSelect.value = 'pending';
+                        saveBtn.disabled = true;
+                        saveBtn.style.opacity = '0.5';
+                    } else {
+                        warning.style.display = 'none';
+                        statusSelect.disabled = false;
+                        saveBtn.disabled = false;
+                        saveBtn.style.opacity = '1';
+                    }
+
+                    body.innerHTML = '';
+                    data.students.slice(0, 15).forEach(s => {
+                        const row = `
+                                    <tr style="border-top:1px solid var(--border)">
+                                        <td style="padding:10px 12px;">
+                                            <div style="font-weight:700; color:var(--text2)">${s.name}</div>
+                                            <div style="font-size:8px; color:var(--muted); font-family:var(--font-mono)">${s.code}</div>
+                                        </td>
+                                        <td style="padding:10px 12px; text-align:center;">
+                                            <span style="font-family:var(--font-mono); font-weight:800; color:${s.rate > 80 ? 'var(--green)' : (s.rate > 50 ? 'var(--amber)' : 'var(--red)')}">${s.rate}%</span>
+                                            <div style="font-size:7px; color:var(--muted)">${s.attended} SESS</div>
+                                        </td>
+                                        <td style="padding:10px 12px; text-align:right;">
+                                            <input type="number" class="student-score-input" data-student-id="${s.id}" value="${s.score || ''}" step="0.1" min="0" max="100" style="width:60px; height:28px; background:var(--surface3); border:1px solid var(--border); border-radius:6px; color:var(--text); text-align:center; font-family:var(--font-mono); font-weight:700;">
+                                        </td>
+                                    </tr>
+                                `;
+                        body.innerHTML += row;
+                    });
+                }
+            } catch (err) {
+                body.innerHTML = '<tr><td colspan="3" style="padding:20px; text-align:center; color:var(--red)">Error loading preview.</td></tr>';
+            }
+        }
+
+        async function saveStudentScores() {
+            const assignmentId = document.getElementById('gradingAssignmentId').value;
+            const btn = document.getElementById('saveStudentScoresBtn');
+            const ogHtml = btn.innerHTML;
+
+            const scores = Array.from(document.querySelectorAll('.student-score-input')).map(input => ({
+                student_id: input.dataset.studentId,
+                score: input.value,
+                notes: ''
+            }));
+
+            btn.innerHTML = 'SAVING...';
+            btn.disabled = true;
+
+            try {
+                const res = await fetch(`/api/admin/semesters/${assignmentId}/student-scores`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': '{{ csrf_token() }}' },
+                    body: JSON.stringify({ scores })
+                });
+                const data = await res.json();
+                if (data.success) {
+                    showToast('Student scores updated.', 'success');
+                } else {
+                    showToast('Failed to save scores.', 'error');
+                }
+            } catch (err) {
+                showToast('Network error.', 'error');
+            } finally {
+                btn.innerHTML = ogHtml;
+                btn.disabled = false;
+            }
+        }
+
+        async function saveGrading() {
+            const assignmentId = document.getElementById('gradingAssignmentId').value;
+            const btn = document.getElementById('saveGradingBtn');
+            const ogHtml = btn.innerHTML;
+
+            const payload = {
+                admin_score: document.getElementById('adminScoreInput').value,
+                grading_notes: document.getElementById('gradingNotesInput').value,
+                grading_status: document.getElementById('gradingStatusSelect').value
+            };
+
+            btn.innerHTML = 'SAVING...';
+            btn.disabled = true;
+
+            try {
+                const res = await fetch(`/api/admin/semesters/${assignmentId}/score`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': '{{ csrf_token() }}' },
+                    body: JSON.stringify(payload)
+                });
+                const data = await res.json();
+                if (data.success) {
+                    showToast('Grading updated successfully.', 'success');
+                    const isFinalized = payload.grading_status === 'finalized';
+                    document.getElementById('proceedToEndBtn').style.display = isFinalized ? 'block' : 'none';
+                    document.getElementById('gradingReportSection').style.display = isFinalized ? 'block' : 'none';
+                } else {
+                    showToast(data.error || 'Failed to save.', 'error');
+                }
+            } catch (err) {
+                showToast('Network error.', 'error');
+            } finally {
+                btn.innerHTML = ogHtml;
+                btn.disabled = false;
+            }
+        }
+
+        function triggerEndFromGrading() {
+            const classId = document.getElementById('gradingClassId').value;
+            const className = document.getElementById('gradingModalSubtitle').textContent;
+            closeModal('gradingModal');
+            openEndScheduleModal(classId, className);
+        }
+
+        function triggerEndNoSem() {
+            const classId = document.getElementById('noSemClassId').value;
+            const className = document.getElementById('noSemClassName').value;
+            closeModal('noSemesterModal');
+            openEndScheduleModal(classId, className);
+        }
+
+        function downloadSemesterReport() {
+            const assignmentId = document.getElementById('gradingAssignmentId').value;
+            window.location.href = `/api/admin/semesters/${assignmentId}/report`;
+        }
+
         function openRescheduleModal(sessionId, classId, currentStart, currentEnd) {
             document.getElementById('reschSessionId').value = sessionId;
             document.getElementById('reschClassId').value = classId;
@@ -3106,38 +3718,38 @@
                 document.getElementById('sdmTitle').textContent = data.session_name;
 
                 stats.innerHTML = `
-                    <div>
-                        <div style="font-family:var(--font-mono); font-size:8px; color:var(--muted); text-transform:uppercase; margin-bottom:2px">PRESENCE RATIO</div>
-                        <div style="font-family:var(--font-display); font-size:18px; font-weight:800; color:var(--accent)">${data.present_count} / ${data.total_count}</div>
-                    </div>
-                    <div style="width:1px; background:var(--border)"></div>
-                    <div>
-                        <div style="font-family:var(--font-mono); font-size:8px; color:var(--muted); text-transform:uppercase; margin-bottom:2px">EFFICIENCY</div>
-                        <div style="font-family:var(--font-display); font-size:18px; font-weight:800; color:var(--green)">${data.total_count > 0 ? Math.round((data.present_count / data.total_count) * 100) : 0}%</div>
-                    </div>
-                `;
+                                    <div>
+                                        <div style="font-family:var(--font-mono); font-size:8px; color:var(--muted); text-transform:uppercase; margin-bottom:2px">PRESENCE RATIO</div>
+                                        <div style="font-family:var(--font-display); font-size:18px; font-weight:800; color:var(--accent)">${data.present_count} / ${data.total_count}</div>
+                                    </div>
+                                    <div style="width:1px; background:var(--border)"></div>
+                                    <div>
+                                        <div style="font-family:var(--font-mono); font-size:8px; color:var(--muted); text-transform:uppercase; margin-bottom:2px">EFFICIENCY</div>
+                                        <div style="font-family:var(--font-display); font-size:18px; font-weight:800; color:var(--green)">${data.total_count > 0 ? Math.round((data.present_count / data.total_count) * 100) : 0}%</div>
+                                    </div>
+                                `;
 
                 list.innerHTML = data.data.map(row => {
                     const isPresent = row.status === 'PRESENT' || row.status === 'LATE';
                     const statusClr = isPresent ? (row.status === 'LATE' ? 'var(--amber)' : 'var(--green)') : 'var(--red)';
 
                     return `
-                        <div style="display:flex; align-items:center; justify-content:space-between; padding:10px 0; border-bottom:1px solid var(--border)44; cursor:pointer" onmouseover="this.style.background='var(--surface3)'; this.querySelector('.s-name').style.color='var(--accent)'" onmouseout="this.style.background='transparent'; this.querySelector('.s-name').style.color='var(--text)'" onclick="openStudentRecordModal(${row.id})">
-                            <div style="display:flex; align-items:center; gap:12px">
-                                <div style="width:32px; height:32px; border-radius:50%; background:var(--surface3); color:var(--muted); display:flex; align-items:center; justify-content:center; font-weight:800; font-size:11px">
-                                    ${row.name.charAt(0)}
-                                </div>
-                                <div>
-                                    <div class="s-name" style="font-size:12px; font-weight:700; color:var(--text); transition:color 0.2s">${row.name}</div>
-                                    <div style="font-family:var(--font-mono); font-size:9px; color:var(--muted)">${row.student_code}</div>
-                                </div>
-                            </div>
-                            <div style="text-align:right">
-                                <div style="font-family:var(--font-mono); font-size:9px; font-weight:800; color:${statusClr}">${row.status}</div>
-                                <div style="font-family:var(--font-mono); font-size:9px; color:var(--muted)">${row.check_in_time}</div>
-                            </div>
-                        </div>
-                    `;
+                                        <div style="display:flex; align-items:center; justify-content:space-between; padding:10px 0; border-bottom:1px solid var(--border)44; cursor:pointer" onmouseover="this.style.background='var(--surface3)'; this.querySelector('.s-name').style.color='var(--accent)'" onmouseout="this.style.background='transparent'; this.querySelector('.s-name').style.color='var(--text)'" onclick="openStudentRecordModal(${row.id})">
+                                            <div style="display:flex; align-items:center; gap:12px">
+                                                <div style="width:32px; height:32px; border-radius:50%; background:var(--surface3); color:var(--muted); display:flex; align-items:center; justify-content:center; font-weight:800; font-size:11px">
+                                                    ${row.name.charAt(0)}
+                                                </div>
+                                                <div>
+                                                    <div class="s-name" style="font-size:12px; font-weight:700; color:var(--text); transition:color 0.2s">${row.name}</div>
+                                                    <div style="font-family:var(--font-mono); font-size:9px; color:var(--muted)">${row.student_code}</div>
+                                                </div>
+                                            </div>
+                                            <div style="text-align:right">
+                                                <div style="font-family:var(--font-mono); font-size:9px; font-weight:800; color:${statusClr}">${row.status}</div>
+                                                <div style="font-family:var(--font-mono); font-size:9px; color:var(--muted)">${row.check_in_time}</div>
+                                            </div>
+                                        </div>
+                                    `;
                 }).join('');
             } catch (e) {
                 list.innerHTML = '<div style="text-align:center; padding:40px; color:var(--red)">Error retrieving session details.</div>';
@@ -3180,20 +3792,20 @@
                     const color = isPresent ? 'var(--green)' : 'var(--red)';
 
                     return `
-                        <div style="display:flex; align-items:center; justify-content:space-between; background:var(--surface); padding:10px 14px; border-radius:12px; border:1px solid var(--border)">
-                            <div style="display:flex; align-items:center; gap:10px">
-                                <div style="width:8px; height:8px; border-radius:50%; background:${color}"></div>
-                                <div>
-                                    <div style="font-size:11px; font-weight:700; color:var(--text)">${row.subject}</div>
-                                    <div style="font-size:9px; color:var(--muted)">${row.date}</div>
-                                </div>
-                            </div>
-                            <div style="text-align:right">
-                                <div style="font-family:var(--font-mono); font-size:9px; font-weight:800; color:${color}">${row.status}</div>
-                                <div style="font-family:var(--font-mono); font-size:8px; color:var(--muted2)">${row.time}</div>
-                            </div>
-                        </div>
-                    `;
+                                        <div style="display:flex; align-items:center; justify-content:space-between; background:var(--surface); padding:10px 14px; border-radius:12px; border:1px solid var(--border)">
+                                            <div style="display:flex; align-items:center; gap:10px">
+                                                <div style="width:8px; height:8px; border-radius:50%; background:${color}"></div>
+                                                <div>
+                                                    <div style="font-size:11px; font-weight:700; color:var(--text)">${row.subject}</div>
+                                                    <div style="font-size:9px; color:var(--muted)">${row.date}</div>
+                                                </div>
+                                            </div>
+                                            <div style="text-align:right">
+                                                <div style="font-family:var(--font-mono); font-size:9px; font-weight:800; color:${color}">${row.status}</div>
+                                                <div style="font-family:var(--font-mono); font-size:8px; color:var(--muted2)">${row.time}</div>
+                                            </div>
+                                        </div>
+                                    `;
                 }).join('');
 
             } catch (e) {
@@ -3213,128 +3825,128 @@
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': '{{ csrf_token() }}' },
                     body: JSON.stringify({ status: 'skipped', reschedule: true })
-                });
-                const data = await res.json();
-                if (data.success) {
-                    logActivity('UPDATE', `session#${sessionId}.auto_move`);
-                    showToast('Session moved to end of semester.', 'success');
-                    openSessionsModal(classId, document.getElementById('sessionsModalSubtitle').textContent);
-                } else {
-                    showToast(data.error || 'Failed to move.', 'error');
+    });
+                    const data = await res.json();
+                    if (data.success) {
+                        logActivity('UPDATE', `session#${sessionId}.auto_move`);
+                        showToast('Session moved to end of semester.', 'success');
+                        openSessionsModal(classId, document.getElementById('sessionsModalSubtitle').textContent);
+                    } else {
+                        showToast(data.error || 'Failed to move.', 'error');
+                    }
+                } catch (err) {
+                    showToast('Network error.', 'error');
+                } finally {
+                    btn.innerHTML = ogHtml;
+                    btn.disabled = false;
                 }
-            } catch (err) {
-                showToast('Network error.', 'error');
-            } finally {
-                btn.innerHTML = ogHtml;
-                btn.disabled = false;
             }
-        }
-    </script>
-    {{-- ═══ GLOBAL SKIP MODAL ═══ --}}
-    <div id="globalSkipModal" class="modal-overlay" style="z-index: 1400;">
-        <div class="modal-box" style="max-width:450px; border-radius:24px; overflow:hidden;">
-            <div class="modal-head"
-                style="padding: 24px 28px; background: var(--surface2); border-bottom: 1px solid var(--border);">
-                <div style="display:flex;align-items:center;gap:15px">
-                    <div
-                        style="width:40px;height:40px;border-radius:12px;background:var(--red)22;color:var(--red);display:flex;align-items:center;justify-content:center;">
-                        <svg width="20" height="20" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-                        </svg>
-                    </div>
-                    <div>
-                        <div class="modal-title" style="font-weight: 800; font-size: 16px;">Global Range Skip</div>
+        </script>
+        {{-- ═══ GLOBAL SKIP MODAL ═══ --}}
+        <div id="globalSkipModal" class="modal-overlay" style="z-index: 1400;">
+            <div class="modal-box" style="max-width:450px; border-radius:24px; overflow:hidden;">
+                <div class="modal-head"
+                    style="padding: 24px 28px; background: var(--surface2); border-bottom: 1px solid var(--border);">
+                    <div style="display:flex;align-items:center;gap:15px">
                         <div
-                            style="font-family:var(--font-mono);font-size:9px;color:var(--muted);letter-spacing:0.02em;text-transform:uppercase">
-                            BATCH CANCEL SESSIONS</div>
+                            style="width:40px;height:40px;border-radius:12px;background:var(--red)22;color:var(--red);display:flex;align-items:center;justify-content:center;">
+                            <svg width="20" height="20" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                    d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                            </svg>
+                        </div>
+                        <div>
+                            <div class="modal-title" style="font-weight: 800; font-size: 16px;">Global Range Skip</div>
+                            <div
+                                style="font-family:var(--font-mono);font-size:9px;color:var(--muted);letter-spacing:0.02em;text-transform:uppercase">
+                                BATCH CANCEL SESSIONS</div>
+                        </div>
+                    </div>
+                    <button onclick="closeModal('globalSkipModal')" class="modal-close"
+                        style="background:var(--surface3); width:30px; height:30px; border-radius:50%; display:flex; align-items:center; justify-content:center; border:none; cursor:pointer;">
+                        <svg width="12" height="12" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path d="M6 18L18 6M6 6l12 12" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" />
+                        </svg>
+                    </button>
+                </div>
+                <div class="modal-body" style="padding:28px;">
+                    <div class="form-group" style="margin-bottom:20px">
+                        <label class="form-label">Range Start <span class="req">*</span></label>
+                        <input id="gsStart" class="form-input" type="datetime-local"
+                            style="background:var(--surface3); width:100%; height:42px; border-radius:10px; border:1px solid var(--border); padding:0 12px; color:var(--text)">
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label">Range End <span class="req">*</span></label>
+                        <input id="gsEnd" class="form-input" type="datetime-local"
+                            style="background:var(--surface3); width:100%; height:42px; border-radius:10px; border:1px solid var(--border); padding:0 12px; color:var(--text)">
+                    </div>
+
+                    <div
+                        style="margin-top:24px; padding:15px; border-radius:12px; background:var(--red)08; border:1px dashed var(--red)33;">
+                        <p style="font-size:10px; color:var(--red); line-height:1.4; font-family:var(--font-mono)">
+                            <span style="font-weight:800">WARNING:</span> This will mark every session from all subjects within
+                            this range as "SKIPPED".
+                        </p>
+                    </div>
+
+                    <div
+                        style="margin-top:20px; display:flex; align-items:center; gap:12px; padding:12px; background:var(--surface3); border-radius:12px; border:1px solid var(--border)">
+                        <input type="checkbox" id="gsReschedule"
+                            style="width:18px; height:18px; cursor:pointer; accent-color:var(--accent)">
+                        <label for="gsReschedule"
+                            style="font-size:11px; font-weight:700; color:var(--text2); cursor:pointer">Automatically move
+                            skipped sessions to end of semester?</label>
                     </div>
                 </div>
-                <button onclick="closeModal('globalSkipModal')" class="modal-close"
-                    style="background:var(--surface3); width:30px; height:30px; border-radius:50%; display:flex; align-items:center; justify-content:center; border:none; cursor:pointer;">
-                    <svg width="12" height="12" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path d="M6 18L18 6M6 6l12 12" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" />
-                    </svg>
-                </button>
-            </div>
-            <div class="modal-body" style="padding:28px;">
-                <div class="form-group" style="margin-bottom:20px">
-                    <label class="form-label">Range Start <span class="req">*</span></label>
-                    <input id="gsStart" class="form-input" type="datetime-local"
-                        style="background:var(--surface3); width:100%; height:42px; border-radius:10px; border:1px solid var(--border); padding:0 12px; color:var(--text)">
+                <div class="modal-footer" style="background:var(--surface2); padding: 18px 28px;">
+                    <button id="executeGlobalSkipBtn" class="btn-primary"
+                        style="width:100%; height:46px; background:var(--red); border:none; font-weight:800; border-radius:12px; font-size:11px; letter-spacing:0.02em"
+                        onclick="handleGlobalSkip()">EXECUTE BATCH SKIP</button>
                 </div>
-
-                <div class="form-group">
-                    <label class="form-label">Range End <span class="req">*</span></label>
-                    <input id="gsEnd" class="form-input" type="datetime-local"
-                        style="background:var(--surface3); width:100%; height:42px; border-radius:10px; border:1px solid var(--border); padding:0 12px; color:var(--text)">
-                </div>
-
-                <div
-                    style="margin-top:24px; padding:15px; border-radius:12px; background:var(--red)08; border:1px dashed var(--red)33;">
-                    <p style="font-size:10px; color:var(--red); line-height:1.4; font-family:var(--font-mono)">
-                        <span style="font-weight:800">WARNING:</span> This will mark every session from all subjects within
-                        this range as "SKIPPED".
-                    </p>
-                </div>
-
-                <div
-                    style="margin-top:20px; display:flex; align-items:center; gap:12px; padding:12px; background:var(--surface3); border-radius:12px; border:1px solid var(--border)">
-                    <input type="checkbox" id="gsReschedule"
-                        style="width:18px; height:18px; cursor:pointer; accent-color:var(--accent)">
-                    <label for="gsReschedule"
-                        style="font-size:11px; font-weight:700; color:var(--text2); cursor:pointer">Automatically move
-                        skipped sessions to end of semester?</label>
-                </div>
-            </div>
-            <div class="modal-footer" style="background:var(--surface2); padding: 18px 28px;">
-                <button id="executeGlobalSkipBtn" class="btn-primary"
-                    style="width:100%; height:46px; background:var(--red); border:none; font-weight:800; border-radius:12px; font-size:11px; letter-spacing:0.02em"
-                    onclick="handleGlobalSkip()">EXECUTE BATCH SKIP</button>
             </div>
         </div>
-    </div>
 
-    <script>
-        async function handleGlobalSkip() {
-            const start = document.getElementById('gsStart').value;
-            const end = document.getElementById('gsEnd').value;
-            const reschedule = document.getElementById('gsReschedule').checked;
-            const btn = document.getElementById('executeGlobalSkipBtn');
-            const ogHtml = btn.innerHTML;
+        <script>
+            async function handleGlobalSkip() {
+                const start = document.getElementById('gsStart').value;
+                const end = document.getElementById('gsEnd').value;
+                const reschedule = document.getElementById('gsReschedule').checked;
+                const btn = document.getElementById('executeGlobalSkipBtn');
+                const ogHtml = btn.innerHTML;
 
-            if (!start || !end) { showToast('Please select both start and end range.', 'error'); return; }
+                if (!start || !end) { showToast('Please select both start and end range.', 'error'); return; }
 
-            const confirmMsg = reschedule
-                ? 'Are you absolutely sure? This will MOVE multiple sessions to the end of the semester across all subjects.'
-                : 'Are you absolutely sure? This will SKIP multiple sessions across the entire system.';
+                const confirmMsg = reschedule
+                    ? 'Are you absolutely sure? This will MOVE multiple sessions to the end of the semester across all subjects.'
+                    : 'Are you absolutely sure? This will SKIP multiple sessions across the entire system.';
 
-            if (!confirm(confirmMsg)) return;
+                if (!confirm(confirmMsg)) return;
 
-            btn.innerHTML = 'PROCESSING...';
-            btn.disabled = true;
+                btn.innerHTML = 'PROCESSING...';
+                btn.disabled = true;
 
-            try {
-                const res = await fetch('/api/admin/sessions/global-skip', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': '{{ csrf_token() }}' },
-                    body: JSON.stringify({ start_time: start, end_time: end, reschedule: reschedule })
-                });
-                const data = await res.json();
-                if (data.success) {
-                    logActivity(reschedule ? 'UPDATE' : 'UPDATE', `global.batch_skip#${data.affected_count}`);
-                    showToast(data.message, 'success');
-                    closeModal('globalSkipModal');
-                    setTimeout(() => window.location.reload(), 1500);
-                } else {
-                    showToast(data.error || 'Failed to execute global skip.', 'error');
+                try {
+                    const res = await fetch('/api/admin/sessions/global-skip', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': '{{ csrf_token() }}' },
+                        body: JSON.stringify({ start_time: start, end_time: end, reschedule: reschedule })
+                    });
+                    const data = await res.json();
+                    if (data.success) {
+                        logActivity(reschedule ? 'UPDATE' : 'UPDATE', `global.batch_skip#${data.affected_count}`);
+                        showToast(data.message, 'success');
+                        closeModal('globalSkipModal');
+                        setTimeout(() => window.location.reload(), 1500);
+                    } else {
+                        showToast(data.error || 'Failed to execute global skip.', 'error');
+                    }
+                } catch (err) {
+                    showToast('Network error.', 'error');
+                } finally {
+                    btn.innerHTML = ogHtml;
+                    btn.disabled = false;
                 }
-            } catch (err) {
-                showToast('Network error.', 'error');
-            } finally {
-                btn.innerHTML = ogHtml;
-                btn.disabled = false;
             }
-        }
-    </script>
+        </script>
 @endsection

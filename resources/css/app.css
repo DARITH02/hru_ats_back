@@ -1319,7 +1319,7 @@ select {
 ══════════════════════════════════════════════════ */
 .main-grid {
   display: grid;
-  grid-template-columns: 1fr 320px;
+  grid-template-columns: 1fr 250px;
   gap: 18px;
 }
 

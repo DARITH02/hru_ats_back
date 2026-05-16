@@ -26,6 +26,7 @@ Route::middleware(['auth'])->group(function() {
 // Admin & Super Admin Shared UI Management
 Route::middleware(['auth', 'role:admin,super_admin'])->group(function() {
     Route::get('/admin/instructors', [AdminUIController::class, 'instructors'])->name('admin.instructors');
+    Route::get('/admin/results', [AdminUIController::class, 'analytics'])->name('admin.results');
     Route::get('/admin/teacher-accounts', [AdminUIController::class, 'teacherAccounts'])->name('admin.teacher-accounts');
     
     // Superadmin only account management
@@ -36,6 +37,8 @@ Route::middleware(['auth', 'role:admin,super_admin'])->group(function() {
 
     Route::get('/admin/students', [AdminUIController::class, 'students'])->name('admin.students');
     Route::get('/admin/courses', [AdminUIController::class, 'courses'])->name('admin.courses');
+    Route::get('/admin/pre-end-review/{id}', [AdminUIController::class, 'coursePreEnd'])->name('admin.courses.pre-end');
+    Route::get('/admin/pre-end-review/{id}/export', [AdminUIController::class, 'exportCoursePreEnd'])->name('admin.courses.pre-end.export');
     Route::get('/admin/classes', [AdminUIController::class, 'classes'])->name('admin.classes');
     Route::get('/admin/subjects', [AdminUIController::class, 'subjects'])->name('admin.subjects');
     Route::get('/admin/departments', [AdminUIController::class, 'departments'])->name('admin.departments');
@@ -53,6 +56,9 @@ Route::middleware(['auth', 'role:admin,super_admin'])->group(function() {
     Route::get('/admin/export/subjects', [AdminUIController::class, 'exportSubjects'])->name('admin.export.subjects');
     Route::get('/admin/export/departments', [AdminUIController::class, 'exportDepartments'])->name('admin.export.departments');
     Route::get('/admin/export/classes', [AdminUIController::class, 'exportClasses'])->name('admin.export.classes');
+    Route::get('/admin/results/export/excel', [AdminUIController::class, 'exportResultsExcel'])->name('admin.results.export.excel');
+    Route::get('/admin/results/export/pdf', [AdminUIController::class, 'exportResultsPdf'])->name('admin.results.export.pdf');
+    Route::post('/admin/results/send-telegram', [AdminUIController::class, 'sendResultsToTelegram'])->name('admin.results.send-telegram');
 
     // Telegram Bot Management
     Route::get('/admin/telegram-bots', function() { return redirect()->route('admin.settings'); });

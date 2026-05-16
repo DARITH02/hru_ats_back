@@ -53,6 +53,34 @@ class AdminController extends Controller
                         ]);
                     }
                 }
+                
+                // 2. SemesterAssignment Grading Fields
+                if (\Illuminate\Support\Facades\Schema::hasTable('semester_assignments')) {
+                    if (!\Illuminate\Support\Facades\Schema::hasColumn('semester_assignments', 'admin_score')) {
+                        \Illuminate\Support\Facades\Schema::table('semester_assignments', function ($table) {
+                            $table->decimal('admin_score', 5, 2)->nullable();
+                            $table->decimal('teacher_score', 5, 2)->nullable();
+                            $table->string('grading_status')->default('pending'); // pending, reviewed, finalized
+                            $table->text('grading_notes')->nullable();
+                        });
+                    }
+                }
+
+                // 3. Individual Student Scores Table
+                if (!\Illuminate\Support\Facades\Schema::hasTable('semester_assignment_scores')) {
+                    \Illuminate\Support\Facades\Schema::create('semester_assignment_scores', function ($table) {
+                        $table->id();
+                        $table->unsignedBigInteger('assignment_id');
+                        $table->unsignedBigInteger('student_id');
+                        $table->decimal('score', 5, 2)->nullable();
+                        $table->text('notes')->nullable();
+                        $table->timestamps();
+                        $table->foreign('assignment_id')->references('id')->on('semester_assignments')->onDelete('cascade');
+                        $table->foreign('student_id')->references('id')->on('students')->onDelete('cascade');
+                        $table->unique(['assignment_id', 'student_id'], 'assignment_student_unique');
+                    });
+                }
+
                 $data['sync_result'] = 'Database schema synchronized successfully.';
             } catch (\Exception $e) {
                 $data['sync_result'] = 'Error: ' . $e->getMessage();
@@ -449,6 +477,334 @@ class AdminController extends Controller
             'target' => "catalog.classes#{$classId}"
         ]);
         return response()->json(['success' => true]);
+    }
+
+    public function endClassSchedule($classId)
+    {
+        $class = ClassRoom::with(['subject', 'teacher.user'])->findOrFail($classId);
+
+        DB::beginTransaction();
+        try {
+            // 1. Find the current active assignment
+            $assignment = SemesterAssignment::where('class_id', $classId)
+                ->where('status', 'active')
+                ->latest()
+                ->first();
+
+            if (!$assignment) {
+                return response()->json(['success' => false, 'error' => 'No active semester assignment found for this class.'], 400);
+            }
+
+            // 2. Prevent ending if not finalized (Safety Check)
+            if ($assignment->grading_status !== 'finalized') {
+                return response()->json(['success' => false, 'error' => 'Class results must be set to FINALIZED before ending the schedule.'], 400);
+            }
+
+            // 3. Snapshot Stats (Prevent Data Loss)
+            $sessions = \App\Models\AttendanceSession::where('class_id', $classId)
+                ->where('academic_year', $assignment->academic_year)
+                ->where('semester', (int)$assignment->semester)
+                ->get();
+            
+            $totalSessions = $sessions->count();
+            $attended = 0;
+            $totalPossible = 0;
+            $students = $class->all_students;
+            
+            foreach ($sessions as $s) {
+                if ($s->status !== 'skipped') {
+                    $totalPossible += $students->count();
+                    $attended += \App\Models\Attendance::where('session_id', $s->id)
+                        ->whereIn('status', ['present', 'late', 'PRESENT', 'LATE'])
+                        ->count();
+                }
+            }
+
+            $finalRate = $totalPossible > 0 ? round(($attended / $totalPossible) * 100, 2) : 0;
+
+            // 4. Update assignment with final stats and completion status
+            $assignment->update([
+                'status' => 'completed',
+                'final_attendance_rate' => $finalRate,
+                'final_total_sessions' => $totalSessions,
+                'finalized_at' => now()
+            ]);
+
+            // 🚀 Send Telegram Notification before purging
+            $this->sendTelegramSummary($class, $assignment);
+
+            // 5. Permanently remove all sessions associated with this class (Clean Up)
+            \App\Models\AttendanceSession::where('class_id', $classId)->delete();
+
+            // 6. Update Class status to archived after completion
+            $class->update(['status' => 'archived']);
+
+            ActivityLog::create([
+                'action' => 'TERMINATE',
+                'target' => "catalog.classes#{$classId}.purged_and_finalized"
+            ]);
+
+            DB::commit();
+            return response()->json([
+                'success' => true,
+                'message' => 'Class finalized and schedule purged. Final stats archived in semester records.'
+            ]);
+        } catch (\Exception $e) {
+            DB::rollback();
+            return response()->json(['success' => false, 'error' => $e->getMessage()], 500);
+        }
+    }
+
+    private function sendTelegramSummary($class, $assignment)
+    {
+        $bot = \App\Models\TelegramBot::where('is_active', true)->first();
+        if (!$bot) return;
+
+        $students = $class->all_students;
+        $scores = \DB::table('semester_assignment_scores')->where('assignment_id', $assignment->id)->get();
+        $avgTotal = $scores->count() > 0 ? round($scores->avg('score'), 2) : 0;
+
+        $message = "🎓 *Academic Semester Finalized*\n\n";
+        $message .= "📘 *Class:* {$class->name}\n";
+        $message .= "👨‍🏫 *Teacher:* " . ($class->teacher->user->name ?? 'N/A') . "\n";
+        $message .= "🗓 *Period:* {$assignment->academic_year} (S{$assignment->semester})\n\n";
+        $message .= "📊 *Stats:*\n";
+        $message .= "• Students: " . $students->count() . "\n";
+        $message .= "• Avg Score: {$avgTotal}/100\n";
+        $message .= "• Status: Completed ✅\n\n";
+        $message .= "Report ready for export in Admin Panel.";
+
+        $url = "https://api.telegram.org/bot{$bot->bot_token}/sendMessage";
+        \Http::post($url, [
+            'chat_id' => $bot->chat_id,
+            'text' => $message,
+            'parse_mode' => 'Markdown'
+        ]);
+    }
+
+    public function updateSemesterScore(Request $request, $assignmentId)
+    {
+        $request->validate([
+            'admin_score' => 'nullable|numeric|min:0|max:100',
+            'grading_status' => 'nullable|string|in:pending,reviewed,finalized',
+            'grading_notes' => 'nullable|string'
+        ]);
+
+        $assignment = SemesterAssignment::findOrFail($assignmentId);
+        
+        $assignment->update($request->only(['admin_score', 'grading_status', 'grading_notes']));
+
+        ActivityLog::create([
+            'action' => 'UPDATE',
+            'target' => "semester_assignment#{$assignmentId}.score_updated"
+        ]);
+
+        return response()->json(['success' => true, 'assignment' => $assignment]);
+    }
+
+    public function getGradingPreview($assignmentId)
+    {
+        $assignment = SemesterAssignment::with(['classRoom.subject', 'classRoom.groups'])->findOrFail($assignmentId);
+        return response()->json($this->getGradingPreviewData($assignment));
+    }
+
+    public function getGradingPreviewData($assignment)
+    {
+        $class = $assignment->classRoom;
+        $students = $class->all_students;
+        $sessions = \App\Models\AttendanceSession::where('class_id', $class->id)
+            ->where('academic_year', $assignment->academic_year)
+            ->where('semester', (int)$assignment->semester)
+            ->get();
+        $sessionIds = $sessions->pluck('id');
+        $totalSessions = $sessionIds->count();
+
+        $studentStats = $students->map(function ($student) use ($sessionIds, $totalSessions, $assignment) {
+            $attended = \App\Models\Attendance::where('student_id', $student->id)
+                ->whereIn('session_id', $sessionIds)
+                ->whereIn('status', ['present', 'late', 'PRESENT', 'LATE'])
+                ->count();
+            
+            $attScore = $totalSessions > 0 ? round(($attended / $totalSessions) * 20, 2) : 0;
+            
+            $saved = \DB::table('semester_assignment_scores')
+                ->where('assignment_id', $assignment->id)
+                ->where('student_id', $student->id)
+                ->first();
+                
+            $midterm = $saved->midterm_score ?? 0;
+            $asgn = $saved->assignment_score ?? 0;
+            $final = $saved->final_score ?? 0;
+            
+            return [
+                'id' => $student->id,
+                'name' => $student->user->name ?? 'Unknown',
+                'code' => $student->student_code,
+                'att_score' => $attScore,
+                'midterm' => $midterm,
+                'assignment' => $asgn,
+                'final' => $final,
+                'total' => round($attScore + $midterm + $asgn + $final, 2)
+            ];
+        });
+
+        return [
+            'assignment' => $assignment,
+            'students' => $studentStats,
+            'total_sessions' => $totalSessions
+        ];
+    }
+
+    public function updateStudentScores(Request $request, $assignmentId)
+    {
+        $request->validate([
+            'scores' => 'required|array',
+            'scores.*.student_id' => 'required|exists:students,id',
+            'scores.*.attendance_score' => 'nullable|numeric|min:0|max:20',
+            'scores.*.midterm_score' => 'nullable|numeric|min:0|max:15',
+            'scores.*.assignment_score' => 'nullable|numeric|min:0|max:15',
+            'scores.*.final_score' => 'nullable|numeric|min:0|max:50',
+            'scores.*.notes' => 'nullable|string'
+        ]);
+
+        foreach ($request->scores as $s) {
+            $total = ($s['attendance_score'] ?? 0) + ($s['midterm_score'] ?? 0) + ($s['assignment_score'] ?? 0) + ($s['final_score'] ?? 0);
+            
+            \DB::table('semester_assignment_scores')->updateOrInsert(
+                ['assignment_id' => $assignmentId, 'student_id' => $s['student_id']],
+                [
+                    'attendance_score' => $s['attendance_score'] ?? 0,
+                    'midterm_score' => $s['midterm_score'] ?? 0,
+                    'assignment_score' => $s['assignment_score'] ?? 0,
+                    'final_score' => $s['final_score'] ?? 0,
+                    'score' => $total,
+                    'notes' => $s['notes'] ?? '',
+                    'updated_at' => now(),
+                    'created_at' => now()
+                ]
+            );
+        }
+
+        return response()->json(['success' => true]);
+    }
+
+    public function generateSemesterReport($assignmentId)
+    {
+        $assignment = SemesterAssignment::with([
+            'classRoom.subject.department', 
+            'classRoom.teacher.user', 
+            'classRoom.groups.major'
+        ])->findOrFail($assignmentId);
+        
+        $class = $assignment->classRoom;
+        $subject = $class->subject;
+        $department = $subject->department->name ?? 'Academic Dept';
+        $major = $class->groups->first()->major->name ?? 'General';
+        
+        $students = $class->all_students;
+        $sessions = AttendanceSession::where('class_id', $class->id)
+            ->where('academic_year', $assignment->academic_year)
+            ->where('semester', (int)$assignment->semester)
+            ->get();
+        $sessionIds = $sessions->pluck('id');
+        $totalSessions = $sessionIds->count();
+
+        $data = $students->map(function ($student) use ($sessionIds, $totalSessions, $assignment) {
+            $attended = \App\Models\Attendance::where('student_id', $student->id)
+                ->whereIn('session_id', $sessionIds)
+                ->whereIn('status', ['present', 'late', 'PRESENT', 'LATE'])
+                ->count();
+            
+            $savedScore = \DB::table('semester_assignment_scores')
+                ->where('assignment_id', $assignment->id)
+                ->where('student_id', $student->id)
+                ->first();
+
+            $attScore = $totalSessions > 0 ? round(($attended / $totalSessions) * 20, 2) : 0;
+            $midterm = $savedScore->midterm_score ?? 0;
+            $assignment_score = $savedScore->assignment_score ?? 0;
+            $final = $savedScore->final_score ?? 0;
+
+            return [
+                'name' => $student->user->name ?? 'Unknown',
+                'code' => $student->student_code,
+                'rate' => $totalSessions > 0 ? round(($attended / $totalSessions) * 100, 1) : 0,
+                'att_score' => $attScore,
+                'midterm' => $midterm,
+                'assignment' => $assignment_score,
+                'final' => $final,
+                'total' => round($attScore + $midterm + $assignment_score + $final, 2)
+            ];
+        });
+
+        $pdf = \Barryvdh\DomPDF\Facade\Pdf::loadView('pdf.semester_report', [
+            'assignment' => $assignment,
+            'class' => $class,
+            'department' => $department,
+            'major' => $major,
+            'data' => $data,
+            'stats' => [
+                'avg_rate' => $data->avg('rate'),
+                'avg_total' => $data->avg('total')
+            ]
+        ]);
+
+        $cleanSubject = str_replace(' ', '_', $subject->name ?? 'Class');
+        $fileName = "ACADEMIC_REPORT_{$cleanSubject}_{$assignment->academic_year}_S{$assignment->semester}.pdf";
+
+        return $pdf->download($fileName);
+    }
+
+    public function generateSemesterCSV($assignmentId)
+    {
+        $assignment = SemesterAssignment::with(['classRoom.subject', 'classRoom.groups'])->findOrFail($assignmentId);
+        $class = $assignment->classRoom;
+        
+        $fileName = 'semester_report_' . $class->id . '_' . date('Y-m-d') . '.csv';
+
+        $headers = [
+            "Content-type"        => "text/csv",
+            "Content-Disposition" => "attachment; filename=$fileName",
+            "Pragma"              => "no-cache",
+            "Cache-Control"       => "must-revalidate, post-check=0, pre-check=0",
+            "Expires"             => "0"
+        ];
+
+        $students = $class->all_students;
+        $sessions = \App\Models\AttendanceSession::where('class_id', $class->id)
+            ->where('academic_year', $assignment->academic_year)
+            ->where('semester', (int)$assignment->semester)
+            ->get();
+        $sessionIds = $sessions->pluck('id');
+
+        $columns = ['Student ID', 'Name', 'Group', 'Attended', 'Total Sessions', 'Rate %', 'Score'];
+
+        $callback = function() use($students, $sessionIds, $columns, $assignment) {
+            $file = fopen('php://output', 'w');
+            fputcsv($file, $columns);
+
+            foreach ($students as $student) {
+                $attended = \App\Models\Attendance::where('student_id', $student->id)
+                    ->whereIn('session_id', $sessionIds)
+                    ->whereIn('status', ['present', 'late', 'PRESENT', 'LATE'])
+                    ->count();
+                $total = $sessionIds->count();
+                $rate = $total > 0 ? round(($attended / $total) * 100) : 0;
+
+                fputcsv($file, [
+                    $student->student_code,
+                    $student->user->name ?? 'Unknown',
+                    $student->group->name ?? 'N/A',
+                    $attended,
+                    $total,
+                    $rate . '%',
+                    $assignment->admin_score // Course overall score
+                ]);
+            }
+            fclose($file);
+        };
+
+        return response()->stream($callback, 200, $headers);
     }
 
     public function listSessions($classId)
@@ -1463,6 +1819,9 @@ class AdminController extends Controller
             'progress'      => $a->progress,
             'active_days'   => $a->active_days,
             'in_holiday'    => $a->in_holiday,
+            'admin_score'   => $a->admin_score,
+            'teacher_score' => $a->teacher_score,
+            'grading_status'=> $a->grading_status,
             'created_at'    => $a->created_at?->format('Y-m-d'),
         ];
     }

@@ -494,6 +494,7 @@ class TeacherController extends Controller
                 $fmt = fn($d) => $d ? \Carbon\Carbon::parse($d)->format('Y-m-d') : null;
                 return [
                     'id'            => $a->id,
+                    'class_id'      => $a->class_id,
                     'academic_year' => $a->academic_year,
                     'semester'      => $a->semester,
                     'start_date'    => $fmt($a->start_date),
@@ -506,6 +507,9 @@ class TeacherController extends Controller
                     'active_days'   => $a->active_days, // Model accessor
                     'in_holiday'    => $a->in_holiday, // Model accessor
                     'class_name'    => $a->classRoom->subject->name ?? 'Unknown',
+                    'admin_score'   => $a->admin_score,
+                    'teacher_score' => $a->teacher_score,
+                    'grading_status'=> $a->grading_status,
                 ];
             });
 
@@ -613,5 +617,144 @@ class TeacherController extends Controller
             'new_records' => $newRecords,
             'stats' => $stats
         ]);
+    }
+
+    public function updateSemesterScore(Request $request, $assignmentId)
+    {
+        $request->validate([
+            'teacher_score' => 'required|numeric|min:0|max:100',
+            'grading_notes' => 'nullable|string'
+        ]);
+
+        $user = $request->user();
+        $teacher = Teacher::where('user_id', $user->id)->first();
+        $assignment = SemesterAssignment::findOrFail($assignmentId);
+
+        // Security check
+        if ($assignment->classRoom->teacher_id !== $teacher->id) {
+            return response()->json(['error' => 'Unauthorized'], 403);
+        }
+
+        $assignment->update([
+            'teacher_score' => $request->teacher_score,
+            'grading_notes' => $request->grading_notes,
+            'grading_status' => 'reviewed' // Teacher review moves it to 'reviewed'
+        ]);
+
+        return response()->json(['success' => true, 'assignment' => $assignment]);
+    }
+
+    public function getStudentScores(Request $request, $assignmentId)
+    {
+        $assignment = SemesterAssignment::with('classRoom.groups')->findOrFail($assignmentId);
+        $class = $assignment->classRoom;
+        
+        $sessions = \App\Models\AttendanceSession::where('class_id', $class->id)
+            ->where('academic_year', $assignment->academic_year)
+            ->where('semester', (int)$assignment->semester)
+            ->get();
+        $sessionIds = $sessions->pluck('id');
+        $totalSessions = $sessionIds->count();
+
+        $students = $class->all_students;
+
+        $savedScores = \DB::table('semester_assignment_scores')
+            ->where('assignment_id', $assignmentId)
+            ->get()
+            ->keyBy('student_id');
+
+        $scores = $students->map(function ($student) use ($sessionIds, $totalSessions, $savedScores) {
+            $attended = \App\Models\Attendance::where('student_id', $student->id)
+                ->whereIn('session_id', $sessionIds)
+                ->whereIn('status', ['present', 'late', 'PRESENT', 'LATE'])
+                ->count();
+            
+            $attScore = $totalSessions > 0 ? round(($attended / $totalSessions) * 20, 2) : 0;
+            $saved = $savedScores->get($student->id);
+
+            return [
+                'student_id' => $student->id,
+                'attendance_score' => $attScore,
+                'midterm_score' => $saved->midterm_score ?? null,
+                'assignment_score' => $saved->assignment_score ?? null,
+                'final_score' => $saved->final_score ?? null,
+                'score' => $saved->score ?? null
+            ];
+        });
+            
+        return response()->json(['success' => true, 'data' => $scores]);
+    }
+
+    public function updateStudentScores(Request $request, $assignmentId)
+    {
+        $request->validate([
+            'scores' => 'required|array',
+            'scores.*.student_id' => 'required|exists:students,id',
+            'scores.*.attendance_score' => 'nullable|numeric|min:0|max:20',
+            'scores.*.midterm_score' => 'nullable|numeric|min:0|max:15',
+            'scores.*.assignment_score' => 'nullable|numeric|min:0|max:15',
+            'scores.*.final_score' => 'nullable|numeric|min:0|max:50',
+        ]);
+
+        $assignment = SemesterAssignment::findOrFail($assignmentId);
+        
+        foreach ($request->scores as $s) {
+            $attendance = $s['attendance_score'] ?? 0;
+            $midterm = $s['midterm_score'] ?? 0;
+            $assignment_score = $s['assignment_score'] ?? 0;
+            $final = $s['final_score'] ?? 0;
+            
+            // Get existing record to preserve created_at
+            $existing = \DB::table('semester_assignment_scores')
+                ->where('assignment_id', $assignmentId)
+                ->where('student_id', $s['student_id'])
+                ->first();
+                
+            $total = $attendance + $midterm + $assignment_score + $final;
+
+            \DB::table('semester_assignment_scores')->updateOrInsert(
+                ['assignment_id' => $assignmentId, 'student_id' => $s['student_id']],
+                [
+                    'attendance_score' => $attendance,
+                    'midterm_score' => $midterm,
+                    'assignment_score' => $assignment_score,
+                    'final_score' => $final,
+                    'score' => $total,
+                    'updated_at' => now(),
+                    'created_at' => $existing ? $existing->created_at : now()
+                ]
+            );
+        }
+
+        return response()->json(['success' => true, 'message' => 'Student scores updated successfully.']);
+    }
+
+    public function exportSubjectScores($assignmentId)
+    {
+        $assignment = SemesterAssignment::with(['classRoom.subject', 'classRoom.groups'])->findOrFail($assignmentId);
+        $class = $assignment->classRoom;
+        
+        // Use the common logic to get scores
+        $adminCtrl = new AdminController();
+        $data = $adminCtrl->getGradingPreviewData($assignment);
+
+        return \Maatwebsite\Excel\Facades\Excel::download(
+            new \App\Exports\SubjectScoresExport($data, $class->subject->name),
+            "Scores_{$class->subject->name}.xlsx"
+        );
+    }
+
+    public function exportSubjectScoresPdf($assignmentId)
+    {
+        $assignment = SemesterAssignment::with(['classRoom.subject', 'classRoom.groups'])->findOrFail($assignmentId);
+        $user = request()->user();
+        $teacher = Teacher::where('user_id', $user->id)->first();
+        
+        if ($assignment->classRoom->teacher_id !== $teacher->id) {
+            return response()->json(['error' => 'Unauthorized'], 403);
+        }
+
+        $adminCtrl = new AdminController();
+        return $adminCtrl->generateSemesterReport($assignmentId);
     }
 }

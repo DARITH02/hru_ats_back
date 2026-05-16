@@ -12,6 +12,8 @@ class SemesterAssignment extends Model
         'start_date', 'end_date',
         'holiday_start', 'holiday_end',
         'status', 'notes',
+        'admin_score', 'teacher_score', 'grading_status', 'grading_notes',
+        'final_attendance_rate', 'final_total_sessions', 'finalized_at'
     ];
 
     protected $casts = [

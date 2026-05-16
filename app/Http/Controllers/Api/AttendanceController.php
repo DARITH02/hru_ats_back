@@ -300,13 +300,40 @@ class AttendanceController extends Controller
             ];
         });
 
+        $assignments = \App\Models\SemesterAssignment::where('class_id', $classId)
+            ->orderBy('academic_year', 'desc')
+            ->orderBy('semester', 'desc')
+            ->get();
+            
+        $scoresData = collect();
+        if ($assignments->isNotEmpty()) {
+            $scores = \DB::table('semester_assignment_scores')
+                ->where('student_id', $student->id)
+                ->whereIn('assignment_id', $assignments->pluck('id'))
+                ->get();
+                
+            $scoresData = $assignments->map(function ($a) use ($scores) {
+                $score = $scores->firstWhere('assignment_id', $a->id);
+                return [
+                    'assignment_id' => $a->id,
+                    'semester' => $a->academic_year . ' S' . $a->semester,
+                    'attendance_score' => $score->attendance_score ?? 0,
+                    'midterm_score' => $score->midterm_score ?? 0,
+                    'assignment_score' => $score->assignment_score ?? 0,
+                    'final_score' => $score->final_score ?? 0,
+                    'total_score' => $score->score ?? 0,
+                ];
+            });
+        }
+
         return response()->json([
             'class' => [
                 'id' => $class->id,
                 'name' => $class->subject->name,
                 'teacher' => $class->teacher->user->name,
             ],
-            'history' => $history
+            'history' => $history,
+            'scores' => $scoresData
         ]);
     }
 }

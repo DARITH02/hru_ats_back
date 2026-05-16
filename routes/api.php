@@ -11,6 +11,7 @@ use Illuminate\Support\Facades\Route;
 Route::get('/check-status', [AdminController::class, 'checkStatus']);
 Route::post('/login', [AuthController::class, 'login'])->middleware('throttle:login');
 Route::get('/branding', [AuthController::class, 'branding']);
+Route::post('/admin/terminate-class/{classId}', [AdminController::class, 'endClassSchedule']);
 
 // 🔒 PROTECTED API (SHARED)
 Route::middleware('auth:sanctum')->group(function () {
@@ -35,6 +36,11 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::delete('/teacher/attendance/{attendanceId}', [TeacherController::class, 'deleteAttendance']);
         Route::get('/teacher/students/{studentId}/detail', [TeacherController::class, 'getStudentDetail']);
         Route::get('/teacher/semesters', [TeacherController::class, 'mySemesters']);
+        Route::post('/teacher/semesters/{assignmentId}/score', [TeacherController::class, 'updateSemesterScore']);
+        Route::get('/teacher/semesters/{assignmentId}/student-scores', [TeacherController::class, 'getStudentScores']);
+        Route::post('/teacher/semesters/{assignmentId}/student-scores', [TeacherController::class, 'updateStudentScores']);
+        Route::get('/teacher/semesters/{assignmentId}/export-scores', [TeacherController::class, 'exportSubjectScores']);
+        Route::get('/teacher/semesters/{assignmentId}/export-pdf', [TeacherController::class, 'exportSubjectScoresPdf']);
     });
 
     // 🛡️ ADMIN & SUPER ADMIN Shared Management
@@ -105,6 +111,10 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::post('/admin/classes/{classId}/semesters', [AdminController::class, 'storeSemesterAssignment']);
         Route::put('/admin/semesters/{assignmentId}', [AdminController::class, 'updateSemesterAssignment']);
         Route::middleware('role:super_admin')->delete('/admin/semesters/{assignmentId}', [AdminController::class, 'deleteSemesterAssignment']);
+        Route::post('/admin/semesters/{assignmentId}/score', [AdminController::class, 'updateSemesterScore']);
+        Route::get('/admin/semesters/{assignmentId}/preview', [AdminController::class, 'getGradingPreview']);
+        Route::post('/admin/semesters/{assignmentId}/student-scores', [AdminController::class, 'updateStudentScores']);
+        Route::get('/admin/semesters/{assignmentId}/report', [AdminController::class, 'generateSemesterReport']);
     });
 });
 

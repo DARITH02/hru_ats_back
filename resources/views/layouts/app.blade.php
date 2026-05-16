@@ -60,12 +60,12 @@
                 </span>
                 <span class="nav-text">Overview</span>
             </a>
-            <a href="#" class="nav-link">
+            <a href="{{ route('admin.results') }}" class="nav-link {{ request()->is('admin/results') ? 'active' : '' }}">
                 <span class="nav-icon"><svg width="18" height="18" viewBox="0 0 16 16" fill="none">
                         <path d="M2 5h12M2 8h8M2 11h6" stroke="currentColor" stroke-width="1.3"
                             stroke-linecap="round" />
                     </svg></span>
-                <span class="nav-text">Analytics</span>
+                <span class="nav-text">Result & Grading</span>
             </a>
 
             @if(Auth::user()->isAdmin())
