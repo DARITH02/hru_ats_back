@@ -479,6 +479,26 @@ class AdminController extends Controller
         return response()->json(['success' => true]);
     }
 
+    public function bulkDeleteClasses(Request $request)
+    {
+        $request->validate([
+            'class_ids' => 'required|array',
+            'class_ids.*' => 'integer|exists:classes,id'
+        ]);
+
+        $ids = $request->class_ids;
+        ClassRoom::whereIn('id', $ids)->delete();
+
+        foreach ($ids as $id) {
+            ActivityLog::create([
+                'action' => 'DELETE',
+                'target' => "catalog.classes#{$id}"
+            ]);
+        }
+
+        return response()->json(['success' => true, 'message' => count($ids) . ' classes deleted successfully.']);
+    }
+
     public function endClassSchedule($classId)
     {
         $class = ClassRoom::with(['subject', 'teacher.user'])->findOrFail($classId);
@@ -1872,5 +1892,36 @@ class AdminController extends Controller
         } catch (\Exception $e) {
             return response()->json(["error" => $e->getMessage()], 500);
         }
+    }
+
+    public function bulkDeleteSessions(Request $request)
+    {
+        $request->validate([
+            'session_ids' => 'required|array|min:1',
+            'session_ids.*' => 'integer|exists:attendance_sessions,id',
+        ]);
+
+        $ids = $request->session_ids;
+
+        // Safety: only allow deleting scheduled sessions (not active/completed)
+        $sessions = \App\Models\AttendanceSession::whereIn('id', $ids)->get();
+        $allowed = $sessions->filter(fn($s) => in_array($s->status, ['scheduled']));
+        $skipped = $sessions->count() - $allowed->count();
+
+        if ($allowed->isEmpty()) {
+            return response()->json([
+                'success' => false,
+                'error' => 'No deletable sessions found. Only "scheduled" sessions can be deleted.'
+            ], 422);
+        }
+
+        \App\Models\AttendanceSession::whereIn('id', $allowed->pluck('id'))->delete();
+
+        return response()->json([
+            'success' => true,
+            'deleted' => $allowed->count(),
+            'skipped' => $skipped,
+            'message' => "Deleted {$allowed->count()} session(s)." . ($skipped > 0 ? " {$skipped} non-scheduled session(s) were skipped." : '')
+        ]);
     }
 }

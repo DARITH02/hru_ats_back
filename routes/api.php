@@ -59,6 +59,7 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::post('/admin/classes', [AdminController::class, 'storeClass']);
         Route::put('/admin/classes/{classId}', [AdminController::class, 'updateClass']);
         Route::middleware('role:super_admin')->delete('/admin/classes/{classId}', [AdminController::class, 'deleteClass']);
+        Route::middleware('role:super_admin')->delete('/admin/classes/bulk-delete', [AdminController::class, 'bulkDeleteClasses']);
         
         // 📅 Sessions & Records (Admin)
         Route::get('/admin/classes/{classId}/sessions', [AdminController::class, 'listSessions']);
@@ -67,6 +68,7 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::put('/admin/session/{sessionId}', [AdminController::class, 'updateSession']);
         Route::post('/admin/session/{sessionId}/status-update', [AdminController::class, 'updateStatus']);
         Route::post('/admin/sessions/global-skip', [AdminController::class, 'globalSkip']);
+        Route::delete('/admin/sessions/bulk-delete', [AdminController::class, 'bulkDeleteSessions']);
         Route::post('/admin/skip-today-shift', [AdminController::class, 'skipTodayAndShift']);
         
         Route::get('/admin/students', [AdminController::class, 'listStudents']);

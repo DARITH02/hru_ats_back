@@ -1058,6 +1058,17 @@
         {{-- LEFT: Catalog Table --}}
         <div class="panel">
 
+            {{-- Bulk Actions Toolbar --}}
+            <div id="bulkActionsToolbar" style="display:none; align-items:center; justify-content:space-between; background:var(--surface3); padding:12px 20px; border-radius:12px; margin: 15px; border:1px solid var(--accent)33; box-shadow: 0 4px 15px rgba(0,0,0,0.1);">
+                <div style="display:flex; align-items:center; gap:12px">
+                    <div style="width:12px; height:12px; border-radius:50%; background:var(--red); box-shadow:0 0 10px var(--red)"></div>
+                    <span id="selectedClassesCount" style="font-family:var(--font-mono); font-size:11px; font-weight:800; color:var(--text); letter-spacing:0.05em">0 CLASSES SELECTED</span>
+                </div>
+                <button onclick="executeBulkDeleteClasses()" class="btn-primary" style="background:var(--red); border:none; height:34px; font-size:10px; padding:0 20px; font-weight:900; box-shadow:0 4px 12px var(--red)44">
+                    CONFIRM BULK DELETE
+                </button>
+            </div>
+
             {{-- Toolbar --}}
             <div class="catalog-toolbar" style="padding: 16px 20px; gap: 15px;">
                 <div style="display:flex;align-items:center;gap:10px; flex: 1;">
@@ -1131,11 +1142,14 @@
             <table class="att-table" id="classTable" style="width: 100%; border-collapse: separate; border-spacing: 0;">
                 <thead class="table-header-premium">
                     <tr>
-                        <th style="padding-left:25px; border-top-left-radius: 12px;">COURSE IDENTITY</th>
+                        <th style="padding-left:25px; width:45px; border-top-left-radius: 12px;">
+                            <input type="checkbox" id="selectAllClasses" onchange="toggleSelectAllClasses(this.checked)" style="accent-color:var(--accent); width:16px; height:16px; cursor:pointer">
+                        </th>
+                        <th>COURSE IDENTITY</th>
                         <th>FACULTY</th>
                         <th>LOGISTICS</th>
                         <th style="width:80px">STU</th>
-                        <th style="width:160px">WORKLOAD (30)</th>
+                        <th style="width:160px">SESSIONS</th>
                         <th style="width:100px">STATUS</th>
                         <th style="text-align:right; padding-right:25px; border-top-right-radius: 12px;">CONTROL</th>
                     </tr>
@@ -1144,7 +1158,7 @@
                     @forelse($groupedClasses as $dept => $majors)
                         {{-- Department Header --}}
                         <tr style="background:var(--surface3);">
-                            <td colspan="7" style="padding:15px 25px;">
+                            <td colspan="8" style="padding:15px 25px;">
                                 <div style="display:flex; align-items:center; gap:12px;">
                                     <div
                                         style="width:10px; height:10px; border-radius:50%; background:var(--accent); box-shadow:0 0 10px var(--accent)">
@@ -1158,7 +1172,7 @@
                         @foreach($majors as $major => $years)
                             {{-- Major Header --}}
                             <tr style="background:var(--surface2);">
-                                <td colspan="7" style="padding:10px 40px; border-bottom:1px solid var(--border);">
+                                <td colspan="8" style="padding:10px 40px; border-bottom:1px solid var(--border);">
                                     <div style="display:flex; align-items:center; gap:8px;">
                                         <span
                                             style="font-family:var(--font-mono); font-size:11px; font-weight:800; color:var(--accent); text-transform:uppercase;">{{ $major }}</span>
@@ -1170,7 +1184,7 @@
                                 @foreach($groups as $groupName => $classes)
                                     {{-- Group Subheader --}}
                                     <tr style="background:var(--surface1);">
-                                        <td colspan="7" style="padding:8px 55px; border-bottom:1px solid var(--border);">
+                                        <td colspan="8" style="padding:8px 55px; border-bottom:1px solid var(--border);">
                                             <div style="display:flex; align-items:center; gap:15px; opacity:0.8;">
                                                 <span
                                                     style="font-family:var(--font-mono); font-size:10px; font-weight:700; color:var(--muted); background:var(--surface3); padding:2px 8px; border-radius:4px;">{{ $year }}</span>
@@ -1185,6 +1199,14 @@
 
                                     @foreach($classes as $class)
                                         <tr data-id="{{ $class->id }}" data-status="{{ $class->status ?? 'active' }}" class="fade-up">
+                                            <td style="padding-left:25px; width:45px">
+                                                @php $isReady = strtolower($class->status ?? '') === 'ready'; @endphp
+                                                @if($isReady)
+                                                    <input type="checkbox" class="class-checkbox" data-id="{{ $class->id }}" onchange="updateBulkDeleteUI()" style="accent-color:var(--accent); width:16px; height:16px; cursor:pointer">
+                                                @else
+                                                    <div style="width:16px; height:16px; border:1px solid var(--border); border-radius:4px; opacity:0.2" title="Only READY status can be selected"></div>
+                                                @endif
+                                            </td>
                                             {{-- Subject --}}
                                             <td style="padding-left:65px; width:250px">
                                                 <div class="subject-cell">
@@ -1246,12 +1268,12 @@
                                                         <span
                                                             style="font-family:var(--font-mono); font-size:9px; font-weight:800; color:var(--muted)">PROGRESS</span>
                                                         <span
-                                                            style="font-family:var(--font-mono); font-size:9px; font-weight:800; color:var(--accent)">{{ $class->sessions->count() }}/30</span>
+                                                            style="font-family:var(--font-mono); font-size:9px; font-weight:800; color:var(--accent)">{{ $class->sessions->whereIn('status', ['completed'])->count() }}/{{ $class->sessions->count() }}</span>
                                                     </div>
                                                     <div
                                                         style="width:100%; height:4px; background:var(--surface3); border-radius:2px; overflow:hidden;">
                                                         <div
-                                                            style="width:{{ ($class->sessions->count() / 30) * 100 }}%; height:100%; background:var(--accent); box-shadow:0 0 10px var(--accent)66;">
+                                                            style="width:{{ $class->sessions->count() > 0 ? min(100, round(($class->sessions->whereIn('status', ['completed'])->count() / $class->sessions->count()) * 100)) : 0 }}%; height:100%; background:var(--accent); box-shadow:0 0 10px var(--accent)66;">
                                                         </div>
                                                     </div>
                                                 </div>
@@ -1989,8 +2011,7 @@
             </div>
             <div class="modal-footer" style="background:var(--surface2); padding: 18px 28px;">
                 <button onclick="closeModal('sessionsModal')" class="btn-secondary"
-                    style="width:100%; height:42px; font-weight:800; border-radius:12px; font-size:11px; letter-spacing:0.02em">CLOSE
-                    TIMELINE</button>
+                    style="width:100%; height:42px; font-weight:800; border-radius:12px; font-size:11px; letter-spacing:0.02em">CLOSE TIMELINE</button>
             </div>
         </div>
     </div>
@@ -3908,6 +3929,64 @@
         </div>
 
         <script>
+        function toggleSelectAllClasses(checked) {
+            document.querySelectorAll('.class-checkbox').forEach(cb => {
+                if (!cb.disabled) cb.checked = checked;
+            });
+            updateBulkDeleteUI();
+        }
+
+        function updateBulkDeleteUI() {
+            const checked = document.querySelectorAll('.class-checkbox:checked');
+            const toolbar = document.getElementById('bulkActionsToolbar');
+            const countLabel = document.getElementById('selectedClassesCount');
+            
+            if (checked.length > 0) {
+                toolbar.style.display = 'flex';
+                countLabel.textContent = `${checked.length} CLASSES SELECTED`;
+            } else {
+                toolbar.style.display = 'none';
+            }
+        }
+
+        async function executeBulkDeleteClasses() {
+            const checked = [...document.querySelectorAll('.class-checkbox:checked')];
+            if (checked.length === 0) return;
+            
+            const ids = checked.map(cb => parseInt(cb.dataset.id));
+            
+            if (!confirm(`Are you sure you want to delete ${ids.length} selected classes? This cannot be undone.`)) return;
+            
+            const btn = document.querySelector('#bulkActionsToolbar button');
+            const ogText = btn.textContent;
+            btn.textContent = 'DELETING...';
+            btn.disabled = true;
+
+            try {
+                const res = await fetch('/api/admin/classes/bulk-delete', {
+                    method: 'DELETE',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRF-TOKEN': '{{ csrf_token() }}'
+                    },
+                    body: JSON.stringify({ class_ids: ids })
+                });
+                const data = await res.json();
+                if (data.success) {
+                    showToast(data.message, 'success');
+                    setTimeout(() => location.reload(), 800);
+                } else {
+                    showToast(data.error || 'Bulk delete failed', 'error');
+                    btn.textContent = ogText;
+                    btn.disabled = false;
+                }
+            } catch (e) {
+                showToast('Network error', 'error');
+                btn.textContent = ogText;
+                btn.disabled = false;
+            }
+        }
+
             async function handleGlobalSkip() {
                 const start = document.getElementById('gsStart').value;
                 const end = document.getElementById('gsEnd').value;
