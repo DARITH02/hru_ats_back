@@ -1368,24 +1368,75 @@ class AdminController extends Controller
         return response()->json(Department::withCount(['teachers', 'subjects'])->get());
     }
 
+    public function showDepartment($deptId)
+    {
+        $dept = Department::with([
+            'teachers' => function ($query) {
+                $query->with('user')->withCount('classes');
+            },
+            'subjects' => function ($query) {
+                $query->withCount('classes');
+            }
+        ])->findOrFail($deptId);
+
+        return response()->json([
+            'success' => true,
+            'department' => $dept
+        ]);
+    }
+
     public function storeDepartment(Request $request)
     {
-        $request->validate(['name' => 'required|unique:departments,name']);
+        $request->validate([
+            'name' => 'required|string|unique:departments,name',
+            'code' => 'required|string|unique:departments,code'
+        ]);
+        
         $dept = Department::create($request->all());
-        return response()->json(['success' => true, 'department' => $dept->loadCount(['teachers', 'subjects'])]);
+
+        ActivityLog::create([
+            'action' => 'CREATE',
+            'target' => "departments#{$dept->id}"
+        ]);
+
+        return response()->json([
+            'success' => true, 
+            'department' => $dept->loadCount(['teachers', 'subjects'])
+        ]);
     }
 
     public function updateDepartment(Request $request, $deptId)
     {
         $dept = Department::findOrFail($deptId);
+
+        $request->validate([
+            'name' => 'required|string|unique:departments,name,' . $deptId,
+            'code' => 'required|string|unique:departments,code,' . $deptId
+        ]);
+
         $dept->update($request->all());
-        return response()->json(['success' => true, 'department' => $dept->loadCount(['teachers', 'subjects'])]);
+
+        ActivityLog::create([
+            'action' => 'UPDATE',
+            'target' => "departments#{$deptId}"
+        ]);
+
+        return response()->json([
+            'success' => true, 
+            'department' => $dept->loadCount(['teachers', 'subjects'])
+        ]);
     }
 
     public function deleteDepartment($deptId)
     {
         $dept = Department::findOrFail($deptId);
         $dept->delete();
+
+        ActivityLog::create([
+            'action' => 'DELETE',
+            'target' => "departments#{$deptId}"
+        ]);
+
         return response()->json(['success' => true]);
     }
 

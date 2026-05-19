@@ -86,6 +86,7 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::middleware('role:super_admin')->delete('/admin/subjects/{subjectId}', [AdminController::class, 'deleteSubject']);
 
         Route::get('/admin/departments', [AdminController::class, 'listDepartments']);
+        Route::get('/admin/departments/{deptId}', [AdminController::class, 'showDepartment']);
         Route::post('/admin/departments', [AdminController::class, 'storeDepartment']);
         Route::put('/admin/departments/{deptId}', [AdminController::class, 'updateDepartment']);
         Route::middleware('role:super_admin')->delete('/admin/departments/{deptId}', [AdminController::class, 'deleteDepartment']);
