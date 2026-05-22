@@ -5,7 +5,9 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="csrf-token" content="{{ csrf_token() }}">
-    <link rel="icon" href="https://res.cloudinary.com/dnrblpkal/image/upload/q_auto/f_auto/v1775536855/branding/k6obqtagifkszo8pehnd.png" type="image/png" sizes="32x32"/>
+    <link rel="icon"
+        href="https://res.cloudinary.com/dnrblpkal/image/upload/q_auto/f_auto/v1775536855/branding/k6obqtagifkszo8pehnd.png"
+        type="image/png" sizes="32x32" />
     <title>{{ $title ?? 'HRU · Dashboard' }}</title>
     <script>
         (function () {
@@ -60,10 +62,16 @@
                 </span>
                 <span class="nav-text">Overview</span>
             </a>
-            <a href="{{ route('admin.results') }}" class="nav-link {{ request()->is('admin/results') ? 'active' : '' }}">
-                <span class="nav-icon"><svg width="18" height="18" viewBox="0 0 16 16" fill="none">
-                        <path d="M2 5h12M2 8h8M2 11h6" stroke="currentColor" stroke-width="1.3"
-                            stroke-linecap="round" />
+
+            <a href="{{ route('admin.results') }}"
+                class="nav-link {{ request()->is('admin/results') ? 'active' : '' }}">
+                <span class="nav-icon"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24"
+                        viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                        stroke-linejoin="round" class="lucide lucide-graduation-cap-icon lucide-graduation-cap">
+                        <path
+                            d="M21.42 10.922a1 1 0 0 0-.019-1.838L12.83 5.18a2 2 0 0 0-1.66 0L2.6 9.08a1 1 0 0 0 0 1.832l8.57 3.908a2 2 0 0 0 1.66 0z" />
+                        <path d="M22 10v6" />
+                        <path d="M6 12.5V16a6 3 0 0 0 12 0v-3.5" />
                     </svg></span>
                 <span class="nav-text">Result & Grading</span>
             </a>
@@ -443,10 +451,30 @@
             item.onmouseover = () => item.style.background = 'var(--accent)08';
             item.onmouseout = () => item.style.background = 'transparent';
 
-            const initials = act.name.trim().split(/\s+/).map(n => n[0]).join('').substring(0, 2).toUpperCase();
+            const initials = act.name ? act.name.trim().split(/\s+/).map(n => n[0]).join('').substring(0, 2).toUpperCase() : 'SYS';
+
+            let avatarBg = 'var(--accent)18';
+            let avatarBorder = 'var(--accent)30';
+            let avatarColor = 'var(--accent)';
+            let statusDot = '';
+
+            if (act.type === 'active_session') {
+                avatarBg = 'rgba(16, 185, 129, 0.15)'; // Green
+                avatarBorder = 'rgba(16, 185, 129, 0.3)';
+                avatarColor = '#10b981';
+                statusDot = `<span style="position:absolute; bottom:0; right:0; width:8px; height:8px; background:#10b981; border-radius:50%; border:1.5px solid var(--surface2); box-shadow: 0 0 5px #10b981; animation: pulse-green 1s infinite alternate;"></span>`;
+            } else if (act.type === 'new_admin') {
+                avatarBg = 'rgba(245, 158, 11, 0.15)'; // Amber
+                avatarBorder = 'rgba(245, 158, 11, 0.3)';
+                avatarColor = '#f59e0b';
+                statusDot = `<span style="position:absolute; bottom:0; right:0; width:8px; height:8px; background:#f59e0b; border-radius:50%; border:1.5px solid var(--surface2); box-shadow: 0 0 5px #f59e0b; animation: pulse-amber 1s infinite alternate;"></span>`;
+            }
 
             item.innerHTML = `
-                <div style="width:28px; height:28px; border-radius:50%; background:var(--accent)18; border:1px solid var(--accent)30; color:var(--accent); display:flex; align-items:center; justify-content:center; font-weight:700; font-size:10px; flex-shrink:0">${initials}</div>
+                <div style="position:relative; flex-shrink:0;">
+                    <div style="width:28px; height:28px; border-radius:50%; background:${avatarBg}; border:1px solid ${avatarBorder}; color:${avatarColor}; display:flex; align-items:center; justify-content:center; font-weight:700; font-size:10px;">${initials}</div>
+                    ${statusDot}
+                </div>
                 <div style="flex:1">
                     <div style="font-size:11px; font-weight:700; color:var(--text); line-height:1.3">${escapeHTML(act.name)}</div>
                     <div style="font-size:9px; color:var(--muted2); margin-top:2px">${escapeHTML(act.subject)} · ${act.time}</div>
@@ -479,6 +507,30 @@
     </script>
     <style>
         @keyframes pulse-red {
+            from {
+                transform: scale(1);
+                opacity: 1;
+            }
+
+            to {
+                transform: scale(1.3);
+                opacity: 0.8;
+            }
+        }
+
+        @keyframes pulse-green {
+            from {
+                transform: scale(1);
+                opacity: 1;
+            }
+
+            to {
+                transform: scale(1.3);
+                opacity: 0.8;
+            }
+        }
+
+        @keyframes pulse-amber {
             from {
                 transform: scale(1);
                 opacity: 1;

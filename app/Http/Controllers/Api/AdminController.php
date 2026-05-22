@@ -53,7 +53,7 @@ class AdminController extends Controller
                         ]);
                     }
                 }
-                
+
                 // 2. SemesterAssignment Grading Fields
                 if (\Illuminate\Support\Facades\Schema::hasTable('semester_assignments')) {
                     if (!\Illuminate\Support\Facades\Schema::hasColumn('semester_assignments', 'admin_score')) {
@@ -233,22 +233,22 @@ class AdminController extends Controller
         $class = ClassRoom::findOrFail($classId);
 
         $request->validate([
-            'academic_year'  => 'required',
-            'semester'       => 'required',
-            'start_date'     => 'required|date',
-            'holiday_start'  => 'nullable|date',
+            'academic_year' => 'required',
+            'semester' => 'required',
+            'start_date' => 'required|date',
+            'holiday_start' => 'nullable|date',
             'sessions_count' => 'nullable|integer|min:1|max:100',
-            'schedule_days'  => 'nullable|string',
-            'time_start'     => 'nullable|string',
-            'time_end'       => 'nullable|string',
-            'time_start2'    => 'nullable|string',
-            'time_end2'      => 'nullable|string',
+            'schedule_days' => 'nullable|string',
+            'time_start' => 'nullable|string',
+            'time_end' => 'nullable|string',
+            'time_start2' => 'nullable|string',
+            'time_end2' => 'nullable|string',
         ]);
 
         $holidayStart = $request->holiday_start ? \Carbon\Carbon::parse($request->holiday_start) : null;
-        $holidayEnd   = $holidayStart ? SemesterAssignment::computeHolidayEnd($holidayStart) : null;
-        $endDate      = SemesterAssignment::computeEndDate($request->start_date);
-        
+        $holidayEnd = $holidayStart ? SemesterAssignment::computeHolidayEnd($holidayStart) : null;
+        $endDate = SemesterAssignment::computeEndDate($request->start_date);
+
         $sessionsTarget = $request->sessions_count ?? 30;
 
         DB::beginTransaction();
@@ -256,13 +256,13 @@ class AdminController extends Controller
             // Update Class Schedule if new times/days provided
             if ($request->time_start && $request->time_end) {
                 $daysPart = $request->schedule_days ?? 'Mon-Fri';
-                
+
                 $slots = [];
                 $slots[] = "{$request->time_start}-{$request->time_end}";
                 if ($request->time_start2 && $request->time_end2) {
                     $slots[] = "{$request->time_start2}-{$request->time_end2}";
                 }
-                
+
                 $class->update([
                     'schedule' => "$daysPart (" . implode(', ', $slots) . ")",
                     'semester' => $request->semester,
@@ -277,15 +277,15 @@ class AdminController extends Controller
             }
 
             $assignment = SemesterAssignment::create([
-                'class_id'      => $classId,
+                'class_id' => $classId,
                 'academic_year' => $request->academic_year,
-                'semester'      => $request->semester,
-                'start_date'    => $request->start_date,
-                'end_date'      => $endDate,
+                'semester' => $request->semester,
+                'start_date' => $request->start_date,
+                'end_date' => $endDate,
                 'holiday_start' => $holidayStart,
-                'holiday_end'   => $holidayEnd,
-                'status'        => 'upcoming',
-                'notes'         => $request->notes,
+                'holiday_end' => $holidayEnd,
+                'status' => 'upcoming',
+                'notes' => $request->notes,
             ]);
 
             // GENERATE SESSIONS (UNIFIED LOGIC)
@@ -315,7 +315,8 @@ class AdminController extends Controller
     private function parseSchedule($schedStr)
     {
         $schedStr = strtolower($schedStr ?? '');
-        if (!$schedStr) return [[], []];
+        if (!$schedStr)
+            return [[], []];
 
         // 1. Parse Days
         $daysMap = ['sun' => 0, 'mon' => 1, 'tue' => 2, 'wed' => 3, 'thu' => 4, 'fri' => 5, 'sat' => 6];
@@ -332,18 +333,23 @@ class AdminController extends Controller
                 $start = $daysMap[strtolower($matches[1])];
                 $end = $daysMap[strtolower($matches[2])];
                 if ($start <= $end) {
-                    for ($i = $start; $i <= $end; $i++) $allowedDays[] = $i;
+                    for ($i = $start; $i <= $end; $i++)
+                        $allowedDays[] = $i;
                 } else {
-                    for ($i = $start; $i <= 6; $i++) $allowedDays[] = $i;
-                    for ($i = 0; $i <= $end; $i++) $allowedDays[] = $i;
+                    for ($i = $start; $i <= 6; $i++)
+                        $allowedDays[] = $i;
+                    for ($i = 0; $i <= $end; $i++)
+                        $allowedDays[] = $i;
                 }
             } else {
                 foreach ($daysMap as $dStr => $dNum) {
-                    if (str_contains($schedStr, $dStr)) $allowedDays[] = $dNum;
+                    if (str_contains($schedStr, $dStr))
+                        $allowedDays[] = $dNum;
                 }
             }
         }
-        if (empty($allowedDays)) $allowedDays = [1, 2, 3, 4, 5];
+        if (empty($allowedDays))
+            $allowedDays = [1, 2, 3, 4, 5];
 
         // 2. Parse Time Slots
         preg_match_all('/(\d{1,2}:\d{2}(?::\d{2})?)\s?([AP]M)?\s?[-–—]\s?(\d{1,2}:\d{2}(?::\d{2})?)\s?([AP]M)?/i', $schedStr, $matches, PREG_SET_ORDER);
@@ -352,9 +358,11 @@ class AdminController extends Controller
             try {
                 $timeSlots[] = [
                     'start' => \Carbon\Carbon::parse($m[1] . ($m[2] ?? ''))->format('H:i'),
-                    'end'   => \Carbon\Carbon::parse($m[3] . ($m[4] ?? ''))->format('H:i')
+                    'end' => \Carbon\Carbon::parse($m[3] . ($m[4] ?? ''))->format('H:i')
                 ];
-            } catch (\Exception $e) { continue; }
+            } catch (\Exception $e) {
+                continue;
+            }
         }
 
         return [$allowedDays, $timeSlots];
@@ -363,12 +371,13 @@ class AdminController extends Controller
     private function generateAcademicSessions($class, $year, $semester, $startDate, $targetCount, $holidayStart = null, $holidayEnd = null)
     {
         list($allowedDays, $timeSlots) = $this->parseSchedule($class->schedule);
-        if (empty($timeSlots)) return 0;
+        if (empty($timeSlots))
+            return 0;
 
         // 3. Clear existing scheduled (future) sessions
         \App\Models\AttendanceSession::where('class_id', $class->id)
             ->where('academic_year', $year)
-            ->where('semester', (int)$semester)
+            ->where('semester', (int) $semester)
             ->where('status', 'scheduled')
             ->delete();
 
@@ -386,21 +395,22 @@ class AdminController extends Controller
 
                 if (!$inHoliday) {
                     foreach ($timeSlots as $slot) {
-                        if ($created >= $targetCount) break;
+                        if ($created >= $targetCount)
+                            break;
 
                         $sTime = $currentDate->copy()->setTimeFromTimeString($slot['start']);
                         $eTime = $currentDate->copy()->setTimeFromTimeString($slot['end']);
-                        
+
                         \App\Models\AttendanceSession::create([
-                            'class_id'           => $class->id,
-                            'start_time'         => $sTime,
-                            'end_time'           => $eTime,
-                            'checkin_open_time'  => $sTime->copy()->subMinutes(20),
+                            'class_id' => $class->id,
+                            'start_time' => $sTime,
+                            'end_time' => $eTime,
+                            'checkin_open_time' => $sTime->copy()->subMinutes(20),
                             'checkin_close_time' => $sTime->copy()->addMinutes(20),
-                            'semester'           => (int)$semester,
-                            'academic_year'      => $year,
-                            'status'             => $sTime->isPast() ? 'completed' : 'scheduled',
-                            'qr_token'           => bin2hex(random_bytes(8))
+                            'semester' => (int) $semester,
+                            'academic_year' => $year,
+                            'status' => $sTime->isPast() ? 'completed' : 'scheduled',
+                            'qr_token' => bin2hex(random_bytes(8))
                         ]);
                         $created++;
                     }
@@ -419,13 +429,13 @@ class AdminController extends Controller
     public function deleteSemester($id)
     {
         $assignment = SemesterAssignment::findOrFail($id);
-        
+
         DB::beginTransaction();
         try {
             // Purge all generated sessions for this class and semester
             \App\Models\AttendanceSession::where('class_id', $assignment->class_id)
                 ->where('academic_year', $assignment->academic_year)
-                ->where('semester', (int)$assignment->semester)
+                ->where('semester', (int) $assignment->semester)
                 ->delete();
 
             $assignment->delete();
@@ -523,14 +533,14 @@ class AdminController extends Controller
             // 3. Snapshot Stats (Prevent Data Loss)
             $sessions = \App\Models\AttendanceSession::where('class_id', $classId)
                 ->where('academic_year', $assignment->academic_year)
-                ->where('semester', (int)$assignment->semester)
+                ->where('semester', (int) $assignment->semester)
                 ->get();
-            
+
             $totalSessions = $sessions->count();
             $attended = 0;
             $totalPossible = 0;
             $students = $class->all_students;
-            
+
             foreach ($sessions as $s) {
                 if ($s->status !== 'skipped') {
                     $totalPossible += $students->count();
@@ -578,7 +588,8 @@ class AdminController extends Controller
     private function sendTelegramSummary($class, $assignment)
     {
         $bot = \App\Models\TelegramBot::where('is_active', true)->first();
-        if (!$bot) return;
+        if (!$bot)
+            return;
 
         $students = $class->all_students;
         $scores = \DB::table('semester_assignment_scores')->where('assignment_id', $assignment->id)->get();
@@ -611,7 +622,7 @@ class AdminController extends Controller
         ]);
 
         $assignment = SemesterAssignment::findOrFail($assignmentId);
-        
+
         $assignment->update($request->only(['admin_score', 'grading_status', 'grading_notes']));
 
         ActivityLog::create([
@@ -634,7 +645,7 @@ class AdminController extends Controller
         $students = $class->all_students;
         $sessions = \App\Models\AttendanceSession::where('class_id', $class->id)
             ->where('academic_year', $assignment->academic_year)
-            ->where('semester', (int)$assignment->semester)
+            ->where('semester', (int) $assignment->semester)
             ->get();
         $sessionIds = $sessions->pluck('id');
         $totalSessions = $sessionIds->count();
@@ -644,18 +655,18 @@ class AdminController extends Controller
                 ->whereIn('session_id', $sessionIds)
                 ->whereIn('status', ['present', 'late', 'PRESENT', 'LATE'])
                 ->count();
-            
+
             $attScore = $totalSessions > 0 ? round(($attended / $totalSessions) * 20, 2) : 0;
-            
+
             $saved = \DB::table('semester_assignment_scores')
                 ->where('assignment_id', $assignment->id)
                 ->where('student_id', $student->id)
                 ->first();
-                
+
             $midterm = $saved->midterm_score ?? 0;
             $asgn = $saved->assignment_score ?? 0;
             $final = $saved->final_score ?? 0;
-            
+
             return [
                 'id' => $student->id,
                 'name' => $student->user->name ?? 'Unknown',
@@ -689,7 +700,7 @@ class AdminController extends Controller
 
         foreach ($request->scores as $s) {
             $total = ($s['attendance_score'] ?? 0) + ($s['midterm_score'] ?? 0) + ($s['assignment_score'] ?? 0) + ($s['final_score'] ?? 0);
-            
+
             \DB::table('semester_assignment_scores')->updateOrInsert(
                 ['assignment_id' => $assignmentId, 'student_id' => $s['student_id']],
                 [
@@ -711,20 +722,20 @@ class AdminController extends Controller
     public function generateSemesterReport($assignmentId)
     {
         $assignment = SemesterAssignment::with([
-            'classRoom.subject.department', 
-            'classRoom.teacher.user', 
+            'classRoom.subject.department',
+            'classRoom.teacher.user',
             'classRoom.groups.major'
         ])->findOrFail($assignmentId);
-        
+
         $class = $assignment->classRoom;
         $subject = $class->subject;
         $department = $subject->department->name ?? 'Academic Dept';
         $major = $class->groups->first()->major->name ?? 'General';
-        
+
         $students = $class->all_students;
         $sessions = AttendanceSession::where('class_id', $class->id)
             ->where('academic_year', $assignment->academic_year)
-            ->where('semester', (int)$assignment->semester)
+            ->where('semester', (int) $assignment->semester)
             ->get();
         $sessionIds = $sessions->pluck('id');
         $totalSessions = $sessionIds->count();
@@ -734,7 +745,7 @@ class AdminController extends Controller
                 ->whereIn('session_id', $sessionIds)
                 ->whereIn('status', ['present', 'late', 'PRESENT', 'LATE'])
                 ->count();
-            
+
             $savedScore = \DB::table('semester_assignment_scores')
                 ->where('assignment_id', $assignment->id)
                 ->where('student_id', $student->id)
@@ -779,27 +790,27 @@ class AdminController extends Controller
     {
         $assignment = SemesterAssignment::with(['classRoom.subject', 'classRoom.groups'])->findOrFail($assignmentId);
         $class = $assignment->classRoom;
-        
+
         $fileName = 'semester_report_' . $class->id . '_' . date('Y-m-d') . '.csv';
 
         $headers = [
-            "Content-type"        => "text/csv",
+            "Content-type" => "text/csv",
             "Content-Disposition" => "attachment; filename=$fileName",
-            "Pragma"              => "no-cache",
-            "Cache-Control"       => "must-revalidate, post-check=0, pre-check=0",
-            "Expires"             => "0"
+            "Pragma" => "no-cache",
+            "Cache-Control" => "must-revalidate, post-check=0, pre-check=0",
+            "Expires" => "0"
         ];
 
         $students = $class->all_students;
         $sessions = \App\Models\AttendanceSession::where('class_id', $class->id)
             ->where('academic_year', $assignment->academic_year)
-            ->where('semester', (int)$assignment->semester)
+            ->where('semester', (int) $assignment->semester)
             ->get();
         $sessionIds = $sessions->pluck('id');
 
         $columns = ['Student ID', 'Name', 'Group', 'Attended', 'Total Sessions', 'Rate %', 'Score'];
 
-        $callback = function() use($students, $sessionIds, $columns, $assignment) {
+        $callback = function () use ($students, $sessionIds, $columns, $assignment) {
             $file = fopen('php://output', 'w');
             fputcsv($file, $columns);
 
@@ -837,19 +848,19 @@ class AdminController extends Controller
         $formatted = $sessions->map(function ($s) {
             $class = $s->classRoom;
             $subject = $class ? $class->subject : null;
-            
+
             return [
-                'id'         => $s->id,
-                'class_id'   => $s->class_id,
+                'id' => $s->id,
+                'class_id' => $s->class_id,
                 'start_time' => $s->start_time,
-                'end_time'   => $s->end_time,
-                'status'     => $s->status,
-                'room'       => $class->room_number ?? 'TBD',
-                'subject'    => [
+                'end_time' => $s->end_time,
+                'status' => $s->status,
+                'room' => $class->room_number ?? 'TBD',
+                'subject' => [
                     'name' => $subject->name ?? 'N/A',
                     'code' => $subject->code ?? 'N/A',
                 ],
-                'presence_count'       => Attendance::where('session_id', $s->id)->whereIn('status', ['present', 'late', 'PRESENT', 'LATE'])->count(),
+                'presence_count' => Attendance::where('session_id', $s->id)->whereIn('status', ['present', 'late', 'PRESENT', 'LATE'])->count(),
                 'total_students_count' => $class ? Student::whereIn('group_id', $class->groups->pluck('id'))->count() : 0,
             ];
         });
@@ -865,16 +876,16 @@ class AdminController extends Controller
         ]);
 
         $session = AttendanceSession::findOrFail($sessionId);
-        
+
         if ($request->status === 'skipped' && $request->reschedule) {
             $nextSlot = $this->calculateNextSlotData($session);
             if ($nextSlot) {
                 $session->update([
-                    'start_time'         => $nextSlot['start_time'],
-                    'end_time'           => $nextSlot['end_time'],
-                    'checkin_open_time'  => $nextSlot['checkin_open_time'],
+                    'start_time' => $nextSlot['start_time'],
+                    'end_time' => $nextSlot['end_time'],
+                    'checkin_open_time' => $nextSlot['checkin_open_time'],
                     'checkin_close_time' => $nextSlot['checkin_close_time'],
-                    'status'             => 'scheduled' // Re-schedule it to the end
+                    'status' => 'scheduled' // Re-schedule it to the end
                 ]);
 
                 ActivityLog::create([
@@ -889,7 +900,7 @@ class AdminController extends Controller
         }
 
         $session->update(['status' => $request->status]);
-        
+
         ActivityLog::create([
             'action' => 'UPDATE',
             'target' => "session#{$session->id}.status_{$request->status}"
@@ -920,7 +931,8 @@ class AdminController extends Controller
     private function calculateNextSlotData($session)
     {
         $class = $session->classRoom;
-        if (!$class) return null;
+        if (!$class)
+            return null;
 
         // Find the last session for this class/semester
         $lastSession = AttendanceSession::where('class_id', $class->id)
@@ -929,13 +941,15 @@ class AdminController extends Controller
             ->orderBy('start_time', 'desc')
             ->first();
 
-        if (!$lastSession) return null;
+        if (!$lastSession)
+            return null;
 
         list($allowedDays, $timeSlots) = $this->parseSchedule($class->schedule);
-        if (empty($allowedDays) || empty($timeSlots)) return null;
+        if (empty($allowedDays) || empty($timeSlots))
+            return null;
 
         $currentDate = \Carbon\Carbon::parse($lastSession->start_time)->startOfDay();
-        
+
         // Find which slot the last session was
         $lastSlotIndex = -1;
         $lastStartTimeStr = \Carbon\Carbon::parse($lastSession->start_time)->format('H:i');
@@ -963,7 +977,7 @@ class AdminController extends Controller
                     ->where('academic_year', $session->academic_year)
                     ->where('semester', $session->semester)
                     ->first();
-                
+
                 $inHoliday = false;
                 if ($assignment && $assignment->holiday_start && $assignment->holiday_end) {
                     $inHoliday = $currentDate->between($assignment->holiday_start, $assignment->holiday_end);
@@ -975,9 +989,9 @@ class AdminController extends Controller
                     $eTime = $currentDate->copy()->setTimeFromTimeString($slot['end']);
 
                     return [
-                        'start_time'         => $sTime,
-                        'end_time'           => $eTime,
-                        'checkin_open_time'  => $sTime->copy()->subMinutes(20),
+                        'start_time' => $sTime,
+                        'end_time' => $eTime,
+                        'checkin_open_time' => $sTime->copy()->subMinutes(20),
                         'checkin_close_time' => $sTime->copy()->addMinutes(20),
                     ];
                 }
@@ -993,7 +1007,7 @@ class AdminController extends Controller
     {
         $session = AttendanceSession::with('classRoom.subject')->findOrFail($sessionId);
         $attendances = Attendance::where('session_id', $sessionId)->get()->keyBy('student_id');
-        
+
         $allStudents = collect();
         if ($session->classRoom) {
             $groupIds = $session->classRoom->groups->pluck('id');
@@ -1026,14 +1040,14 @@ class AdminController extends Controller
     {
         $request->validate([
             'start_time' => 'required|date',
-            'end_time'   => 'required|date|after:start_time',
-            'status'     => 'sometimes|string'
+            'end_time' => 'required|date|after:start_time',
+            'status' => 'sometimes|string'
         ]);
 
         $session = AttendanceSession::findOrFail($sessionId);
-        
+
         $data = $request->only(['start_time', 'end_time', 'status']);
-        
+
         // Auto-update checkin windows based on new start_time
         $sTime = \Carbon\Carbon::parse($request->start_time);
         $data['checkin_open_time'] = $sTime->copy()->subMinutes(20);
@@ -1057,14 +1071,14 @@ class AdminController extends Controller
     {
         $request->validate([
             'start_time' => 'required|date',
-            'end_time'   => 'required|date|after:start_time',
+            'end_time' => 'required|date|after:start_time',
             'reschedule' => 'sometimes|boolean'
         ]);
 
         $sessions = AttendanceSession::whereBetween('start_time', [
-                \Carbon\Carbon::parse($request->start_time), 
-                \Carbon\Carbon::parse($request->end_time)
-            ])
+            \Carbon\Carbon::parse($request->start_time),
+            \Carbon\Carbon::parse($request->end_time)
+        ])
             ->where('status', '!=', 'completed')
             ->get();
 
@@ -1074,11 +1088,11 @@ class AdminController extends Controller
                 $nextSlot = $this->calculateNextSlotData($session);
                 if ($nextSlot) {
                     $session->update([
-                        'start_time'         => $nextSlot['start_time'],
-                        'end_time'           => $nextSlot['end_time'],
-                        'checkin_open_time'  => $nextSlot['checkin_open_time'],
+                        'start_time' => $nextSlot['start_time'],
+                        'end_time' => $nextSlot['end_time'],
+                        'checkin_open_time' => $nextSlot['checkin_open_time'],
                         'checkin_close_time' => $nextSlot['checkin_close_time'],
-                        'status'             => 'scheduled'
+                        'status' => 'scheduled'
                     ]);
                     $affected++;
 
@@ -1105,7 +1119,7 @@ class AdminController extends Controller
             ]);
         }
 
-        $msg = $request->reschedule 
+        $msg = $request->reschedule
             ? "Successfully moved $affected sessions to the end of the semester."
             : "Successfully skipped $affected sessions across all subjects.";
 
@@ -1148,7 +1162,7 @@ class AdminController extends Controller
                 foreach ($futureAndToday as $fs) {
                     $newStart = $fs->start_time->addWeek();
                     $newEnd = $fs->end_time->addWeek();
-                    
+
                     $fs->update([
                         'start_time' => $newStart,
                         'end_time' => $newEnd,
@@ -1211,15 +1225,15 @@ class AdminController extends Controller
     public function updateStudent(Request $request, $studentId)
     {
         $student = Student::with('user')->findOrFail($studentId);
-        
+
         $request->validate([
-            'name'         => 'sometimes|required',
-            'email'        => 'sometimes|nullable|email|unique:users,email,' . $student->user_id,
-            'phone'        => 'sometimes|nullable|string',
+            'name' => 'sometimes|required',
+            'email' => 'sometimes|nullable|email|unique:users,email,' . $student->user_id,
+            'phone' => 'sometimes|nullable|string',
             'student_code' => 'sometimes|required|unique:students,student_code,' . $student->id,
-            'group_id'     => 'sometimes|required|exists:class_groups,id',
-            'major_id'     => 'sometimes|required|exists:majors,id',
-            'status'       => 'sometimes|required|in:active,suspended,graduated'
+            'group_id' => 'sometimes|required|exists:class_groups,id',
+            'major_id' => 'sometimes|required|exists:majors,id',
+            'status' => 'sometimes|required|in:active,suspended,graduated'
         ]);
 
         DB::beginTransaction();
@@ -1228,15 +1242,15 @@ class AdminController extends Controller
             if (!empty($userUpdates)) {
                 $student->user->update($userUpdates);
             }
-            
+
             $studentUpdates = $request->only(['student_code', 'group_id', 'major_id', 'status', 'class_id']);
-            
+
             if ($request->has('class_id') && $request->class_id) {
                 $class = \App\Models\ClassRoom::with('groups')->find($request->class_id);
                 if ($class && $class->groups->isNotEmpty()) {
                     // Try to find a group associated with this class that matches the student's major
                     $matchingGroup = $class->groups->where('major_id', $student->major_id)->first();
-                    
+
                     if ($matchingGroup) {
                         $studentUpdates['group_id'] = $matchingGroup->id;
                     } else {
@@ -1246,9 +1260,9 @@ class AdminController extends Controller
                     }
                 }
             }
-            
+
             $student->update($studentUpdates);
-            
+
             DB::commit();
             return response()->json(['success' => true, 'student' => $student->load('user', 'classRoom.subject')]);
         } catch (\Exception $e) {
@@ -1261,7 +1275,7 @@ class AdminController extends Controller
     {
         $student = Student::with('user')->findOrFail($studentId);
         $user = $student->user;
-        
+
         DB::beginTransaction();
         try {
             $student->delete();
@@ -1277,36 +1291,36 @@ class AdminController extends Controller
     public function listStudentAttendance($studentId)
     {
         $student = Student::with(['user', 'major.department', 'group.major.department'])->findOrFail($studentId);
-        
+
         // Fetch the most recent 10 sessions for the student's group
-        $sessions = AttendanceSession::whereHas('classRoom.groups', function($q) use ($student) {
-                $q->where('class_groups.id', $student->group_id);
-            })
+        $sessions = AttendanceSession::whereHas('classRoom.groups', function ($q) use ($student) {
+            $q->where('class_groups.id', $student->group_id);
+        })
             ->where('start_time', '<=', now())
             ->latest('start_time')
             ->limit(10)
             ->get();
 
-        $history = $sessions->map(function($session) use ($studentId) {
+        $history = $sessions->map(function ($session) use ($studentId) {
             $att = Attendance::where('student_id', $studentId)
                 ->where('session_id', $session->id)
                 ->first();
 
             return [
-                'id'          => $session->id,
-                'subject'     => $session->classRoom->subject->name ?? 'N/A',
-                'date'        => \Carbon\Carbon::parse($session->start_time)->format('M d, Y'),
-                'time'        => $att && $att->scan_time ? \Carbon\Carbon::parse($att->scan_time)->format('H:i') : '—',
-                'status'      => $att ? strtoupper($att->status) : 'ABSENT',
-                'method'      => $att ? strtoupper($att->method ?? 'QR') : '—',
+                'id' => $session->id,
+                'subject' => $session->classRoom->subject->name ?? 'N/A',
+                'date' => \Carbon\Carbon::parse($session->start_time)->format('M d, Y'),
+                'time' => $att && $att->scan_time ? \Carbon\Carbon::parse($att->scan_time)->format('H:i') : '—',
+                'status' => $att ? strtoupper($att->status) : 'ABSENT',
+                'method' => $att ? strtoupper($att->method ?? 'QR') : '—',
             ];
         });
 
         $presentCount = Attendance::where('student_id', $studentId)->whereIn('status', ['present', 'late', 'PRESENT', 'LATE'])->count();
-        $absentCount  = $sessions->count() - $presentCount;
-        $totalSessions = AttendanceSession::whereHas('classRoom.groups', function($q) use ($student) {
-                $q->where('class_groups.id', $student->group_id);
-            })->where('start_time', '<=', now())->count();
+        $absentCount = $sessions->count() - $presentCount;
+        $totalSessions = AttendanceSession::whereHas('classRoom.groups', function ($q) use ($student) {
+            $q->where('class_groups.id', $student->group_id);
+        })->where('start_time', '<=', now())->count();
         $rate = $totalSessions === 0 ? 0 : round(($presentCount / $totalSessions) * 100);
 
         // Explicitly check for Major model instance to avoid conflict with legacy 'major' column
@@ -1318,21 +1332,21 @@ class AdminController extends Controller
         return response()->json([
             'success' => true,
             'student' => [
-                'id'           => $student->id,
-                'name'         => $student->user->name ?? 'N/A',
-                'email'        => $student->user->email ?? 'N/A',
-                'phone'        => $student->user->phone ?? 'N/A',
+                'id' => $student->id,
+                'name' => $student->user->name ?? 'N/A',
+                'email' => $student->user->email ?? 'N/A',
+                'phone' => $student->user->phone ?? 'N/A',
                 'student_code' => $student->student_code,
-                'major'        => $majorName,
-                'department'   => $deptName,
-                'year_level'   => $yearLevel,
-                'status'       => $student->status ?? 'active',
-                'joined_at'    => $student->created_at->format('M Y'),
+                'major' => $majorName,
+                'department' => $deptName,
+                'year_level' => $yearLevel,
+                'status' => $student->status ?? 'active',
+                'joined_at' => $student->created_at->format('M Y'),
                 'attendance_rate' => $rate
             ],
             'summary' => [
                 'present' => $presentCount,
-                'absent'  => $totalSessions - $presentCount,
+                'absent' => $totalSessions - $presentCount,
             ],
             'history' => $history
         ]);
@@ -1391,7 +1405,7 @@ class AdminController extends Controller
             'name' => 'required|string|unique:departments,name',
             'code' => 'required|string|unique:departments,code'
         ]);
-        
+
         $dept = Department::create($request->all());
 
         ActivityLog::create([
@@ -1400,7 +1414,7 @@ class AdminController extends Controller
         ]);
 
         return response()->json([
-            'success' => true, 
+            'success' => true,
             'department' => $dept->loadCount(['teachers', 'subjects'])
         ]);
     }
@@ -1422,7 +1436,7 @@ class AdminController extends Controller
         ]);
 
         return response()->json([
-            'success' => true, 
+            'success' => true,
             'department' => $dept->loadCount(['teachers', 'subjects'])
         ]);
     }
@@ -1477,16 +1491,16 @@ class AdminController extends Controller
     public function updateInstructor(Request $request, $teacherId)
     {
         $teacher = Teacher::with('user')->findOrFail($teacherId);
-        
+
         DB::beginTransaction();
         try {
             $teacher->user->update($request->only(['name', 'email', 'phone']));
             if ($request->password) {
                 $teacher->user->update(['password' => Hash::make($request->password)]);
             }
-            
+
             $teacher->update($request->only(['department_id', 'specialization', 'status']));
-            
+
             DB::commit();
             return response()->json(['success' => true, 'teacher' => $teacher->load('user')]);
         } catch (\Exception $e) {
@@ -1499,7 +1513,7 @@ class AdminController extends Controller
     {
         $teacher = Teacher::with('user')->findOrFail($teacherId);
         $user = $teacher->user;
-        
+
         DB::beginTransaction();
         try {
             $teacher->delete();
@@ -1514,7 +1528,7 @@ class AdminController extends Controller
     public function updateUserAccount(Request $request, $userId)
     {
         $user = User::findOrFail($userId);
-        
+
         $payload = [];
         if ($request->role) {
             $payload['role'] = $request->role;
@@ -1537,16 +1551,16 @@ class AdminController extends Controller
         $fileName = 'student_registry_' . date('Y-m-d_H-i') . '.csv';
 
         $headers = [
-            "Content-type"        => "text/csv",
+            "Content-type" => "text/csv",
             "Content-Disposition" => "attachment; filename=$fileName",
-            "Pragma"              => "no-cache",
-            "Cache-Control"       => "must-revalidate, post-check=0, pre-check=0",
-            "Expires"             => "0"
+            "Pragma" => "no-cache",
+            "Cache-Control" => "must-revalidate, post-check=0, pre-check=0",
+            "Expires" => "0"
         ];
 
         $columns = ['ID', 'Name', 'Email', 'Student Code', 'Major', 'Year', 'Group', 'Status'];
 
-        $callback = function() use($students, $columns) {
+        $callback = function () use ($students, $columns) {
             $file = fopen('php://output', 'w');
             fputcsv($file, $columns);
             foreach ($students as $s) {
@@ -1569,33 +1583,84 @@ class AdminController extends Controller
 
     public function importStudents(Request $request)
     {
-        $request->validate(['file' => 'required|file|mimes:csv,txt']);
+        $request->validate(['file' => 'required|file']);
         $file = $request->file('file');
         $handle = fopen($file->getRealPath(), "r");
-        $header = fgetcsv($handle, 1000, ","); // Skip header
+        $headerRow = fgetcsv($handle, 1000, ",");
+
+        if (!$headerRow) {
+            return response()->json(['error' => 'Empty CSV file.'], 400);
+        }
+
+        // Normalize headers to identify column indices dynamically
+        $headers = array_map(function ($h) {
+            return strtolower(trim($h));
+        }, $headerRow);
+
+        // Define default fallback indices
+        $nameIdx = 0;
+        $codeIdx = 1;
+        $emailIdx = 2;
+        $phoneIdx = 3;
+        $groupIdIdx = 4;
+        $majorIdIdx = 5;
+        $statusIdx = 6;
+
+        // Map column indices dynamically based on headers
+        if (in_array('name', $headers) || in_array('student_code', $headers)) {
+            $nameIdx = array_search('name', $headers) !== false ? array_search('name', $headers) : 0;
+            $codeIdx = array_search('student_code', $headers) !== false ? array_search('student_code', $headers) : 1;
+            $emailIdx = array_search('email', $headers) !== false ? array_search('email', $headers) : 2;
+            $phoneIdx = array_search('phone', $headers) !== false ? array_search('phone', $headers) : 3;
+            $groupIdIdx = array_search('group_id', $headers) !== false ? array_search('group_id', $headers) : 4;
+            $majorIdIdx = array_search('major_id', $headers) !== false ? array_search('major_id', $headers) : 5;
+            $statusIdx = array_search('status', $headers) !== false ? array_search('status', $headers) : 6;
+        }
 
         DB::beginTransaction();
         try {
             while (($data = fgetcsv($handle, 1000, ",")) !== FALSE) {
-                // name, email, student_code, group_id, major_id, year_level
-                if (count($data) < 3) continue;
+                if (count($data) < 2) {
+                    continue;
+                }
 
-                $email = !empty($data[1]) ? $data[1] : null;
+                $name = trim($data[$nameIdx] ?? '');
+                $studentCode = trim($data[$codeIdx] ?? '');
+                $email = trim($data[$emailIdx] ?? '');
+                $phone = trim($data[$phoneIdx] ?? '');
+                $groupId = trim($data[$groupIdIdx] ?? '');
+                $majorId = trim($data[$majorIdIdx] ?? '');
+                $status = trim($data[$statusIdx] ?? 'active');
+
+                if (empty($name) || empty($studentCode)) {
+                    continue;
+                }
+
+                // If email is empty, generate a unique fallback email to avoid database constraint failures
+                if (empty($email)) {
+                    $email = strtolower(str_replace(' ', '', $name)) . '.' . strtolower($studentCode) . '@university.edu';
+                }
+
+                // Check if user already exists with this email to avoid unique constraint crashes
+                $existingUser = User::where('email', $email)->first();
+                if ($existingUser) {
+                    continue;
+                }
 
                 $user = User::create([
-                    'name' => $data[0],
+                    'name' => $name,
                     'email' => $email,
+                    'phone' => !empty($phone) ? $phone : null,
                     'password' => Hash::make('student123'),
                     'role' => 'student',
                 ]);
 
                 Student::create([
                     'user_id' => $user->id,
-                    'student_code' => $data[2],
-                    'group_id' => isset($data[3]) && is_numeric($data[3]) ? $data[3] : null,
-                    'major_id' => isset($data[4]) && is_numeric($data[4]) ? $data[4] : null,
-                    'year_level' => $data[5] ?? 1,
-                    'status' => 'active',
+                    'student_code' => $studentCode,
+                    'group_id' => is_numeric($groupId) ? (int) $groupId : null,
+                    'major_id' => is_numeric($majorId) ? (int) $majorId : null,
+                    'status' => !empty($status) ? strtolower($status) : 'active',
                 ]);
             }
             DB::commit();
@@ -1614,16 +1679,16 @@ class AdminController extends Controller
         $fileName = 'academic_catalog_' . date('Y-m-d_H-i') . '.csv';
 
         $headers = [
-            "Content-type"        => "text/csv",
+            "Content-type" => "text/csv",
             "Content-Disposition" => "attachment; filename=$fileName",
-            "Pragma"              => "no-cache",
-            "Cache-Control"       => "must-revalidate, post-check=0, pre-check=0",
-            "Expires"             => "0"
+            "Pragma" => "no-cache",
+            "Cache-Control" => "must-revalidate, post-check=0, pre-check=0",
+            "Expires" => "0"
         ];
 
         $columns = ['ID', 'Subject', 'Instructor', 'Room', 'Schedule', 'Status'];
 
-        $callback = function() use($classes, $columns) {
+        $callback = function () use ($classes, $columns) {
             $file = fopen('php://output', 'w');
             fputcsv($file, $columns);
 
@@ -1674,15 +1739,15 @@ class AdminController extends Controller
 
                 // Generate N sessions using the unified generator
                 $sessionsCreated = $this->generateAcademicSessions(
-                    $class, 
-                    $year, 
-                    $semester, 
-                    $startDate, 
-                    $count, 
-                    null, 
+                    $class,
+                    $year,
+                    $semester,
+                    $startDate,
+                    $count,
+                    null,
                     null
                 );
-                
+
                 $generated += $sessionsCreated;
             }
 
@@ -1705,7 +1770,7 @@ class AdminController extends Controller
             ->get();
 
         return response()->json([
-            'success' => true, 
+            'success' => true,
             'data' => $assignments->map(fn(SemesterAssignment $a) => $this->formatAssignment($a))
         ]);
     }
@@ -1713,28 +1778,30 @@ class AdminController extends Controller
     public function storeSemesterAssignment(Request $request, $classId)
     {
         $request->validate([
-            'academic_year'  => 'required|string|max:20',
-            'semester'       => 'required|in:1,2',
-            'start_date'     => 'required|date',
-            'holiday_start'  => 'nullable|date',
-            'notes'          => 'nullable|string|max:500',
+            'academic_year' => 'required|string|max:20',
+            'semester' => 'required|in:1,2',
+            'start_date' => 'required|date',
+            'holiday_start' => 'nullable|date',
+            'notes' => 'nullable|string|max:500',
             'sessions_count' => 'nullable|integer|min:1|max:100',
-            'time_start'     => 'nullable|string',
-            'time_end'       => 'nullable|string',
+            'time_start' => 'nullable|string',
+            'time_end' => 'nullable|string',
         ]);
 
         $class = ClassRoom::findOrFail($classId);
 
-        $startDate    = \Carbon\Carbon::parse($request->start_date);
-        $endDate      = $startDate->copy()->addMonths(4);
+        $startDate = \Carbon\Carbon::parse($request->start_date);
+        $endDate = $startDate->copy()->addMonths(4);
         $holidayStart = $request->holiday_start ? \Carbon\Carbon::parse($request->holiday_start) : null;
-        $holidayEnd   = $holidayStart ? $holidayStart->copy()->addWeeks(3) : null;
+        $holidayEnd = $holidayStart ? $holidayStart->copy()->addWeeks(3) : null;
 
         // Determine status
         $now = now();
         $status = 'upcoming';
-        if ($now->between($startDate, $endDate)) $status = 'active';
-        if ($now->gt($endDate)) $status = 'completed';
+        if ($now->between($startDate, $endDate))
+            $status = 'active';
+        if ($now->gt($endDate))
+            $status = 'completed';
 
         DB::beginTransaction();
         try {
@@ -1761,7 +1828,8 @@ class AdminController extends Controller
                 $daysPart = "Mon/Wed/Fri";
                 if ($class->schedule) {
                     $parts = explode(' ', $class->schedule);
-                    if ($parts[0]) $daysPart = $parts[0];
+                    if ($parts[0])
+                        $daysPart = $parts[0];
                 }
                 $class->update([
                     'schedule' => "$daysPart ($request->time_start-$request->time_end)",
@@ -1778,12 +1846,13 @@ class AdminController extends Controller
             // 3. GENERATE SESSIONS
             $sessionsTarget = $request->sessions_count ?? 30;
             $schedStr = $class->schedule;
-            if (!$schedStr) throw new \Exception("Class schedule not defined.");
+            if (!$schedStr)
+                throw new \Exception("Class schedule not defined.");
 
             // Parse Days
             $daysMap = ['mon' => 1, 'tue' => 2, 'wed' => 3, 'thu' => 4, 'fri' => 5, 'sat' => 6, 'sun' => 0];
             $allowedDays = [];
-            
+
             // Check for explicit "weekday" or "mon-fri" keywords
             if (stripos($schedStr, 'mon-fri') !== false || stripos($schedStr, 'weekday') !== false) {
                 $allowedDays = [1, 2, 3, 4, 5];
@@ -1792,10 +1861,12 @@ class AdminController extends Controller
             } else {
                 // Otherwise, check for individual days
                 foreach ($daysMap as $dStr => $dNum) {
-                    if (stripos($schedStr, $dStr) !== false) $allowedDays[] = $dNum;
+                    if (stripos($schedStr, $dStr) !== false)
+                        $allowedDays[] = $dNum;
                 }
             }
-            if (empty($allowedDays)) $allowedDays = [1, 2, 3, 4, 5]; 
+            if (empty($allowedDays))
+                $allowedDays = [1, 2, 3, 4, 5];
 
             // GENERATE SESSIONS (Unified)
             $sessionsCreated = $this->generateAcademicSessions(
@@ -1813,7 +1884,7 @@ class AdminController extends Controller
         } catch (\Exception $e) {
             DB::rollback();
             if (str_contains($e->getMessage(), 'uniq_class_sem')) {
-                return response()->json(['error' => 'This class already has a Semester '.$request->semester.' assignment for '.$request->academic_year.'.'], 422);
+                return response()->json(['error' => 'This class already has a Semester ' . $request->semester . ' assignment for ' . $request->academic_year . '.'], 422);
             }
             return response()->json(['error' => $e->getMessage()], 500);
         }
@@ -1824,21 +1895,25 @@ class AdminController extends Controller
         $assignment = SemesterAssignment::findOrFail($assignmentId);
         $request->validate([
             'holiday_start' => 'nullable|date',
-            'notes'         => 'nullable|string|max:500',
-            'status'        => 'nullable|in:upcoming,active,completed',
+            'notes' => 'nullable|string|max:500',
+            'status' => 'nullable|in:upcoming,active,completed',
             'academic_year' => 'nullable|string',
-            'semester'      => 'nullable|integer'
+            'semester' => 'nullable|integer'
         ]);
 
         if ($request->filled('holiday_start')) {
             $holidayStart = \Carbon\Carbon::parse($request->holiday_start);
             $assignment->holiday_start = $holidayStart->toDateString();
-            $assignment->holiday_end   = $holidayStart->copy()->addWeeks(3)->toDateString();
+            $assignment->holiday_end = $holidayStart->copy()->addWeeks(3)->toDateString();
         }
-        if ($request->filled('notes')) $assignment->notes = $request->notes;
-        if ($request->filled('status')) $assignment->status = $request->status;
-        if ($request->filled('academic_year')) $assignment->academic_year = $request->academic_year;
-        if ($request->filled('semester')) $assignment->semester = $request->semester;
+        if ($request->filled('notes'))
+            $assignment->notes = $request->notes;
+        if ($request->filled('status'))
+            $assignment->status = $request->status;
+        if ($request->filled('academic_year'))
+            $assignment->academic_year = $request->academic_year;
+        if ($request->filled('semester'))
+            $assignment->semester = $request->semester;
         $assignment->save();
 
         // Sync with ClassRoom if status is active
@@ -1855,13 +1930,13 @@ class AdminController extends Controller
     public function deleteSemesterAssignment($assignmentId)
     {
         $assignment = SemesterAssignment::findOrFail($assignmentId);
-        
+
         DB::beginTransaction();
         try {
             // Purge all generated sessions for this class and semester
             \App\Models\AttendanceSession::where('class_id', $assignment->class_id)
                 ->where('academic_year', $assignment->academic_year)
-                ->where('semester', (int)$assignment->semester)
+                ->where('semester', (int) $assignment->semester)
                 ->delete();
 
             $assignment->delete();
@@ -1877,23 +1952,23 @@ class AdminController extends Controller
     {
         $fmt = fn($d) => $d ? \Carbon\Carbon::parse($d)->format('Y-m-d') : null;
         return [
-            'id'            => $a->id,
-            'class_id'      => $a->class_id,
+            'id' => $a->id,
+            'class_id' => $a->class_id,
             'academic_year' => $a->academic_year,
-            'semester'      => $a->semester,
-            'start_date'    => $fmt($a->start_date),
-            'end_date'      => $fmt($a->end_date),
+            'semester' => $a->semester,
+            'start_date' => $fmt($a->start_date),
+            'end_date' => $fmt($a->end_date),
             'holiday_start' => $fmt($a->holiday_start),
-            'holiday_end'   => $fmt($a->holiday_end),
-            'status'        => $a->status,
-            'notes'         => $a->notes,
-            'progress'      => $a->progress,
-            'active_days'   => $a->active_days,
-            'in_holiday'    => $a->in_holiday,
-            'admin_score'   => $a->admin_score,
+            'holiday_end' => $fmt($a->holiday_end),
+            'status' => $a->status,
+            'notes' => $a->notes,
+            'progress' => $a->progress,
+            'active_days' => $a->active_days,
+            'in_holiday' => $a->in_holiday,
+            'admin_score' => $a->admin_score,
             'teacher_score' => $a->teacher_score,
-            'grading_status'=> $a->grading_status,
-            'created_at'    => $a->created_at?->format('Y-m-d'),
+            'grading_status' => $a->grading_status,
+            'created_at' => $a->created_at?->format('Y-m-d'),
         ];
     }
 
@@ -1911,35 +1986,83 @@ class AdminController extends Controller
     public function getGlobalActivity(Request $request)
     {
         try {
-            $logs = ActivityLog::orderBy("id", "desc")->limit(10)->get()->map(function($log) {
+            $activity = collect();
+
+            // 1. Fetch currently active class sessions
+            $activeSessions = \App\Models\AttendanceSession::where('status', 'active')
+                ->with('classRoom.subject')
+                ->get()
+                ->map(function ($session) {
+                    return [
+                        "id" => 1000000 + $session->id,
+                        "action" => "ACTIVE",
+                        "target" => "Session " . ($session->classRoom->subject->name ?? 'Class') . " is active",
+                        "name" => "Active Class",
+                        "subject" => ($session->classRoom->subject->name ?? 'Class') . " in progress",
+                        "time" => $session->start_time ? \Carbon\Carbon::parse($session->start_time)->format("h:i A") : "Now",
+                        "type" => "active_session"
+                    ];
+                });
+            $activity = $activity->merge($activeSessions);
+
+            // 2. Fetch new admin registrations (super_admin only)
+            if ($request->user() && ($request->user()->role === 'super_admin' || $request->user()->isSuperAdmin())) {
+                $pendingAdmins = \App\Models\User::where('role', 'admin')
+                    ->where('is_approved', false)
+                    ->orderBy('id', 'desc')
+                    ->get()
+                    ->map(function ($u) {
+                        return [
+                            "id" => 2000000 + $u->id,
+                            "action" => "REGISTERED",
+                            "target" => "New admin " . $u->name . " registered",
+                            "name" => "Admin Register",
+                            "subject" => $u->name . " is pending approval",
+                            "time" => $u->created_at ? $u->created_at->format("h:i A") : "Just now",
+                            "type" => "new_admin"
+                        ];
+                    });
+                $activity = $activity->merge($pendingAdmins);
+            }
+
+            // 3. Fetch recent system activity logs
+            $logs = ActivityLog::orderBy("id", "desc")->limit(10)->get()->map(function ($log) {
                 return [
                     "id" => $log->id,
                     "action" => $log->action,
                     "target" => $log->target,
+                    "name" => $log->action . " Log",
+                    "subject" => $log->target,
                     "time" => $log->created_at->format("h:i A"),
                     "type" => "system"
                 ];
             });
+            $activity = $activity->merge($logs);
 
-            if ($logs->isNotEmpty()) {
-                return response()->json(["success" => true, "activity" => $logs]);
+            // 4. Fallback to recent attendances if activity is still empty
+            if ($activity->isEmpty()) {
+                $newAttendances = \App\Models\Attendance::with(["student.user", "session.classRoom.subject"])
+                    ->orderBy("id", "desc")
+                    ->limit(10)
+                    ->get()
+                    ->map(function ($att) {
+                        return [
+                            "id" => $att->id,
+                            "action" => "INSERT",
+                            "target" => ($att->student && $att->student->user ? $att->student->user->name : "Unknown") . " @ " . ($att->session && $att->session->classRoom && $att->session->classRoom->subject ? $att->session->classRoom->subject->name : "Unknown"),
+                            "name" => ($att->student && $att->student->user ? $att->student->user->name : "Unknown"),
+                            "subject" => "Checked in to " . ($att->session && $att->session->classRoom && $att->session->classRoom->subject ? $att->session->classRoom->subject->name : "Unknown"),
+                            "time" => $att->created_at->format("h:i A"),
+                            "type" => "attendance"
+                        ];
+                    });
+                $activity = $activity->merge($newAttendances);
             }
 
-            $newAttendances = \App\Models\Attendance::with(["student.user", "session.classRoom.subject"])
-                ->orderBy("id", "desc")
-                ->limit(10)
-                ->get()
-                ->map(function($att) {
-                    return [
-                        "id" => $att->id,
-                        "action" => "INSERT",
-                        "target" => ($att->student && $att->student->user ? $att->student->user->name : "Unknown") . " @ " . ($att->session && $att->session->classRoom && $att->session->classRoom->subject ? $att->session->classRoom->subject->name : "Unknown"),
-                        "time" => $att->created_at->format("h:i A"),
-                        "type" => "attendance"
-                    ];
-                });
-            
-            return response()->json(["success" => true, "activity" => $newAttendances]);
+            // Return sorted by ID descending to keep order correct
+            $sortedActivity = $activity->sortByDesc('id')->values()->take(10);
+
+            return response()->json(["success" => true, "activity" => $sortedActivity]);
         } catch (\Exception $e) {
             return response()->json(["error" => $e->getMessage()], 500);
         }
