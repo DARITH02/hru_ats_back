@@ -16,6 +16,7 @@ use App\Models\Attendance;
 use App\Models\SemesterAssignment;
 use App\Models\Major;
 use App\Models\ClassGroup;
+use App\Services\SemesterAttendanceScoreService;
 use Illuminate\Support\Facades\Hash;
 use DB;
 
@@ -647,17 +648,11 @@ class AdminController extends Controller
             ->where('academic_year', $assignment->academic_year)
             ->where('semester', (int) $assignment->semester)
             ->get();
-        $sessionIds = $sessions->pluck('id');
-        $totalSessions = $sessionIds->count();
+        $totalSessions = $sessions->count();
+        $attendanceScores = app(SemesterAttendanceScoreService::class);
 
-        $studentStats = $students->map(function ($student) use ($sessionIds, $totalSessions, $assignment) {
-            $attended = \App\Models\Attendance::where('student_id', $student->id)
-                ->whereIn('session_id', $sessionIds)
-                ->whereIn('status', ['present', 'late', 'PRESENT', 'LATE'])
-                ->count();
-
-            $attScore = $totalSessions > 0 ? round(($attended / $totalSessions) * 20, 2) : 0;
-
+        $studentStats = $students->map(function ($student) use ($sessions, $assignment, $attendanceScores) {
+            $attendanceResult = $attendanceScores->calculate($student->id, $sessions);
             $saved = \DB::table('semester_assignment_scores')
                 ->where('assignment_id', $assignment->id)
                 ->where('student_id', $student->id)
@@ -671,11 +666,13 @@ class AdminController extends Controller
                 'id' => $student->id,
                 'name' => $student->user->name ?? 'Unknown',
                 'code' => $student->student_code,
-                'att_score' => $attScore,
+                'att_score' => $attendanceResult['score'],
+                'attended' => $attendanceResult['attended_sessions'],
+                'permission_sessions' => $attendanceResult['permission_sessions'],
                 'midterm' => $midterm,
                 'assignment' => $asgn,
                 'final' => $final,
-                'total' => round($attScore + $midterm + $asgn + $final, 2)
+                'total' => round($attendanceResult['score'] + $midterm + $asgn + $final, 2)
             ];
         });
 
@@ -698,13 +695,21 @@ class AdminController extends Controller
             'scores.*.notes' => 'nullable|string'
         ]);
 
+        $assignment = SemesterAssignment::findOrFail($assignmentId);
+        $sessions = AttendanceSession::where('class_id', $assignment->class_id)
+            ->where('academic_year', $assignment->academic_year)
+            ->where('semester', (int) $assignment->semester)
+            ->get();
+        $attendanceScores = app(SemesterAttendanceScoreService::class);
+
         foreach ($request->scores as $s) {
-            $total = ($s['attendance_score'] ?? 0) + ($s['midterm_score'] ?? 0) + ($s['assignment_score'] ?? 0) + ($s['final_score'] ?? 0);
+            $attendanceScore = $attendanceScores->calculate((int) $s['student_id'], $sessions)['score'];
+            $total = $attendanceScore + ($s['midterm_score'] ?? 0) + ($s['assignment_score'] ?? 0) + ($s['final_score'] ?? 0);
 
             \DB::table('semester_assignment_scores')->updateOrInsert(
                 ['assignment_id' => $assignmentId, 'student_id' => $s['student_id']],
                 [
-                    'attendance_score' => $s['attendance_score'] ?? 0,
+                    'attendance_score' => $attendanceScore,
                     'midterm_score' => $s['midterm_score'] ?? 0,
                     'assignment_score' => $s['assignment_score'] ?? 0,
                     'final_score' => $s['final_score'] ?? 0,
@@ -737,21 +742,16 @@ class AdminController extends Controller
             ->where('academic_year', $assignment->academic_year)
             ->where('semester', (int) $assignment->semester)
             ->get();
-        $sessionIds = $sessions->pluck('id');
-        $totalSessions = $sessionIds->count();
+        $totalSessions = $sessions->count();
+        $attendanceScores = app(SemesterAttendanceScoreService::class);
 
-        $data = $students->map(function ($student) use ($sessionIds, $totalSessions, $assignment) {
-            $attended = \App\Models\Attendance::where('student_id', $student->id)
-                ->whereIn('session_id', $sessionIds)
-                ->whereIn('status', ['present', 'late', 'PRESENT', 'LATE'])
-                ->count();
-
+        $data = $students->map(function ($student) use ($sessions, $assignment, $attendanceScores) {
+            $attendanceResult = $attendanceScores->calculate($student->id, $sessions);
             $savedScore = \DB::table('semester_assignment_scores')
                 ->where('assignment_id', $assignment->id)
                 ->where('student_id', $student->id)
                 ->first();
 
-            $attScore = $totalSessions > 0 ? round(($attended / $totalSessions) * 20, 2) : 0;
             $midterm = $savedScore->midterm_score ?? 0;
             $assignment_score = $savedScore->assignment_score ?? 0;
             $final = $savedScore->final_score ?? 0;
@@ -759,12 +759,13 @@ class AdminController extends Controller
             return [
                 'name' => $student->user->name ?? 'Unknown',
                 'code' => $student->student_code,
-                'rate' => $totalSessions > 0 ? round(($attended / $totalSessions) * 100, 1) : 0,
-                'att_score' => $attScore,
+                'rate' => $attendanceResult['rate'],
+                'att_score' => $attendanceResult['score'],
+                'permission_sessions' => $attendanceResult['permission_sessions'],
                 'midterm' => $midterm,
                 'assignment' => $assignment_score,
                 'final' => $final,
-                'total' => round($attScore + $midterm + $assignment_score + $final, 2)
+                'total' => round($attendanceResult['score'] + $midterm + $assignment_score + $final, 2)
             ];
         });
 
@@ -806,29 +807,25 @@ class AdminController extends Controller
             ->where('academic_year', $assignment->academic_year)
             ->where('semester', (int) $assignment->semester)
             ->get();
-        $sessionIds = $sessions->pluck('id');
 
-        $columns = ['Student ID', 'Name', 'Group', 'Attended', 'Total Sessions', 'Rate %', 'Score'];
+        $columns = ['Student ID', 'Name', 'Group', 'Attended', 'Permission', 'Total Sessions', 'Rate %', 'Score'];
 
-        $callback = function () use ($students, $sessionIds, $columns, $assignment) {
+        $callback = function () use ($students, $sessions, $columns, $assignment) {
+            $attendanceScores = app(SemesterAttendanceScoreService::class);
             $file = fopen('php://output', 'w');
             fputcsv($file, $columns);
 
             foreach ($students as $student) {
-                $attended = \App\Models\Attendance::where('student_id', $student->id)
-                    ->whereIn('session_id', $sessionIds)
-                    ->whereIn('status', ['present', 'late', 'PRESENT', 'LATE'])
-                    ->count();
-                $total = $sessionIds->count();
-                $rate = $total > 0 ? round(($attended / $total) * 100) : 0;
+                $attendanceResult = $attendanceScores->calculate($student->id, $sessions);
 
                 fputcsv($file, [
                     $student->student_code,
                     $student->user->name ?? 'Unknown',
                     $student->group->name ?? 'N/A',
-                    $attended,
-                    $total,
-                    $rate . '%',
+                    $attendanceResult['attended_sessions'],
+                    $attendanceResult['permission_sessions'],
+                    $sessions->count(),
+                    $attendanceResult['rate'] . '%',
                     $assignment->admin_score // Course overall score
                 ]);
             }
@@ -1014,23 +1011,47 @@ class AdminController extends Controller
             $allStudents = Student::with('user')->whereIn('group_id', $groupIds)->get();
         }
 
-        $rows = $allStudents->map(function ($student) use ($attendances) {
+        // Fetch active permissions for the session date
+        $sessionDate = \Carbon\Carbon::parse($session->start_time)->toDateString();
+        $permissions = \App\Models\StudentPermission::where('start_date', '<=', $sessionDate)
+            ->where('end_date', '>=', $sessionDate)
+            ->whereIn('student_id', $allStudents->pluck('id'))
+            ->get()
+            ->keyBy('student_id');
+
+        $excusedCount = 0;
+        $rows = $allStudents->map(function ($student) use ($attendances, $permissions, &$excusedCount) {
             $att = $attendances->get($student->id);
+            $perm = $permissions->get($student->id);
+
+            $status = 'ABSENT';
+            if ($att) {
+                $status = strtoupper($att->status);
+            } elseif ($perm) {
+                $status = 'EXCUSED';
+                $excusedCount++;
+            }
+
             return [
                 'id' => $student->id,
                 'attendance_id' => $att?->id,
                 'name' => $student->user->name ?? 'Unknown Student',
                 'student_code' => $student->student_code,
-                'status' => $att ? strtoupper($att->status) : 'ABSENT',
+                'status' => $status,
+                'permission_reason' => $perm ? $perm->reason : null,
+                'permission_type' => $perm ? $perm->type : null,
                 'check_in_time' => $att && $att->scan_time ? \Carbon\Carbon::parse($att->scan_time)->format('H:i') : '—',
                 'method' => $att ? strtoupper($att->method) : '—',
             ];
         });
 
+        $presentCount = $attendances->whereIn('status', ['present', 'late', 'PRESENT', 'LATE'])->count();
+
         return response()->json([
             'success' => true,
             'session_name' => $session->classRoom->subject->name ?? 'N/A',
-            'present_count' => $attendances->whereIn('status', ['present', 'late', 'PRESENT', 'LATE'])->count(),
+            'present_count' => $presentCount,
+            'excused_count' => $excusedCount,
             'total_count' => $allStudents->count(),
             'data' => $rows
         ]);
@@ -1306,13 +1327,28 @@ class AdminController extends Controller
                 ->where('session_id', $session->id)
                 ->first();
 
+            // Check for active permission on this session's date
+            $sessionDate = \Carbon\Carbon::parse($session->start_time)->toDateString();
+            $perm = \App\Models\StudentPermission::where('student_id', $studentId)
+                ->where('start_date', '<=', $sessionDate)
+                ->where('end_date', '>=', $sessionDate)
+                ->first();
+
+            $status = 'ABSENT';
+            if ($att) {
+                $status = strtoupper($att->status);
+            } elseif ($perm) {
+                $status = 'EXCUSED';
+            }
+
             return [
                 'id' => $session->id,
                 'subject' => $session->classRoom->subject->name ?? 'N/A',
                 'date' => \Carbon\Carbon::parse($session->start_time)->format('M d, Y'),
                 'time' => $att && $att->scan_time ? \Carbon\Carbon::parse($att->scan_time)->format('H:i') : '—',
-                'status' => $att ? strtoupper($att->status) : 'ABSENT',
+                'status' => $status,
                 'method' => $att ? strtoupper($att->method ?? 'QR') : '—',
+                'permission_reason' => $perm ? $perm->reason : null,
             ];
         });
 

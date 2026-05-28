@@ -42,7 +42,7 @@ class DashboardController extends Controller
                 $isLive = $now->between($session->start_time, $session->end_time);
                 $isDone = $now > $session->end_time;
 
-                $totalInClass = $session->classRoom->students()->count();
+                $totalInClass = $session->classRoom?->all_students->count() ?? 0;
                 $attendedInSession = $session->attendanceRecords()->whereIn('status', ['present', 'late'])->count();
                 $progress = $totalInClass > 0 ? ($attendedInSession / $totalInClass) * 100 : 0;
 
@@ -59,7 +59,7 @@ class DashboardController extends Controller
 
         // 3. Selection of Active Session (Manual or Auto)
         $sessionId = $request->query('session_id');
-        $activeSessionQuery = AttendanceSession::with(['classRoom.subject', 'classRoom.students.user', 'attendanceRecords.student.user']);
+        $activeSessionQuery = AttendanceSession::with(['classRoom.subject', 'classRoom.groups', 'attendanceRecords.student.user']);
 
         if ($sessionId) {
             $activeSession = $activeSessionQuery->find($sessionId);
@@ -75,20 +75,19 @@ class DashboardController extends Controller
         if ($activeSession) {
             $sessionAttendance = $activeSession->attendanceRecords->keyBy('student_id');
             $sessionScanCount = $sessionAttendance->where('method', 'qr')->count();
+            $sessionDate = Carbon::parse($activeSession->start_time)->toDateString();
+            $allStudents = $activeSession->classRoom?->all_students ?? collect();
+            if (method_exists($allStudents, 'load')) {
+                $allStudents->load(['user', 'group.major', 'major']);
+            }
 
-            // Get active permissions for today for students in this class
+            // Get active permissions for this session date for students in this class.
             $activePermissions = \App\Models\StudentPermission::with('student.user')
-                ->where('start_date', '<=', now()->toDateString())
-                ->where('end_date', '>=', now()->toDateString())
-                ->whereHas('student', function ($q) use ($activeSession) {
-                    $groupIds = $activeSession->classRoom->groups->pluck('id');
-                    $q->whereIn('group_id', $groupIds);
-                })
+                ->where('start_date', '<=', $sessionDate)
+                ->where('end_date', '>=', $sessionDate)
+                ->whereIn('student_id', $allStudents->pluck('id'))
                 ->get()
                 ->keyBy('student_id');
-
-            $groupIds = $activeSession->classRoom->groups->pluck('id');
-            $allStudents = \App\Models\Student::with(['user', 'group.major', 'major'])->whereIn('group_id', $groupIds)->get();
 
             $activeStudents = $allStudents->map(function ($student) use ($sessionAttendance, $activePermissions) {
                 $att = $sessionAttendance->get($student->id);
@@ -164,8 +163,23 @@ class DashboardController extends Controller
                     ->whereIn('session_id', $sessionIds)
                     ->whereIn('status', ['present', 'late', 'excused', 'PRESENT', 'LATE', 'EXCUSED'])
                     ->count();
+                $attendedSessionIds = Attendance::where('student_id', $student->id)
+                    ->whereIn('session_id', $sessionIds)
+                    ->whereIn('status', ['present', 'late', 'excused', 'PRESENT', 'LATE', 'EXCUSED'])
+                    ->pluck('session_id');
+                $excusedCount = AttendanceSession::whereIn('id', $sessionIds->diff($attendedSessionIds))
+                    ->get()
+                    ->filter(function ($session) use ($student) {
+                        $sessionDate = Carbon::parse($session->start_time)->toDateString();
+
+                        return \App\Models\StudentPermission::where('student_id', $student->id)
+                            ->where('start_date', '<=', $sessionDate)
+                            ->where('end_date', '>=', $sessionDate)
+                            ->exists();
+                    })
+                    ->count();
                 
-                $absentCount = max(0, $totalSessions - $attendedCount);
+                $absentCount = max(0, $totalSessions - $attendedCount - $excusedCount);
                 $rate = ($absentCount / $totalSessions) * 100;
                 
                 return [
@@ -197,8 +211,23 @@ class DashboardController extends Controller
                 $actualAttendances = Attendance::whereIn('session_id', $sessions)
                     ->whereIn('status', ['present', 'late', 'excused', 'PRESENT', 'LATE', 'EXCUSED'])
                     ->count();
+                $attendedBySession = Attendance::whereIn('session_id', $sessions)
+                    ->whereIn('status', ['present', 'late', 'excused', 'PRESENT', 'LATE', 'EXCUSED'])
+                    ->get()
+                    ->groupBy('session_id');
+                $excusedCount = AttendanceSession::whereIn('id', $sessions)
+                    ->get()
+                    ->sum(function ($session) use ($class, $attendedBySession) {
+                        $attendedStudentIds = $attendedBySession->get($session->id, collect())->pluck('student_id');
+                        $sessionDate = Carbon::parse($session->start_time)->toDateString();
+
+                        return \App\Models\StudentPermission::where('start_date', '<=', $sessionDate)
+                            ->where('end_date', '>=', $sessionDate)
+                            ->whereIn('student_id', $class->all_students->pluck('id')->diff($attendedStudentIds))
+                            ->count();
+                    });
                 
-                $absences = max(0, $totalPossibleAttendances - $actualAttendances);
+                $absences = max(0, $totalPossibleAttendances - $actualAttendances - $excusedCount);
                 $absenceRate = $totalPossibleAttendances > 0 ? ($absences / $totalPossibleAttendances) * 100 : 0;
 
                 return [
@@ -244,8 +273,30 @@ class DashboardController extends Controller
             $totalPresent = Attendance::whereIn('session_id', $sessions)
                 ->whereIn('status', ['present', 'late', 'excused', 'PRESENT', 'LATE', 'EXCUSED'])
                 ->count();
+            $attendedBySession = Attendance::whereIn('session_id', $sessions)
+                ->whereIn('status', ['present', 'late', 'excused', 'PRESENT', 'LATE', 'EXCUSED'])
+                ->get()
+                ->groupBy('session_id');
+            $excusedCount = AttendanceSession::with('classRoom.groups')
+                ->whereIn('id', $sessions)
+                ->get()
+                ->sum(function ($session) use ($year, $attendedBySession) {
+                    $attendedStudentIds = $attendedBySession->get($session->id, collect())->pluck('student_id');
+                    $sessionDate = Carbon::parse($session->start_time)->toDateString();
+                    $studentIds = Student::whereHas('group', function ($q) use ($year) {
+                            $q->where('year_level', $year);
+                        })
+                        ->whereIn('group_id', $session->classRoom?->groups->pluck('id') ?? collect())
+                        ->pluck('id')
+                        ->diff($attendedStudentIds);
 
-            $stats[$year] = $totalPossible > 0 ? round(($totalPresent / $totalPossible) * 100) : 0;
+                    return \App\Models\StudentPermission::where('start_date', '<=', $sessionDate)
+                        ->where('end_date', '>=', $sessionDate)
+                        ->whereIn('student_id', $studentIds)
+                        ->count();
+                });
+
+            $stats[$year] = $totalPossible > 0 ? round((($totalPresent + $excusedCount) / $totalPossible) * 100) : 0;
         }
 
         return $stats;
@@ -288,7 +339,7 @@ class DashboardController extends Controller
         $classes = ClassRoom::where('teacher_id', $teacher->id)
             ->with([
                 'subject',
-                'students',
+                'groups',
                 'sessions' => function ($q) {
                     $q->withCount('attendanceRecords')->orderBy('start_time', 'desc');
                 }
@@ -298,7 +349,10 @@ class DashboardController extends Controller
         $classIds = $classes->pluck('id');
 
         // Aggregate stats
-        $totalStudents = \App\Models\Student::whereIn('class_id', $classIds)->count();
+        $totalStudents = $classes
+            ->flatMap(fn($class) => $class->all_students->pluck('id'))
+            ->unique()
+            ->count();
         $totalSessions = AttendanceSession::whereIn('class_id', $classIds)->count();
         $totalPossible = $totalSessions * max(1, $totalStudents);
         $totalAttended = \App\Models\Attendance::whereHas('session', fn($q) => $q->whereIn('class_id', $classIds))
@@ -331,14 +385,14 @@ class DashboardController extends Controller
         if ($selectedSessionId) {
             $selectedSession = AttendanceSession::with([
                 'classRoom.subject',
-                'classRoom.students.user',
+                'classRoom.groups',
                 'attendanceRecords.student.user'
             ])->find($selectedSessionId);
         } elseif ($allSessions->where('status', 'active')->isNotEmpty()) {
             // Auto-select the active session for the monitor view
             $selectedSession = AttendanceSession::with([
                 'classRoom.subject',
-                'classRoom.students.user',
+                'classRoom.groups',
                 'attendanceRecords.student.user'
             ])->find($allSessions->where('status', 'active')->first()->id);
         }

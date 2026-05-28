@@ -18,6 +18,7 @@ use App\Models\Attendance;
 use CloudinaryLabs\CloudinaryLaravel\Facades\Cloudinary;
 use Illuminate\Support\Facades\Log;
 use Maatwebsite\Excel\Facades\Excel;
+use App\Services\SemesterAttendanceScoreService;
 use App\Services\TelegramService;
 
 class AdminController extends Controller
@@ -216,16 +217,10 @@ class AdminController extends Controller
         $sessionIds = $sessions->pluck('id');
         $totalSessions = $sessionIds->count();
         $scheduledCount = $sessions->where('status', 'scheduled')->count();
+        $attendanceScores = app(SemesterAttendanceScoreService::class);
 
-        $studentData = $students->map(function ($student) use ($sessionIds, $totalSessions, $assignment) {
-            $attended = \App\Models\Attendance::where('student_id', $student->id)
-                ->whereIn('session_id', $sessionIds)
-                ->whereIn('status', ['present', 'late', 'PRESENT', 'LATE'])
-                ->count();
-            $rate = $totalSessions > 0 ? round(($attended / $totalSessions) * 100) : 0;
-
-            // 🤖 Auto-calculate Attendance Score (max 20)
-            $attendanceScore = $totalSessions > 0 ? round(($attended / $totalSessions) * 20, 2) : 0;
+        $studentData = $students->map(function ($student) use ($sessions, $assignment, $attendanceScores) {
+            $attendanceResult = $attendanceScores->calculate($student->id, $sessions);
 
             $midterm = 0;
             $assignment_val = 0;
@@ -243,16 +238,17 @@ class AdminController extends Controller
                 $final = $savedScore->final_score ?? 0;
 
                 // Total = 20 (Att) + 15 (Mid) + 15 (Asgn) + 50 (Final)
-                $total = $attendanceScore + $midterm + $assignment_val + $final;
+                $total = $attendanceResult['score'] + $midterm + $assignment_val + $final;
             }
 
             return [
                 'id' => $student->id,
                 'name' => $student->user->name ?? 'Unknown',
                 'code' => $student->student_code,
-                'attended' => $attended,
-                'rate' => $rate,
-                'att_score' => $attendanceScore,
+                'attended' => $attendanceResult['attended_sessions'],
+                'permission_sessions' => $attendanceResult['permission_sessions'],
+                'rate' => $attendanceResult['rate'],
+                'att_score' => $attendanceResult['score'],
                 'midterm' => $midterm,
                 'assignment' => $assignment_val,
                 'final' => $final,
@@ -266,11 +262,17 @@ class AdminController extends Controller
         $attendanceGrid = [];
         foreach ($students as $student) {
             $studentAttendance = [];
+            $studentPermissions = \App\Models\StudentPermission::where('student_id', $student->id)->get();
             foreach ($sessions as $session) {
                 $record = \App\Models\Attendance::where('student_id', $student->id)
                     ->where('session_id', $session->id)
                     ->first();
-                $studentAttendance[$session->id] = $record ? strtolower($record->status) : 'absent';
+                $sessionDate = \Carbon\Carbon::parse($session->start_time)->toDateString();
+                $hasPermission = $studentPermissions->contains(function ($permission) use ($sessionDate) {
+                    return $permission->start_date <= $sessionDate && $permission->end_date >= $sessionDate;
+                });
+
+                $studentAttendance[$session->id] = $record ? strtolower($record->status) : ($hasPermission ? 'excused' : 'absent');
             }
             $attendanceGrid[$student->id] = $studentAttendance;
         }

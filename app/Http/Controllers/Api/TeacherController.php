@@ -10,6 +10,7 @@ use App\Models\Teacher;
 use App\Models\Attendance;
 use App\Models\SemesterAssignment;
 use Carbon\Carbon;
+use App\Services\SemesterAttendanceScoreService;
 use App\Services\TelegramService;
 
 class TeacherController extends Controller
@@ -145,11 +146,26 @@ class TeacherController extends Controller
 
         $sessionsCount = AttendanceSession::where('class_id', $session->class_id)->count();
 
-        $rows = $allStudents->map(function ($student) use ($attendances) {
+        $sessionDate = Carbon::parse($session->start_time)->toDateString();
+        $permissions = \App\Models\StudentPermission::where('start_date', '<=', $sessionDate)
+            ->where('end_date', '>=', $sessionDate)
+            ->whereIn('student_id', $allStudents->pluck('id'))
+            ->get()
+            ->keyBy('student_id');
+
+        $rows = $allStudents->map(function ($student) use ($attendances, $permissions) {
             $att = $attendances->get($student->id);
+            $perm = $permissions->get($student->id);
             $userName = $student->user->name ?? 'Unknown Student';
             $names = explode(' ', $userName);
             $initials = (isset($names[0]) ? substr($names[0], 0, 1) : '') . (isset($names[1]) ? substr($names[1], 0, 1) : '');
+            
+            $status = 'ABSENT';
+            if ($att) {
+                $status = strtoupper($att->status);
+            } elseif ($perm) {
+                $status = 'EXCUSED';
+            }
             
             return [
                 'id' => $student->id,
@@ -157,17 +173,23 @@ class TeacherController extends Controller
                 'initials' => strtoupper($initials),
                 'name' => $userName,
                 'student_code' => $student->student_code,
-                'status' => $att ? strtoupper($att->status) : 'ABSENT',
+                'status' => $status,
+                'permission_reason' => $perm ? $perm->reason : null,
+                'permission_type' => $perm ? $perm->type : null,
                 'check_in_time' => $att && $att->scan_time ? Carbon::parse($att->scan_time)->format('H:i') : '—',
                 'method' => $att ? strtoupper($att->method) : '—',
                 'avatar_color' => '#' . substr(md5($student->user_id), 0, 6)
             ];
         });
 
+        $excusedCount = $permissions->count();
+        $presentCount = $attendances->whereIn('status', ['present', 'late', 'PRESENT', 'LATE'])->count();
+
         return response()->json([
             'session_name' => $session->classRoom->subject->name,
             'sessions_count' => $sessionsCount,
-            'present_count' => $attendances->whereIn('status', ['present', 'late', 'PRESENT', 'LATE'])->count(),
+            'present_count' => $presentCount,
+            'excused_count' => $excusedCount,
             'total_count' => $allStudents->count(),
             'data' => $rows
         ]);
@@ -455,7 +477,7 @@ class TeacherController extends Controller
 
         $data = ['status' => $status];
         
-        // 🚀 Logic Fix: If manually activating a session that is technically past its end time,
+        //  Logic Fix: If manually activating a session that is technically past its end time,
         // we extend the end time by 60 minutes. This prevents the auto-sync logic
         // from immediately switching it back to 'completed' on the next refresh.
         if ($status === 'active' && now()->gt($session->end_time)) {
@@ -544,16 +566,26 @@ class TeacherController extends Controller
             ->get();
 
         $attendance = Attendance::where('student_id', $student->id)->get()->keyBy('session_id');
+        $studentPermissions = \App\Models\StudentPermission::where('student_id', $student->id)->get();
 
-        $history = $sessions->map(function ($session) use ($attendance) {
+        $history = $sessions->map(function ($session) use ($attendance, $studentPermissions) {
             $record = $attendance->get($session->id);
             $status = 'ABSENT';
             $isFuture = Carbon::parse($session->start_time)->isFuture();
 
             if ($record) {
                 $status = strtoupper($record->status);
-            } elseif ($session->status === 'scheduled' || $isFuture) {
-                $status = 'SCHEDULED';
+            } else {
+                $sessionDate = Carbon::parse($session->start_time)->toDateString();
+                $hasPerm = $studentPermissions->contains(function($p) use ($sessionDate) {
+                    return $p->start_date <= $sessionDate && $p->end_date >= $sessionDate;
+                });
+                
+                if ($hasPerm) {
+                    $status = 'EXCUSED';
+                } elseif ($session->status === 'scheduled' || $isFuture) {
+                    $status = 'SCHEDULED';
+                }
             }
 
             return [
@@ -568,6 +600,16 @@ class TeacherController extends Controller
 
         $totalSessions = $sessions->count();
         $attendedCount = $attendance->whereIn('status', ['present', 'late', 'PRESENT', 'LATE'])->count();
+        
+        // Count excused sessions
+        $excusedCount = $sessions->filter(function($session) use ($attendance, $studentPermissions) {
+            if ($attendance->has($session->id)) return false;
+            $sessionDate = Carbon::parse($session->start_time)->toDateString();
+            return $studentPermissions->contains(function($p) use ($sessionDate) {
+                return $p->start_date <= $sessionDate && $p->end_date >= $sessionDate;
+            });
+        })->count();
+
         $rate = $totalSessions > 0 ? round(($attendedCount / $totalSessions) * 100) : 0;
 
         return response()->json([
@@ -576,7 +618,8 @@ class TeacherController extends Controller
             'stats' => [
                 'total_sessions' => $totalSessions,
                 'attended_count' => $attendedCount,
-                'absent_count' => $totalSessions - $attendedCount,
+                'excused_count' => $excusedCount,
+                'absent_count' => max(0, $totalSessions - $attendedCount - $excusedCount),
                 'attendance_rate' => $rate,
             ],
             'history' => $history
@@ -607,9 +650,18 @@ class TeacherController extends Controller
                 ];
             });
 
+        $sessionDate = Carbon::parse($session->start_time)->toDateString();
+        $groupIds = $session->classRoom ? $session->classRoom->groups->pluck('id') : collect();
+        $studentIds = \App\Models\Student::whereIn('group_id', $groupIds)->pluck('id');
+        $excusedCount = \App\Models\StudentPermission::where('start_date', '<=', $sessionDate)
+            ->where('end_date', '>=', $sessionDate)
+            ->whereIn('student_id', $studentIds)
+            ->count();
+
         $stats = [
             'present_count' => Attendance::where('session_id', $sessionId)->whereIn('status', ['present', 'late', 'PRESENT', 'LATE'])->count(),
-            'total_students' => $session->classRoom ? \App\Models\Student::whereIn('group_id', $session->classRoom->groups->pluck('id'))->count() : 0,
+            'excused_count' => $excusedCount,
+            'total_students' => $studentIds->count(),
         ];
 
         return response()->json([
@@ -653,8 +705,7 @@ class TeacherController extends Controller
             ->where('academic_year', $assignment->academic_year)
             ->where('semester', (int)$assignment->semester)
             ->get();
-        $sessionIds = $sessions->pluck('id');
-        $totalSessions = $sessionIds->count();
+        $attendanceScores = app(SemesterAttendanceScoreService::class);
 
         $students = $class->all_students;
 
@@ -663,18 +714,15 @@ class TeacherController extends Controller
             ->get()
             ->keyBy('student_id');
 
-        $scores = $students->map(function ($student) use ($sessionIds, $totalSessions, $savedScores) {
-            $attended = \App\Models\Attendance::where('student_id', $student->id)
-                ->whereIn('session_id', $sessionIds)
-                ->whereIn('status', ['present', 'late', 'PRESENT', 'LATE'])
-                ->count();
-            
-            $attScore = $totalSessions > 0 ? round(($attended / $totalSessions) * 20, 2) : 0;
+        $scores = $students->map(function ($student) use ($sessions, $savedScores, $attendanceScores) {
+            $attendanceResult = $attendanceScores->calculate($student->id, $sessions);
             $saved = $savedScores->get($student->id);
 
             return [
                 'student_id' => $student->id,
-                'attendance_score' => $attScore,
+                'attendance_score' => $attendanceResult['score'],
+                'attended_sessions' => $attendanceResult['attended_sessions'],
+                'permission_sessions' => $attendanceResult['permission_sessions'],
                 'midterm_score' => $saved->midterm_score ?? null,
                 'assignment_score' => $saved->assignment_score ?? null,
                 'final_score' => $saved->final_score ?? null,
@@ -697,9 +745,14 @@ class TeacherController extends Controller
         ]);
 
         $assignment = SemesterAssignment::findOrFail($assignmentId);
+        $sessions = AttendanceSession::where('class_id', $assignment->class_id)
+            ->where('academic_year', $assignment->academic_year)
+            ->where('semester', (int) $assignment->semester)
+            ->get();
+        $attendanceScores = app(SemesterAttendanceScoreService::class);
         
         foreach ($request->scores as $s) {
-            $attendance = $s['attendance_score'] ?? 0;
+            $attendance = $attendanceScores->calculate((int) $s['student_id'], $sessions)['score'];
             $midterm = $s['midterm_score'] ?? 0;
             $assignment_score = $s['assignment_score'] ?? 0;
             $final = $s['final_score'] ?? 0;

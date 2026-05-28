@@ -3745,6 +3745,11 @@
                                     </div>
                                     <div style="width:1px; background:var(--border)"></div>
                                     <div>
+                                        <div style="font-family:var(--font-mono); font-size:8px; color:var(--muted); text-transform:uppercase; margin-bottom:2px">EXCUSED</div>
+                                        <div style="font-family:var(--font-display); font-size:18px; font-weight:800; color:var(--accent)">${data.excused_count || 0}</div>
+                                    </div>
+                                    <div style="width:1px; background:var(--border)"></div>
+                                    <div>
                                         <div style="font-family:var(--font-mono); font-size:8px; color:var(--muted); text-transform:uppercase; margin-bottom:2px">EFFICIENCY</div>
                                         <div style="font-family:var(--font-display); font-size:18px; font-weight:800; color:var(--green)">${data.total_count > 0 ? Math.round((data.present_count / data.total_count) * 100) : 0}%</div>
                                     </div>
@@ -3752,17 +3757,19 @@
 
                 list.innerHTML = data.data.map(row => {
                     const isPresent = row.status === 'PRESENT' || row.status === 'LATE';
-                    const statusClr = isPresent ? (row.status === 'LATE' ? 'var(--amber)' : 'var(--green)') : 'var(--red)';
+                    const isExcused = row.status === 'EXCUSED';
+                    const statusClr = isPresent ? (row.status === 'LATE' ? 'var(--amber)' : 'var(--green)') : (isExcused ? 'var(--accent)' : 'var(--red)');
 
                     return `
                                         <div style="display:flex; align-items:center; justify-content:space-between; padding:10px 0; border-bottom:1px solid var(--border)44; cursor:pointer" onmouseover="this.style.background='var(--surface3)'; this.querySelector('.s-name').style.color='var(--accent)'" onmouseout="this.style.background='transparent'; this.querySelector('.s-name').style.color='var(--text)'" onclick="openStudentRecordModal(${row.id})">
                                             <div style="display:flex; align-items:center; gap:12px">
-                                                <div style="width:32px; height:32px; border-radius:50%; background:var(--surface3); color:var(--muted); display:flex; align-items:center; justify-content:center; font-weight:800; font-size:11px">
+                                                <div style="width:32px; height:32px; border-radius:50%; background:${statusClr}15; color:${statusClr}; display:flex; align-items:center; justify-content:center; font-weight:800; font-size:11px">
                                                     ${row.name.charAt(0)}
                                                 </div>
                                                 <div>
                                                     <div class="s-name" style="font-size:12px; font-weight:700; color:var(--text); transition:color 0.2s">${row.name}</div>
                                                     <div style="font-family:var(--font-mono); font-size:9px; color:var(--muted)">${row.student_code}</div>
+                                                    ${isExcused && row.permission_reason ? `<div style="font-family:var(--font-mono); font-size:8px; color:var(--accent); margin-top:2px">📋 ${row.permission_reason}${row.permission_type ? ' (' + row.permission_type.toUpperCase() + ')' : ''}</div>` : ''}
                                                 </div>
                                             </div>
                                             <div style="text-align:right">
@@ -3810,7 +3817,8 @@
 
                 hist.innerHTML = data.history.map(row => {
                     const isPresent = row.status === 'PRESENT' || row.status === 'LATE';
-                    const color = isPresent ? 'var(--green)' : 'var(--red)';
+                    const isExcused = row.status === 'EXCUSED';
+                    const color = isPresent ? 'var(--green)' : (isExcused ? 'var(--accent)' : 'var(--red)');
 
                     return `
                                         <div style="display:flex; align-items:center; justify-content:space-between; background:var(--surface); padding:10px 14px; border-radius:12px; border:1px solid var(--border)">
@@ -3819,6 +3827,7 @@
                                                 <div>
                                                     <div style="font-size:11px; font-weight:700; color:var(--text)">${row.subject}</div>
                                                     <div style="font-size:9px; color:var(--muted)">${row.date}</div>
+                                                    ${isExcused && row.permission_reason ? `<div style="font-size:8px; color:var(--accent); font-family:var(--font-mono); margin-top:2px">📋 ${row.permission_reason}</div>` : ''}
                                                 </div>
                                             </div>
                                             <div style="text-align:right">

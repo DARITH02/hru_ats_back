@@ -206,7 +206,7 @@
         </div>
 
         {{-- RIGHT: Majors --}}
-        <div style="display:flex;flex-direction:column;gap:16px; width:340px">
+        <div style="display:flex;flex-direction:column;gap:16px; ">
             <div class="side-panel" style="padding:0">
                 <div class="side-panel-head" style="padding:16px 20px; border-bottom:1px solid var(--border); display:flex; justify-content:space-between; align-items:center">
                     <div style="display:flex;align-items:center;gap:8px">

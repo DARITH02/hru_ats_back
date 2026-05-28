@@ -154,9 +154,16 @@
             @php
                 $liveSession = $selectedSession;
                 $isLive = $liveSession->status === 'active';
-                $totalInClass = $liveSession->classRoom->students->count();
+                $liveStudents = $liveSession->classRoom?->all_students ?? collect();
+                $totalInClass = $liveStudents->count();
                 $presentCount = $liveSession->attendanceRecords->whereIn('status', ['present','late'])->count();
-                $absentCount = $totalInClass - $presentCount;
+                
+                $sessionDate = \Carbon\Carbon::parse($liveSession->start_time)->toDateString();
+                $excusedCount = \App\Models\StudentPermission::where('start_date', '<=', $sessionDate)
+                    ->where('end_date', '>=', $sessionDate)
+                    ->whereIn('student_id', $liveStudents->pluck('id'))
+                    ->count();
+                $absentCount = max(0, $totalInClass - $presentCount - $excusedCount);
                 $rate = $totalInClass > 0 ? round(($presentCount / $totalInClass) * 100) : 0;
             @endphp
 
@@ -204,14 +211,18 @@
                     </div>
 
                     {{-- Quick Stats --}}
-                    <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-top:22px">
+                    <div style="display:grid;grid-template-columns:repeat(5,1fr);gap:14px;margin-top:22px">
                         <div style="background:var(--surface)50;backdrop-filter:blur(10px);border:1px solid var(--border);border-radius:10px;padding:14px">
                             <div style="font-family:var(--font-mono);font-size:8px;color:var(--muted);letter-spacing:.1em;margin-bottom:4px">PRESENT</div>
-                            <div style="font-weight:800;font-size:22px;color:var(--green)">{{ $presentCount }}</div>
+                            <div id="quickPresent" style="font-weight:800;font-size:22px;color:var(--green)">{{ $presentCount }}</div>
+                        </div>
+                        <div style="background:var(--surface)50;backdrop-filter:blur(10px);border:1px solid var(--border);border-radius:10px;padding:14px">
+                            <div style="font-family:var(--font-mono);font-size:8px;color:var(--muted);letter-spacing:.1em;margin-bottom:4px">EXCUSED</div>
+                            <div id="quickExcused" style="font-weight:800;font-size:22px;color:var(--accent)">{{ $excusedCount }}</div>
                         </div>
                         <div style="background:var(--surface)50;backdrop-filter:blur(10px);border:1px solid var(--border);border-radius:10px;padding:14px">
                             <div style="font-family:var(--font-mono);font-size:8px;color:var(--muted);letter-spacing:.1em;margin-bottom:4px">ABSENT</div>
-                            <div style="font-weight:800;font-size:22px;color:var(--red)">{{ $absentCount }}</div>
+                            <div id="quickAbsent" style="font-weight:800;font-size:22px;color:var(--red)">{{ $absentCount }}</div>
                         </div>
                         <div style="background:var(--surface)50;backdrop-filter:blur(10px);border:1px solid var(--border);border-radius:10px;padding:14px">
                             <div style="font-family:var(--font-mono);font-size:8px;color:var(--muted);letter-spacing:.1em;margin-bottom:4px">TOTAL</div>
@@ -219,7 +230,7 @@
                         </div>
                         <div style="background:var(--surface)50;backdrop-filter:blur(10px);border:1px solid var(--border);border-radius:10px;padding:14px">
                             <div style="font-family:var(--font-mono);font-size:8px;color:var(--muted);letter-spacing:.1em;margin-bottom:4px">RATE</div>
-                            <div style="font-weight:800;font-size:22px;color:{{ $rate >= 75 ? 'var(--green)' : 'var(--amber)' }}">{{ $rate }}%</div>
+                            <div id="quickRate" style="font-weight:800;font-size:22px;color:{{ $rate >= 75 ? 'var(--green)' : 'var(--amber)' }}">{{ $rate }}%</div>
                         </div>
                     </div>
 
@@ -227,10 +238,10 @@
                     <div style="margin-top:16px">
                         <div style="display:flex;justify-content:space-between;margin-bottom:6px">
                             <span style="font-family:var(--font-mono);font-size:9px;color:var(--muted)">ATTENDANCE PROGRESS</span>
-                            <span style="font-family:var(--font-mono);font-size:9px;color:var(--accent)">{{ $presentCount }}/{{ $totalInClass }}</span>
+                            <span id="progressLabel" style="font-family:var(--font-mono);font-size:9px;color:var(--accent)">{{ $presentCount }}/{{ $totalInClass }}</span>
                         </div>
                         <div style="height:6px;background:var(--surface3);border-radius:99px;overflow:hidden">
-                            <div style="height:100%;width:{{ $rate }}%;background:linear-gradient(90deg,var(--accent),var(--green));border-radius:99px;transition:width .6s ease"></div>
+                            <div id="progressFill" style="height:100%;width:{{ $rate }}%;background:linear-gradient(90deg,var(--accent),var(--green));border-radius:99px;transition:width .6s ease"></div>
                         </div>
                     </div>
                 </div>
@@ -252,6 +263,7 @@
                             <option value="">ALL STATUS</option>
                             <option value="present">PRESENT</option>
                             <option value="late">LATE</option>
+                            <option value="excused">EXCUSED</option>
                             <option value="absent">ABSENT</option>
                         </select>
                     </div>
@@ -271,14 +283,22 @@
                     <tbody id="rosterBody">
                     @php
                         $sessionAttendanceMap = $liveSession->attendanceRecords->keyBy('student_id');
+                        $sessionDate = \Carbon\Carbon::parse($liveSession->start_time)->toDateString();
+                        $sessionPermissions = \App\Models\StudentPermission::where('start_date', '<=', $sessionDate)
+                            ->where('end_date', '>=', $sessionDate)
+                            ->whereIn('student_id', $liveStudents->pluck('id'))
+                            ->get()
+                            ->keyBy('student_id');
                     @endphp
-                    @foreach($liveSession->classRoom->students as $student)
+                    @foreach($liveStudents as $student)
                     @php
                         $att = $sessionAttendanceMap->get($student->id);
-                        $status = $att ? $att->status : 'absent';
+                        $perm = $sessionPermissions->get($student->id);
+                        $status = $att ? $att->status : ($perm ? 'excused' : 'absent');
                         $statusColor = match($status) {
                             'present' => 'var(--green)',
                             'late' => 'var(--amber)',
+                            'excused' => 'var(--accent)',
                             default => 'var(--red)',
                         };
                         $initials = collect(explode(' ', $student->user->name ?? ''))->map(fn($n) => substr($n,0,1))->join('');
@@ -292,6 +312,12 @@
                                 <div>
                                     <div style="font-weight:700;font-size:13px;color:var(--text)">{{ $student->user->name ?? 'Unknown' }}</div>
                                     <div style="font-family:var(--font-mono);font-size:9px;color:var(--muted);margin-top:1px">{{ $student->major ?? 'N/A' }}</div>
+                                    @if($perm)
+                                        <div style="font-family:var(--font-mono);font-size:9px;color:var(--accent);margin-top:2.5px;display:flex;align-items:center;gap:4px">
+                                            <span>📋</span>
+                                            <span>Permission: {{ $perm->reason }} ({{ strtoupper($perm->type) }})</span>
+                                        </div>
+                                    @endif
                                 </div>
                             </div>
                         </td>
@@ -459,9 +485,15 @@
             @if($selectedSession)
             @php
                 $drillSession = $selectedSession;
-                $drillTotal = $drillSession->classRoom->students->count();
+                $drillStudents = $drillSession->classRoom?->all_students ?? collect();
+                $drillTotal = $drillStudents->count();
                 $drillPresent = $drillSession->attendanceRecords->whereIn('status',['present','late'])->count();
-                $drillAbsent = $drillTotal - $drillPresent;
+                $drillDate = \Carbon\Carbon::parse($drillSession->start_time)->toDateString();
+                $drillExcused = \App\Models\StudentPermission::where('start_date', '<=', $drillDate)
+                    ->where('end_date', '>=', $drillDate)
+                    ->whereIn('student_id', $drillStudents->pluck('id'))
+                    ->count();
+                $drillAbsent = max(0, $drillTotal - $drillPresent - $drillExcused);
                 $drillRate = $drillTotal > 0 ? round(($drillPresent/$drillTotal)*100) : 0;
                 $drillAttMap = $drillSession->attendanceRecords->keyBy('student_id');
             @endphp
@@ -475,8 +507,14 @@
                 </div>
 
                 {{-- Metrics --}}
-                <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:0;border-bottom:1px solid var(--border)">
-                    @foreach([['PRESENT RATE', $drillRate.'%', 'var(--green)'], ['PRESENT', $drillPresent, 'var(--green)'], ['ABSENT', $drillAbsent, 'var(--red)'], ['TOTAL', $drillTotal, 'var(--muted2)']] as [$label, $val, $col])
+                <div style="display:grid;grid-template-columns:repeat(5,1fr);gap:0;border-bottom:1px solid var(--border)">
+                    @foreach([
+                        ['PRESENT RATE', $drillRate.'%', 'var(--green)'], 
+                        ['PRESENT', $drillPresent, 'var(--green)'], 
+                        ['EXCUSED', $drillExcused, 'var(--accent)'],
+                        ['ABSENT', $drillAbsent, 'var(--red)'], 
+                        ['TOTAL', $drillTotal, 'var(--muted2)']
+                    ] as [$label, $val, $col])
                     <div style="padding:20px 24px;border-right:1px solid var(--border);last-child:border-right:none">
                         <div style="font-family:var(--font-mono);font-size:9px;color:var(--muted);letter-spacing:.1em;margin-bottom:6px">{{ $label }}</div>
                         <div style="font-weight:800;font-size:24px;color:{{ $col }}">{{ $val }}</div>
@@ -494,11 +532,19 @@
                         <th>STATUS</th>
                     </tr></thead>
                     <tbody>
-                    @foreach($drillSession->classRoom->students as $stu)
+                    @php
+                        $drillPermissions = \App\Models\StudentPermission::where('start_date', '<=', $drillDate)
+                            ->where('end_date', '>=', $drillDate)
+                            ->whereIn('student_id', $drillStudents->pluck('id'))
+                            ->get()
+                            ->keyBy('student_id');
+                    @endphp
+                    @foreach($drillStudents as $stu)
                     @php
                         $a = $drillAttMap->get($stu->id);
-                        $st = $a ? $a->status : 'absent';
-                        $sc = match($st){ 'present'=>'var(--green)', 'late'=>'var(--amber)', default=>'var(--red)' };
+                        $perm = $drillPermissions->get($stu->id);
+                        $st = $a ? $a->status : ($perm ? 'excused' : 'absent');
+                        $sc = match($st){ 'present'=>'var(--green)', 'late'=>'var(--amber)', 'excused'=>'var(--accent)', default=>'var(--red)' };
                         $init = collect(explode(' ', $stu->user->name ?? ''))->map(fn($n)=>substr($n,0,1))->join('');
                     @endphp
                     <tr>
@@ -507,6 +553,9 @@
                                 <div style="width:30px;height:30px;border-radius:50%;background:{{ $sc }}18;color:{{ $sc }};display:flex;align-items:center;justify-content:center;font-weight:700;font-size:10px;flex-shrink:0">{{ strtoupper(substr($init,0,2)) }}</div>
                                 <div>
                                     <div style="font-weight:600;font-size:12px;color:var(--text)">{{ $stu->user->name ?? 'Unknown' }}</div>
+                                    @if($perm)
+                                        <div style="font-family:var(--font-mono);font-size:9px;color:var(--accent);margin-top:2px">📋 Permission: {{ $perm->reason }} ({{ strtoupper($perm->type) }})</div>
+                                    @endif
                                 </div>
                             </div>
                         </td>
@@ -723,7 +772,8 @@ function updateRosterRow(rec) {
         const statusTag = row.querySelector('.status-tag');
         if (statusTag) {
             statusTag.textContent = rec.status;
-            const color = rec.status === 'PRESENT' ? 'var(--green)' : 'var(--amber)';
+            const statusUpper = rec.status.toUpperCase();
+            const color = statusUpper === 'PRESENT' ? 'var(--green)' : (statusUpper === 'LATE' ? 'var(--amber)' : (statusUpper === 'EXCUSED' ? 'var(--accent)' : 'var(--red)'));
             statusTag.style.background = `${color}15`;
             statusTag.style.color = color;
             statusTag.style.borderColor = `${color}30`;
@@ -747,8 +797,20 @@ function updateMonitorUI(stats) {
     const bar = document.getElementById('progressFill');
     if (bar) bar.style.width = rate + '%';
     
-    const countLabel = document.querySelector('[style*="color:var(--accent)"]:contains("/")');
-    if (countLabel) countLabel.textContent = `${stats.present_count}/${stats.total_students}`;
+    const label = document.getElementById('progressLabel');
+    if (label) label.textContent = `${stats.present_count}/${stats.total_students}`;
+
+    const quickPresent = document.getElementById('quickPresent');
+    if (quickPresent) quickPresent.textContent = stats.present_count;
+
+    const quickExcused = document.getElementById('quickExcused');
+    if (quickExcused) quickExcused.textContent = stats.excused_count || 0;
+
+    const quickAbsent = document.getElementById('quickAbsent');
+    if (quickAbsent) quickAbsent.textContent = Math.max(0, stats.total_students - stats.present_count - (stats.excused_count || 0));
+
+    const quickRate = document.getElementById('quickRate');
+    if (quickRate) quickRate.textContent = rate + '%';
 }
 
 async function showSessionSummary(sid) {

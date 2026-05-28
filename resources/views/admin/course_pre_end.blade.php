@@ -100,6 +100,9 @@
                                 <td style="padding:18px 24px; text-align:center;">
                                     <div style="font-weight:900; color:var(--accent); font-family:var(--font-mono);">{{ $s['att_score'] }}</div>
                                     <div style="font-size:9px; color:var(--muted);">{{ $s['rate'] }}%</div>
+                                    @if(($s['permission_sessions'] ?? 0) > 0)
+                                        <div style="font-size:8px; color:var(--accent); font-family:var(--font-mono); margin-top:2px;">{{ $s['permission_sessions'] }} PERMISSION</div>
+                                    @endif
                                 </td>
                                 <td style="padding:18px 24px; text-align:center;">
                                     <input type="number" class="score-input mid-input" data-student-id="{{ $s['id'] }}" value="{{ $s['midterm'] }}" min="0" max="15" step="0.5" style="width:60px; height:34px; background:var(--surface3); border:1px solid var(--border); border-radius:8px; text-align:center; color:var(--text); font-weight:800; font-family:var(--font-mono);">
