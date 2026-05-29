@@ -240,6 +240,34 @@
         </div>
     </div>
 
+    {{-- ═══ BULK DELETE MODAL ═══ --}}
+    <div id="bulkDeleteModal" class="modal-overlay">
+        <div class="modal-box danger-modal-box">
+            <div class="danger-modal-body">
+                <div class="danger-modal-icon">
+                    <svg width="26" height="26" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                    </svg>
+                </div>
+                <div class="danger-modal-title">Delete Selected Classes?</div>
+                <div class="danger-modal-text">
+                    This action is irreversible. All sessions, schedules, student enrollments, and academic scores associated with these classes will be permanently removed.
+                </div>
+                <div id="bulkDeleteModalCount" class="danger-modal-count">
+                    1 Selected Classes
+                </div>
+            </div>
+            <div class="danger-modal-footer">
+                <button type="button" onclick="closeModal('bulkDeleteModal')" class="btn-secondary">CANCEL</button>
+                <button type="button" id="confirmBulkDeleteBtn" class="btn-danger">
+                    DELETE SELECTED
+                </button>
+            </div>
+        </div>
+    </div>
+
+
     {{-- ═══ VIEW / EDIT MODAL ═══ --}}
     <div id="editModal" class="modal-overlay">
         <div class="modal-box">
@@ -1064,7 +1092,7 @@
                     <div style="width:12px; height:12px; border-radius:50%; background:var(--red); box-shadow:0 0 10px var(--red)"></div>
                     <span id="selectedClassesCount" style="font-family:var(--font-mono); font-size:11px; font-weight:800; color:var(--text); letter-spacing:0.05em">0 CLASSES SELECTED</span>
                 </div>
-                <button onclick="executeBulkDeleteClasses()" class="btn-primary" style="background:var(--red); border:none; height:34px; font-size:10px; padding:0 20px; font-weight:900; box-shadow:0 4px 12px var(--red)44">
+                <button onclick="confirmBulkDeleteClasses()" class="btn-primary" style="background:var(--red); border:none; height:34px; font-size:10px; padding:0 20px; font-weight:900; box-shadow:0 4px 12px var(--red)44">
                     CONFIRM BULK DELETE
                 </button>
             </div>
@@ -3958,15 +3986,22 @@
             }
         }
 
+        function confirmBulkDeleteClasses() {
+            const checked = [...document.querySelectorAll('.class-checkbox:checked')];
+            if (checked.length === 0) return;
+            
+            const count = checked.length;
+            document.getElementById('bulkDeleteModalCount').textContent = `${count} ${count === 1 ? 'Selected Class' : 'Selected Classes'}`;
+            openModal('bulkDeleteModal');
+        }
+
         async function executeBulkDeleteClasses() {
             const checked = [...document.querySelectorAll('.class-checkbox:checked')];
             if (checked.length === 0) return;
             
             const ids = checked.map(cb => parseInt(cb.dataset.id));
             
-            if (!confirm(`Are you sure you want to delete ${ids.length} selected classes? This cannot be undone.`)) return;
-            
-            const btn = document.querySelector('#bulkActionsToolbar button');
+            const btn = document.getElementById('confirmBulkDeleteBtn');
             const ogText = btn.textContent;
             btn.textContent = 'DELETING...';
             btn.disabled = true;
@@ -3983,6 +4018,7 @@
                 const data = await res.json();
                 if (data.success) {
                     showToast(data.message, 'success');
+                    closeModal('bulkDeleteModal');
                     setTimeout(() => location.reload(), 800);
                 } else {
                     showToast(data.error || 'Bulk delete failed', 'error');
@@ -3995,6 +4031,8 @@
                 btn.disabled = false;
             }
         }
+
+        document.getElementById('confirmBulkDeleteBtn').addEventListener('click', executeBulkDeleteClasses);
 
             async function handleGlobalSkip() {
                 const start = document.getElementById('gsStart').value;

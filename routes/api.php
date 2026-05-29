@@ -58,8 +58,8 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::get('/admin/classes/export', [AdminController::class, 'exportClasses']);
         Route::post('/admin/classes', [AdminController::class, 'storeClass']);
         Route::put('/admin/classes/{classId}', [AdminController::class, 'updateClass']);
-        Route::middleware('role:super_admin')->delete('/admin/classes/{classId}', [AdminController::class, 'deleteClass']);
         Route::middleware('role:super_admin')->delete('/admin/classes/bulk-delete', [AdminController::class, 'bulkDeleteClasses']);
+        Route::middleware('role:super_admin')->delete('/admin/classes/{classId}', [AdminController::class, 'deleteClass'])->whereNumber('classId');
 
         // 📅 Sessions & Records (Admin)
         Route::get('/admin/classes/{classId}/sessions', [AdminController::class, 'listSessions']);
@@ -134,4 +134,3 @@ Route::post('/student/history', [AttendanceController::class, 'getStudentHistory
 
 // 📍 LOCATION TRACKING
 Route::post('/location/record', [UserLocationController::class, 'store'])->middleware('throttle:10,1');
-

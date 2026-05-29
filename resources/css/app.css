@@ -1593,6 +1593,104 @@ select {
   color: var(--red);
 }
 
+.danger-modal-box {
+  max-width: 460px;
+  border-radius: 24px;
+  border: 1px solid rgba(242, 87, 87, .22);
+  box-shadow: 0 28px 80px rgba(0, 0, 0, .34);
+}
+
+.danger-modal-body {
+  padding: 34px 30px 26px;
+  text-align: center;
+}
+
+.danger-modal-icon {
+  width: 62px;
+  height: 62px;
+  border-radius: 18px;
+  background: linear-gradient(135deg, rgba(242, 87, 87, .18), rgba(242, 87, 87, .06));
+  border: 1px solid rgba(242, 87, 87, .28);
+  color: var(--red);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0 auto 18px;
+}
+
+.danger-modal-title {
+  font-family: var(--font-display);
+  font-size: 20px;
+  font-weight: 900;
+  color: var(--text);
+  margin-bottom: 8px;
+}
+
+.danger-modal-text {
+  color: var(--muted2);
+  font-size: 13px;
+  line-height: 1.55;
+  margin: 0 auto;
+  max-width: 340px;
+}
+
+.danger-modal-count {
+  margin: 22px auto 0;
+  padding: 13px 16px;
+  border-radius: 14px;
+  background: rgba(242, 87, 87, .08);
+  border: 1px dashed rgba(242, 87, 87, .3);
+  color: var(--red);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 900;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+}
+
+.danger-modal-footer {
+  padding: 18px 24px 24px;
+  border-top: 1px solid var(--border);
+  background: var(--surface2);
+  display: grid;
+  grid-template-columns: 1fr 1.25fr;
+  gap: 12px;
+}
+
+.danger-modal-footer .btn-secondary,
+.danger-modal-footer .btn-danger {
+  height: 44px;
+  border-radius: 12px;
+  font-size: 11px;
+  font-weight: 900;
+}
+
+.btn-danger {
+  background: var(--red);
+  border: 1px solid var(--red);
+  color: white;
+  box-shadow: 0 10px 24px rgba(242, 87, 87, .28);
+  cursor: pointer;
+  transition: transform .18s, box-shadow .18s, opacity .18s;
+}
+
+.btn-danger:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 14px 30px rgba(242, 87, 87, .34);
+}
+
+.btn-danger:disabled {
+  opacity: .65;
+  cursor: wait;
+  transform: none;
+}
+
+@media (max-width: 520px) {
+  .danger-modal-footer {
+    grid-template-columns: 1fr;
+  }
+}
+
 /* ══════════════════════════════════════════════════
    TOAST
 ══════════════════════════════════════════════════ */
