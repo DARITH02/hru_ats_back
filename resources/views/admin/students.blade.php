@@ -541,7 +541,14 @@
 
                                 {{-- Status --}}
                                 <td>
-                                    <span class="status-tag tag-active">ACTIVE</span>
+                                    @if($student->status === 'blacklisted')
+                                        <span class="status-tag" style="background: rgba(242, 87, 87, 0.12); color: var(--red); border: 1px solid rgba(242, 87, 87, 0.25);">
+                                            <span style="width: 5px; height: 5px; border-radius: 50%; background: var(--red); display: inline-block; margin-right: 5px;"></span>
+                                            BLACKLISTED
+                                        </span>
+                                    @else
+                                        <span class="status-tag tag-active">ACTIVE</span>
+                                    @endif
                                 </td>
 
                                 {{-- Actions --}}

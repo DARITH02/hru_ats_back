@@ -1147,14 +1147,6 @@
                         </span>
                     </div>
 
-                    <button onclick="window.open('{{ route('admin.export.courses') }}', '_blank')" class="btn-secondary"
-                        style="height: 36px; gap:7px; background:var(--surface3); border:1px solid var(--border); font-size:9px; font-weight:700">
-                        <svg width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
-                        </svg>
-                        EXPORT ALL
-                    </button>
 
                     <button class="btn-primary" onclick="openModal('createModal')" title="Add Entry"
                         style="width: 36px; height: 36px; border-radius: 10px; padding: 0; display: flex; align-items: center; justify-content: center; transform: scale(1); transition: transform .2s;"

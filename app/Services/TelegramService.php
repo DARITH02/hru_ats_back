@@ -172,13 +172,39 @@ class TelegramService
             $students = \App\Models\Student::with('user')->whereIn('group_id', $groupIds)->get();
 
             foreach ($students as $student) {
+                // Get current academic year and semester of the class context
+                $activeAssignment = \App\Models\SemesterAssignment::where('class_id', $classId)
+                    ->where('status', 'active')
+                    ->first();
+                $academicYear = $activeAssignment ? $activeAssignment->academic_year : (date('Y') . '-' . (date('Y') + 1));
+                $semester = $activeAssignment ? $activeAssignment->semester : 1;
+
+                // Find latest restore for student in this semester/year
+                $latestRestore = \App\Models\StudentRestoreHistory::where('student_id', $student->id)
+                    ->where('academic_year', $academicYear)
+                    ->where('semester', $semester)
+                    ->latest()
+                    ->first();
+
                 // Check 1: Per-Subject Absence (Alert at 10)
+                $subjectSessionsQuery = AttendanceSession::where('class_id', $classId)
+                    ->where('academic_year', $academicYear)
+                    ->where('semester', $semester)
+                    ->where('status', 'completed');
+
+                if ($latestRestore) {
+                    $subjectSessionsQuery->where('start_time', '>', $latestRestore->created_at);
+                }
+
+                $subjectSessionIds = $subjectSessionsQuery->pluck('id');
+                $subjectSessionCount = $subjectSessionIds->count();
+
                 $attendedCount = \App\Models\Attendance::where('student_id', $student->id)
-                    ->whereIn('session_id', $completedSessionIds)
+                    ->whereIn('session_id', $subjectSessionIds)
                     ->whereIn('status', ['present', 'late', 'excused', 'PRESENT', 'LATE', 'EXCUSED'])
                     ->count();
                     
-                $absentCount = max(0, $sessionCount - $attendedCount);
+                $absentCount = max(0, $subjectSessionCount - $attendedCount);
 
                 if ($absentCount == 10) {
                     $bot = TelegramBot::where('is_active', true)->first();
@@ -193,24 +219,22 @@ class TelegramService
                 }
 
                 // Check 2: Global Absence (Alert at 20 across all subjects)
-                // We sum up all absences in all COMPLETED sessions of all classes for this student
-                $allCompletedSessions = AttendanceSession::where('status', 'completed')->get();
-                $allCompletedSessionIds = $allCompletedSessions->pluck('id');
-                
-                // Sessions for classes the student is actually enrolled in (if we can filter by group/class)
-                // But generally, we can just check sessions of classes where they were supposed to be.
-                // Assuming students are in multiple classes.
-                
-                // Let's get all classes for this student
-                // Let's get all classes for this student
                 $studentClasses = \App\Models\ClassRoom::whereHas('groups', function($q) use ($student) {
                         $q->where('class_groups.id', $student->group_id);
                     })->pluck('id');
-                $relevantSessionIds = AttendanceSession::whereIn('class_id', $studentClasses)
-                    ->where('status', 'completed')
-                    ->pluck('id');
-                
+
+                $relevantSessionQuery = AttendanceSession::whereIn('class_id', $studentClasses)
+                    ->where('academic_year', $academicYear)
+                    ->where('semester', $semester)
+                    ->where('status', 'completed');
+
+                if ($latestRestore) {
+                    $relevantSessionQuery->where('start_time', '>', $latestRestore->created_at);
+                }
+
+                $relevantSessionIds = $relevantSessionQuery->pluck('id');
                 $totalPossibleSessions = $relevantSessionIds->count();
+
                 $totalAttended = \App\Models\Attendance::where('student_id', $student->id)
                     ->whereIn('session_id', $relevantSessionIds)
                     ->whereIn('status', ['present', 'late', 'excused', 'PRESENT', 'LATE', 'EXCUSED'])
@@ -218,7 +242,20 @@ class TelegramService
                 
                 $totalAbsents = max(0, $totalPossibleSessions - $totalAttended);
 
-                if ($totalAbsents == 20) {
+                if ($totalAbsents >= 30) {
+                    if (!$student->isBlacklistedInSemester($academicYear, $semester)) {
+                        $student->blacklistInSemester($academicYear, $semester);
+                    }
+                    $bot = TelegramBot::where('is_active', true)->first();
+                    if ($bot && $bot->chat_id) {
+                        $message = "🚫 <b>STUDENT BLACKLISTED</b> 🚫\n\n"
+                                 . "👤 <b>Student:</b> " . e($student->user->name) . " (" . e($student->student_code) . ")\n"
+                                 . "📊 <b>Total Absences (All Subjects):</b> <b style='color:red'>" . $totalAbsents . "</b> sessions\n"
+                                 . "🎓 <b>Major:</b> " . e($student->major->name ?? $student->group->major->name ?? 'N/A') . "\n\n"
+                                 . "❌ This student has accumulated 30 or more absences and is now <b>BLACKLISTED</b>.";
+                        $this->sendMessage($bot, $message);
+                    }
+                } elseif ($totalAbsents == 20) {
                     $bot = TelegramBot::where('is_active', true)->first();
                     if ($bot && $bot->chat_id) {
                         $message = "🚨 <b>SYSTEM-WIDE ABSENCE ALERT</b> 🚨\n\n"

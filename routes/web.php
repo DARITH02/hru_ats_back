@@ -27,12 +27,18 @@ Route::middleware(['auth'])->group(function() {
 Route::middleware(['auth', 'role:admin,super_admin'])->group(function() {
     Route::get('/admin/instructors', [AdminUIController::class, 'instructors'])->name('admin.instructors');
     Route::get('/admin/results', [AdminUIController::class, 'analytics'])->name('admin.results');
+    Route::get('/admin/attendance-issues', [AdminUIController::class, 'attendanceIssues'])->name('admin.attendance-issues');
+    Route::post('/admin/attendance-issues/{id}/toggle-blacklist', [AdminUIController::class, 'toggleBlacklist'])->name('admin.attendance-issues.toggle-blacklist');
+    Route::get('/admin/attendance-issues/export/pdf', [AdminUIController::class, 'exportAttendanceIssuesPdf'])->name('admin.attendance-issues.export.pdf');
+    Route::post('/admin/attendance-issues/send-telegram', [AdminUIController::class, 'sendAttendanceIssuesToTelegram'])->name('admin.attendance-issues.send-telegram');
     Route::get('/admin/teacher-accounts', [AdminUIController::class, 'teacherAccounts'])->name('admin.teacher-accounts');
     
     // Superadmin only account management
     Route::middleware(['auth', 'role:super_admin'])->group(function() {
         Route::post('/admin/users/{id}/approve', [AdminUIController::class, 'approveUser'])->name('admin.users.approve');
         Route::delete('/admin/users/{id}', [AdminUIController::class, 'destroyUser'])->name('admin.users.destroy');
+        Route::delete('/admin/attendance-issues/history/drop-all', [AdminUIController::class, 'dropAllHistory'])->name('admin.attendance-issues.history.drop-all');
+        Route::delete('/admin/attendance-issues/history/bulk-drop', [AdminUIController::class, 'bulkDropHistory'])->name('admin.attendance-issues.history.bulk-drop');
     });
 
     Route::get('/admin/students', [AdminUIController::class, 'students'])->name('admin.students');
