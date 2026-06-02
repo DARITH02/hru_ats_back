@@ -753,6 +753,25 @@ class AdminController extends Controller
         return redirect()->back()->with('success', 'Permission removed.');
     }
 
+    public function clearCache()
+    {
+        try {
+            \Artisan::call('cache:clear');
+            \Artisan::call('config:clear');
+            \Artisan::call('route:clear');
+            \Artisan::call('view:clear');
+            return response()->json([
+                'success' => true,
+                'message' => 'Cache purged: application, config, route & view caches cleared successfully.'
+            ]);
+        } catch (\Throwable $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Cache clear failed: ' . $e->getMessage()
+            ], 500);
+        }
+    }
+
     public function settings()
     {
         $settings = \App\Models\Setting::all()->pluck('value', 'key');

@@ -472,99 +472,6 @@
     </div>
 
     {{-- ═══ GENERATE CALENDAR MODAL ═══ --}}
-    <div id="calendarModal" class="modal-overlay">
-        <div class="modal-box" style="max-width:440px; border-radius:24px; padding:0; overflow:hidden;">
-            <div class="modal-head"
-                style="padding: 24px 28px; background: var(--surface2); border-bottom: 1px solid var(--border);">
-                <div style="display:flex;align-items:center;gap:15px">
-                    <div
-                        style="width:42px;height:42px;border-radius:14px;background:var(--accent)22;color:var(--accent);display:flex;align-items:center;justify-content:center;box-shadow: 0 4px 15px var(--accent)22">
-                        <svg width="22" height="22" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
-                        </svg>
-                    </div>
-                    <div>
-                        <div class="modal-title" style="font-weight: 800; font-size: 17px; letter-spacing: -0.02em;">
-                            Academic Period Setup</div>
-                        <div
-                            style="font-family:var(--font-mono);font-size:10px;color:var(--muted);letter-spacing:0.02em;text-transform:uppercase">
-                            BATCH SESSION GENERATION</div>
-                    </div>
-                </div>
-                <button onclick="closeModal('calendarModal')" class="modal-close"
-                    style="background:var(--surface3); width:32px; height:32px; border-radius:50%; display:flex; align-items:center; justify-content:center;">
-                    <svg width="12" height="12" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path d="M6 18L18 6M6 6l12 12" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" />
-                    </svg>
-                </button>
-            </div>
-            <form id="calendarForm">
-                @csrf
-                <div class="modal-body" style="padding: 28px;">
-                    <div
-                        style="background:var(--accent)08; border:1px solid var(--accent)22; padding:16px; border-radius:16px; margin-bottom:24px;">
-                        <div style="display:flex; align-items:center; gap:10px; margin-bottom:8px">
-                            <div
-                                style="width:8px; height:8px; border-radius:50%; background:var(--accent); box-shadow: 0 0 8px var(--accent)">
-                            </div>
-                            <span
-                                style="font-family:var(--font-mono); font-size:10px; font-weight:800; color:var(--accent)">SYSTEM
-                                INTEL</span>
-                        </div>
-                        <p style="font-size:11px; color:var(--text2); line-height:1.5; font-weight:600; margin:0">
-                            This action will target **{{ $classes->count() }} total classes**. Each active catalog entry
-                            will receive up to **30 attendance sessions** based on the rules you defined.
-                        </p>
-                    </div>
-
-                    <div class="form-group">
-                        <label class="form-label"
-                            style="font-family:var(--font-mono); font-size:9px; color:var(--muted); font-weight:800; letter-spacing:.05em">ACADEMIC
-                            YEAR</label>
-                        <input name="academic_year" class="form-input" type="text" placeholder="e.g. 2025-2026" required
-                            value="{{ date('Y') }}-{{ date('Y') + 1 }}" style="font-weight:700">
-                    </div>
-
-                    <div class="form-grid-2">
-                        <div class="form-group">
-                            <label class="form-label"
-                                style="font-family:var(--font-mono); font-size:9px; color:var(--muted); font-weight:800; letter-spacing:.05em">SEMESTER</label>
-                            <select name="semester" class="form-input" style="font-weight:700">
-                                <option value="1">SEMESTER 1</option>
-                                <option value="2">SEMESTER 2</option>
-                            </select>
-                        </div>
-                        <div class="form-group">
-                            <label class="form-label"
-                                style="font-family:var(--font-mono); font-size:9px; color:var(--muted); font-weight:800; letter-spacing:.05em">SESSION
-                                QUOTA</label>
-                            <input name="sessions_count" class="form-input" type="number" value="30" min="1" max="60"
-                                style="font-weight:800; color:var(--accent)">
-                        </div>
-                    </div>
-
-                    <div class="form-group" style="margin-bottom:0">
-                        <label class="form-label"
-                            style="font-family:var(--font-mono); font-size:9px; color:var(--muted); font-weight:800; letter-spacing:.05em">START
-                            DATE (BATCH LAUNCH)</label>
-                        <input name="start_date" class="form-input" type="date" required value="{{ date('Y-m-d') }}"
-                            style="font-weight:700">
-                    </div>
-                </div>
-                <div class="modal-footer"
-                    style="padding: 18px 28px; background: var(--surface2); border-top: 1px solid var(--border);">
-                    <button type="button" onclick="closeModal('calendarModal')" class="btn-secondary"
-                        style="height:42px; padding:0 24px; border-radius:12px; font-weight:800; font-size:11px">CANCEL</button>
-                    <button type="submit" id="genBtn" class="btn-primary"
-                        style="height:42px; padding:0 24px; border-radius:12px; font-weight:800; font-size:11px; flex:1; background:var(--accent); box-shadow: 0 4px 15px var(--accent)44">
-                        BEGIN BATCH GENERATION
-                    </button>
-                </div>
-            </form>
-        </div>
-    </div>
-
     {{-- ═══ ENROLL MODAL ═══ --}}
     <div id="enrollModal" class="modal-overlay">
         <div class="modal-box" style="max-width:600px; border-radius:24px; overflow:hidden;">
@@ -1459,10 +1366,10 @@
                         </svg>
                     </button>
 
-                    <button onclick="showToast('Cache Purged Successfully','success')" class="btn-secondary"
+                    <button id="syncCacheBtn" onclick="runCacheClear()" class="btn-secondary"
                         style="width:100%; display:flex; justify-content:space-between; align-items:center; height:42px; padding:0 16px; font-size:10px; font-weight:700; background:var(--surface3)">
-                        <span>SYNC CACHE</span>
-                        <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <span id="syncCacheBtnLabel">SYNC CACHE</span>
+                        <svg id="syncCacheIcon" width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                             <path
                                 d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"
                                 stroke-width="2" />
@@ -1530,13 +1437,6 @@
                             NO RECENT ACTIONS FOUND
                         </div>
                     @endforelse
-                </div>
-                <div
-                    style="padding:12px 16px; background:var(--surface3); border-top:1px solid var(--border); border-bottom-left-radius:20px; border-bottom-right-radius:20px">
-                    <button onclick="openModal('calendarModal')" class="btn-primary"
-                        style="width:100%; height:32px; background:transparent; border:1px dashed var(--accent)44; color:var(--accent); font-size:9px; font-weight:800; letter-spacing:0.05em">
-                        GENERATE SESSIONS (ADMIN)
-                    </button>
                 </div>
             </div>
 
@@ -2506,6 +2406,48 @@
         });
 
         // ─── Toast ─────────────────────────────────────
+        // ─── Cache Clear ─────────────────────────────────────────────
+        async function runCacheClear() {
+            const btn   = document.getElementById('syncCacheBtn');
+            const label = document.getElementById('syncCacheBtnLabel');
+            const icon  = document.getElementById('syncCacheIcon');
+
+            btn.disabled = true;
+            label.textContent = 'SYNCING...';
+            icon.style.animation = 'spin 0.9s linear infinite';
+
+            // Inline spin keyframe if not already defined
+            if (!document.getElementById('spinStyle')) {
+                const style = document.createElement('style');
+                style.id = 'spinStyle';
+                style.textContent = '@keyframes spin { to { transform: rotate(360deg); } }';
+                document.head.appendChild(style);
+            }
+
+            try {
+                const csrf = document.querySelector('meta[name="csrf-token"]')?.content
+                          || document.querySelector('input[name="_token"]')?.value || '';
+
+                const res  = await fetch('{{ route("admin.cache.clear") }}', {
+                    method : 'POST',
+                    headers: { 'X-CSRF-TOKEN': csrf, 'Accept': 'application/json' }
+                });
+
+                const data = await res.json();
+                if (data.success) {
+                    showToast('Cache Purged — app, config, route & view caches cleared.', 'success');
+                } else {
+                    showToast(data.message || 'Cache clear failed.', 'error');
+                }
+            } catch (err) {
+                showToast('Connection error during cache sync.', 'error');
+            }
+
+            btn.disabled = false;
+            label.textContent = 'SYNC CACHE';
+            icon.style.animation = '';
+        }
+
         function showToast(msg, type = 'success') {
             const t = document.getElementById('toast');
             const ic = document.getElementById('toastIcon');
@@ -2966,42 +2908,7 @@
             btn.classList.remove('loading');
         }
 
-        // ─── Generate Calendar ──────────────────────────
-        document.getElementById('calendarForm').addEventListener('submit', async e => {
-            e.preventDefault();
-            const btn = document.getElementById('genBtn');
-            const ogHtml = btn.innerHTML;
-            btn.innerHTML = 'GENERATING...';
-            btn.disabled = true;
 
-            try {
-                const formData = new FormData(e.target);
-                const payload = Object.fromEntries(formData.entries());
-
-                const res = await fetch('/api/admin/generate-calendar', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'Accept': 'application/json',
-                        'X-CSRF-TOKEN': document.querySelector('input[name="_token"]').value
-                    },
-                    body: JSON.stringify(payload)
-                });
-
-                const data = await res.json();
-                if (data.success) {
-                    showToast(`BATCH SUCCESS: ${data.generated} academic slots established across the catalog.`, 'success');
-                    closeModal('calendarModal');
-                    setTimeout(() => location.reload(), 1500); // Reload to show new 30/30 progress bars
-                } else {
-                    showToast(data.error || 'The system could not generate the batch period.', 'error');
-                }
-            } catch (err) {
-                showToast('Connection lost during batch generation.', 'error');
-            }
-            btn.innerHTML = ogHtml;
-            btn.disabled = false;
-        });
 
         // ── COURSE PAGE: SEMESTER ASSIGNMENT ──────────────────────────────
         const csmCsrf = document.querySelector('meta[name="csrf-token"]')?.content || '';

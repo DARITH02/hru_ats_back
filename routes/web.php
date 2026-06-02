@@ -54,6 +54,7 @@ Route::middleware(['auth', 'role:admin,super_admin'])->group(function() {
     Route::get('/admin/settings', [AdminUIController::class, 'settings'])->name('admin.settings');
     Route::post('/admin/settings', [AdminUIController::class, 'updateSettings'])->name('admin.settings.update');
     Route::get('/admin/settings/export', [AdminUIController::class, 'exportSummaryReport'])->name('admin.settings.export');
+    Route::post('/admin/cache/clear', [AdminUIController::class, 'clearCache'])->name('admin.cache.clear');
     
     // Global Listing Exports
     Route::get('/admin/export/instructors', [AdminUIController::class, 'exportInstructors'])->name('admin.export.instructors');

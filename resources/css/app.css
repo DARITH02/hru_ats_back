@@ -348,7 +348,7 @@ select {
   width: 33px;
   height: 33px;
   border-radius: 50%;
-  background: linear-gradient(135deg, var(--accent), var(--violet));
+  background: var(--accent);
   display: flex;
   align-items: center;
   justify-content: center;

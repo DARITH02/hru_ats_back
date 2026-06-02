@@ -616,25 +616,46 @@
                     </label>
 
                     {{-- Bulk Drop button --}}
-                    <button type="button" id="bulkDropBtn" onclick="submitBulkDrop()" disabled
-                        style="background:rgba(242,87,87,0.1); border:1px solid rgba(242,87,87,0.3); color:var(--red); padding:7px 14px; border-radius:10px; font-family:var(--font-mono); font-size:10px; font-weight:800; cursor:pointer; display:flex; align-items:center; gap:6px; opacity:0.4; transition:opacity 0.2s;">
-                        <svg width="12" height="12" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
-                            <polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4h6v2"/>
-                        </svg>
-                        DROP SELECTED (<span id="selectedCount">0</span>)
-                    </button>
+                    @if(auth()->user()->role === 'super_admin')
+                        <button type="button" id="bulkDropBtn" onclick="submitBulkDrop()" disabled
+                            style="background:rgba(242,87,87,0.1); border:1px solid rgba(242,87,87,0.3); color:var(--red); padding:7px 14px; border-radius:10px; font-family:var(--font-mono); font-size:10px; font-weight:800; cursor:pointer; display:flex; align-items:center; gap:6px; opacity:0.4; transition:opacity 0.2s;">
+                            <svg width="12" height="12" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
+                                <polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4h6v2"/>
+                            </svg>
+                            DROP SELECTED (<span id="selectedCount">0</span>)
+                        </button>
+                    @else
+                        <button type="button" id="bulkDropBtn" onclick="openUnauthorizedModal()" disabled
+                            style="background:rgba(107,114,128,0.08); border:1px solid rgba(107,114,128,0.25); color:var(--muted); padding:7px 14px; border-radius:10px; font-family:var(--font-mono); font-size:10px; font-weight:800; cursor:not-allowed; display:flex; align-items:center; gap:6px; opacity:0.55; transition:opacity 0.2s;">
+                            <svg width="12" height="12" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
+                                <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+                            </svg>
+                            DROP SELECTED (<span id="selectedCount">0</span>)
+                        </button>
+                    @endif
 
                     <div style="width:1px; height:20px; background:var(--border);"></div>
 
                     {{-- Drop All button --}}
-                    <button type="button" onclick="confirmDropAll()"
-                        style="background:rgba(242,87,87,0.12); border:1px solid rgba(242,87,87,0.35); color:var(--red); padding:7px 14px; border-radius:10px; font-family:var(--font-mono); font-size:10px; font-weight:800; cursor:pointer; display:flex; align-items:center; gap:6px; transition:background 0.2s;"
-                        onmouseenter="this.style.background='rgba(242,87,87,0.22)'" onmouseleave="this.style.background='rgba(242,87,87,0.12)'">
-                        <svg width="12" height="12" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
-                            <polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M9 6V4h6v2"/>
-                        </svg>
-                        DROP ALL
-                    </button>
+                    @if(auth()->user()->role === 'super_admin')
+                        <button type="button" onclick="confirmDropAll()"
+                            style="background:rgba(242,87,87,0.12); border:1px solid rgba(242,87,87,0.35); color:var(--red); padding:7px 14px; border-radius:10px; font-family:var(--font-mono); font-size:10px; font-weight:800; cursor:pointer; display:flex; align-items:center; gap:6px; transition:background 0.2s;"
+                            onmouseenter="this.style.background='rgba(242,87,87,0.22)'" onmouseleave="this.style.background='rgba(242,87,87,0.12)'">
+                            <svg width="12" height="12" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
+                                <polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M9 6V4h6v2"/>
+                            </svg>
+                            DROP ALL
+                        </button>
+                    @else
+                        <button type="button" onclick="openUnauthorizedModal()"
+                            style="background:rgba(107,114,128,0.08); border:1px solid rgba(107,114,128,0.25); color:var(--muted); padding:7px 14px; border-radius:10px; font-family:var(--font-mono); font-size:10px; font-weight:800; cursor:pointer; display:flex; align-items:center; gap:6px; transition:all 0.2s;"
+                            onmouseenter="this.style.background='rgba(107,114,128,0.16)'" onmouseleave="this.style.background='rgba(107,114,128,0.08)'">
+                            <svg width="12" height="12" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
+                                <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+                            </svg>
+                            DROP ALL
+                        </button>
+                    @endif
                 </div>
                 @endif
             </div>
@@ -1041,9 +1062,27 @@
             }, 10);
 
             document.getElementById('confirmDeleteOk').onclick = () => {
-                overlay.remove();
                 onConfirm();
             };
+        }
+
+        // ─── UNAUTHORIZED MODAL ───────────────────────────────────────────
+        function openUnauthorizedModal() {
+            const modal = document.getElementById('unauthorizedModal');
+            modal.style.display = 'flex';
+            setTimeout(() => {
+                modal.style.opacity = '1';
+                modal.firstElementChild.style.transform = 'scale(1)';
+            }, 10);
+        }
+
+        function closeUnauthorizedModal() {
+            const modal = document.getElementById('unauthorizedModal');
+            modal.style.opacity = '0';
+            modal.firstElementChild.style.transform = 'scale(0.95)';
+            setTimeout(() => {
+                modal.style.display = 'none';
+            }, 250);
         }
     </script>
 
@@ -1107,4 +1146,64 @@
             </form>
         </div>
     </div>
+    {{-- ──────── UNAUTHORIZED MODAL ──────── --}}
+    <div id="unauthorizedModal"
+         style="display:none; position:fixed; inset:0; z-index:99999; background:rgba(10,10,12,0.78); backdrop-filter:blur(10px); justify-content:center; align-items:center; opacity:0; transition:opacity 0.25s ease-in-out;"
+         onclick="if(event.target===this) closeUnauthorizedModal()">
+        <div style="background:var(--surface); border:1px solid rgba(242,87,87,0.35); border-radius:24px; width:100%; max-width:460px; box-shadow:0 25px 60px -10px rgba(0,0,0,0.7); transform:scale(0.95); transition:transform 0.25s ease-in-out; overflow:hidden;">
+
+            {{-- Header --}}
+            <div style="padding:28px 30px 22px; background:rgba(242,87,87,0.06); border-bottom:1px solid rgba(242,87,87,0.2); display:flex; align-items:flex-start; gap:16px;">
+                <div style="width:46px; height:46px; border-radius:14px; background:rgba(242,87,87,0.12); border:1px solid rgba(242,87,87,0.3); display:flex; align-items:center; justify-content:center; flex-shrink:0; margin-top:2px;">
+                    <svg width="22" height="22" fill="none" viewBox="0 0 24 24" stroke="#f25757" stroke-width="2.2">
+                        <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/>
+                        <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+                    </svg>
+                </div>
+                <div style="flex:1;">
+                    <div style="font-family:var(--font-mono); font-size:9px; font-weight:800; color:var(--red); letter-spacing:0.1em; text-transform:uppercase; margin-bottom:4px;">403 — Access Denied</div>
+                    <h3 style="font-family:var(--font-display); font-size:19px; font-weight:900; color:var(--text); margin:0 0 4px;">Unauthorized Action</h3>
+                    <p style="font-size:12px; color:var(--muted); margin:0;">You do not have permission to perform this operation.</p>
+                </div>
+                <button type="button" onclick="closeUnauthorizedModal()" style="background:none; border:none; color:var(--muted); cursor:pointer; padding:4px; border-radius:50%; display:flex; align-items:center; flex-shrink:0;">
+                    <svg width="18" height="18" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+                    </svg>
+                </button>
+            </div>
+
+            {{-- Body --}}
+            <div style="padding:26px 30px;">
+                <div style="background:rgba(242,87,87,0.06); border:1px solid rgba(242,87,87,0.18); border-radius:14px; padding:18px 20px; margin-bottom:18px;">
+                    <div style="display:flex; align-items:center; gap:10px; margin-bottom:10px;">
+                        <span style="font-size:18px;">🚫</span>
+                        <span style="font-family:var(--font-mono); font-size:11px; font-weight:800; color:var(--red);">DELETION RESTRICTED</span>
+                    </div>
+                    <p style="font-size:13px; color:var(--text2); line-height:1.75; margin:0;">
+                        Deleting <strong style="color:var(--text);">EVENT REGISTRY</strong> records is a privileged operation reserved exclusively for
+                        <strong style="color:var(--red);">Super Administrators</strong>.
+                        Audit trails must be preserved to maintain institutional data integrity.
+                    </p>
+                </div>
+                <div style="display:flex; align-items:center; gap:10px; background:var(--surface2); border:1px solid var(--border); border-radius:12px; padding:14px 16px;">
+                    <svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="var(--muted)" stroke-width="2">
+                        <circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>
+                    </svg>
+                    <p style="font-size:12px; color:var(--muted); margin:0; line-height:1.6;">
+                        If deletion is required, please contact your <strong style="color:var(--text2);">Super Admin</strong> to perform this action.
+                    </p>
+                </div>
+            </div>
+
+            {{-- Footer --}}
+            <div style="padding:18px 30px; background:rgba(0,0,0,0.12); border-top:1px solid var(--border); display:flex; justify-content:flex-end;">
+                <button type="button" onclick="closeUnauthorizedModal()"
+                    style="background:linear-gradient(135deg, rgba(242,87,87,0.15), rgba(242,87,87,0.08)); border:1px solid rgba(242,87,87,0.35); color:var(--red); padding:10px 28px; border-radius:12px; font-family:var(--font-mono); font-size:10px; font-weight:800; cursor:pointer; letter-spacing:0.06em; transition:all 0.2s;"
+                    onmouseenter="this.style.background='rgba(242,87,87,0.22)'" onmouseleave="this.style.background='linear-gradient(135deg, rgba(242,87,87,0.15), rgba(242,87,87,0.08))'">
+                    UNDERSTOOD
+                </button>
+            </div>
+        </div>
+    </div>
+
 @endsection
