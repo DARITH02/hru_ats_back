@@ -36,7 +36,8 @@ class AuthController extends Controller
 
         if ($user->role === 'student') {
             $student = \App\Models\Student::where('user_id', $user->id)->first();
-            if (!$student || ($student->student_code !== $request->password && !Hash::check($request->password, $user->password))) {
+            $allowsCodeLogin = config('auth.allow_student_code_login') && $student?->student_code === $request->password;
+            if (!$student || (!$allowsCodeLogin && !Hash::check($request->password, $user->password))) {
                 throw ValidationException::withMessages([
                     'email' => ['The provided credentials are incorrect.'],
                 ]);

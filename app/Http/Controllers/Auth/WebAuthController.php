@@ -34,7 +34,8 @@ class WebAuthController extends Controller
             $authenticated = false;
             if ($user->role === 'student') {
                 $student = \App\Models\Student::where('user_id', $user->id)->first();
-                if ($student && ($student->student_code === $request->password || Hash::check($request->password, $user->password))) {
+                $allowsCodeLogin = config('auth.allow_student_code_login') && $student?->student_code === $request->password;
+                if ($student && ($allowsCodeLogin || Hash::check($request->password, $user->password))) {
                     $authenticated = true;
                 }
             } else {
@@ -72,7 +73,8 @@ class WebAuthController extends Controller
         $isApproved = false; // Admins need approval
 
         if ($request->filled('admin_key')) {
-            if ($request->admin_key === config('app.super_admin_key')) {
+            $superAdminKey = config('app.super_admin_key');
+            if ($superAdminKey && hash_equals($superAdminKey, $request->admin_key)) {
                 $role = 'super_admin';
                 $isApproved = true; // Super Admins are auto-approved
             } else {

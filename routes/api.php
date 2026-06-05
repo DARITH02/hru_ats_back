@@ -7,18 +7,17 @@ use App\Http\Controllers\Api\AttendanceController;
 use App\Http\Controllers\Api\UserLocationController;
 use Illuminate\Support\Facades\Route;
 
-// 🟢 PUBLIC / AUTH API
+//  PUBLIC / AUTH API
 Route::get('/check-status', [AdminController::class, 'checkStatus']);
 Route::post('/login', [AuthController::class, 'login'])->middleware('throttle:login');
 Route::get('/branding', [AuthController::class, 'branding']);
-Route::post('/admin/terminate-class/{classId}', [AdminController::class, 'endClassSchedule']);
 
-// 🔒 PROTECTED API (SHARED)
+//  PROTECTED API (SHARED)
 Route::middleware('auth:sanctum')->group(function () {
     Route::get('/profile', [AuthController::class, 'profile']);
     Route::post('/logout', [AuthController::class, 'logout']);
 
-    // 👨‍🏫 TEACHER ONLY
+    // TEACHER ONLY
     Route::middleware('role:teacher')->group(function () {
         Route::get('/teacher/summary', [TeacherController::class, 'getSummary']);
         Route::get('/teacher/classes', [TeacherController::class, 'getClasses']);
@@ -43,7 +42,7 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::get('/teacher/semesters/{assignmentId}/export-pdf', [TeacherController::class, 'exportSubjectScoresPdf']);
     });
 
-    // 🛡️ ADMIN & SUPER ADMIN Shared Management
+    //  ADMIN & SUPER ADMIN Shared Management
     Route::middleware('role:admin,super_admin')->group(function () {
         Route::get('/admin/check-status', [AdminController::class, 'checkStatus']);
         Route::get('/admin/stats', [AdminController::class, 'getStats']);
@@ -58,10 +57,11 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::get('/admin/classes/export', [AdminController::class, 'exportClasses']);
         Route::post('/admin/classes', [AdminController::class, 'storeClass']);
         Route::put('/admin/classes/{classId}', [AdminController::class, 'updateClass']);
+        Route::post('/admin/terminate-class/{classId}', [AdminController::class, 'endClassSchedule']);
         Route::middleware('role:super_admin')->delete('/admin/classes/bulk-delete', [AdminController::class, 'bulkDeleteClasses']);
         Route::middleware('role:super_admin')->delete('/admin/classes/{classId}', [AdminController::class, 'deleteClass'])->whereNumber('classId');
 
-        // 📅 Sessions & Records (Admin)
+        //  Sessions & Records (Admin)
         Route::get('/admin/classes/{classId}/sessions', [AdminController::class, 'listSessions']);
         Route::get('/admin/session/{sessionId}/attendance', [AdminController::class, 'listSessionAttendance']);
         Route::get('/admin/session/{sessionId}/next-available-slot', [AdminController::class, 'getNextAvailableSlot']);
@@ -91,7 +91,7 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::put('/admin/departments/{deptId}', [AdminController::class, 'updateDepartment']);
         Route::middleware('role:super_admin')->delete('/admin/departments/{deptId}', [AdminController::class, 'deleteDepartment']);
 
-        // 📚 Majors & Class Groups
+        //  Majors & Class Groups
         Route::get('/admin/majors', [AdminController::class, 'listMajors']);
         Route::post('/admin/majors', [AdminController::class, 'storeMajor']);
         Route::put('/admin/majors/{id}', [AdminController::class, 'updateMajor']);
@@ -102,14 +102,14 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::put('/admin/class-groups/{id}', [AdminController::class, 'updateClassGroup']);
         Route::middleware('role:super_admin')->delete('/admin/class-groups/{id}', [AdminController::class, 'deleteClassGroup']);
 
-        // 👩‍🏫 Instructor Specifics
+        //  Instructor Specifics
         Route::post('/admin/instructors', [AdminController::class, 'storeInstructor']);
         Route::put('/admin/instructors/{teacherId}', [AdminController::class, 'updateInstructor']);
         Route::post('/admin/accounts/{userId}/update', [AdminController::class, 'updateUserAccount']);
         Route::middleware('role:super_admin')->post('/admin/generate-calendar', [AdminController::class, 'generateAcademicCalendar']);
         Route::middleware('role:super_admin')->delete('/admin/instructors/{teacherId}', [AdminController::class, 'deleteInstructor']);
 
-        // 📅 Semester Assignments (Admin)
+        //  Semester Assignments (Admin)
         Route::get('/admin/classes/{classId}/semesters', [AdminController::class, 'listSemesterAssignments']);
         Route::post('/admin/classes/{classId}/semesters', [AdminController::class, 'storeSemesterAssignment']);
         Route::put('/admin/semesters/{assignmentId}', [AdminController::class, 'updateSemesterAssignment']);
@@ -121,7 +121,7 @@ Route::middleware('auth:sanctum')->group(function () {
     });
 });
 
-// 🎓 PUBLIC STUDENT CHECK-IN
+//  PUBLIC STUDENT CHECK-IN
 Route::middleware('auth:sanctum')->group(function () {
     Route::get('/student/portal', [AttendanceController::class, 'getPortalData']);
     Route::get('/student/active-session', [AttendanceController::class, 'getActiveSession']);
@@ -132,5 +132,5 @@ Route::get('/student/scan/{sessionId}', [AttendanceController::class, 'getScanIn
 Route::post('/student/verify', [AttendanceController::class, 'verify']);
 Route::post('/student/history', [AttendanceController::class, 'getStudentHistoryByCode']);
 
-// 📍 LOCATION TRACKING
+//  LOCATION TRACKING
 Route::post('/location/record', [UserLocationController::class, 'store'])->middleware('throttle:10,1');

@@ -123,6 +123,6 @@ return [
         'store' => env('APP_MAINTENANCE_STORE', 'database'),
     ],
 
-    'super_admin_key' => env('SUPER_ADMIN_KEY', 'manager_hru'),
+    'super_admin_key' => env('SUPER_ADMIN_KEY'),
 
 ];

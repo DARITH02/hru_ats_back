@@ -18,6 +18,7 @@ use App\Models\Major;
 use App\Models\ClassGroup;
 use App\Services\SemesterAttendanceScoreService;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Str;
 use DB;
 
 class AdminController extends Controller
@@ -1219,11 +1220,12 @@ class AdminController extends Controller
 
         DB::beginTransaction();
         try {
+            $temporaryPassword = Str::password(16);
             $user = User::create([
                 'name' => $request->name,
                 'email' => $request->email,
                 'phone' => $request->phone,
-                'password' => Hash::make('password123'),
+                'password' => Hash::make($temporaryPassword),
                 'role' => 'student',
             ]);
 
@@ -1236,7 +1238,11 @@ class AdminController extends Controller
             ]);
 
             DB::commit();
-            return response()->json(['success' => true, 'student' => $student->load('user', 'classRoom.subject')]);
+            return response()->json([
+                'success' => true,
+                'student' => $student->load('user', 'classRoom.subject'),
+                'temporary_password' => $temporaryPassword,
+            ]);
         } catch (\Exception $e) {
             DB::rollback();
             return response()->json(['error' => $e->getMessage()], 500);
@@ -1496,16 +1502,17 @@ class AdminController extends Controller
             'name' => 'required',
             'email' => 'required|email|unique:users,email',
             'phone' => 'nullable|string',
-            'password' => 'required|min:6',
+            'password' => 'nullable|min:6',
         ]);
 
         DB::beginTransaction();
         try {
+            $temporaryPassword = $request->password ?: Str::password(16);
             $user = User::create([
                 'name' => $request->name,
                 'email' => $request->email,
                 'phone' => $request->phone,
-                'password' => Hash::make($request->password),
+                'password' => Hash::make($temporaryPassword),
                 'role' => 'teacher',
             ]);
 
@@ -1517,7 +1524,11 @@ class AdminController extends Controller
             ]);
 
             DB::commit();
-            return response()->json(['success' => true, 'teacher' => $teacher->load('user')]);
+            return response()->json([
+                'success' => true,
+                'teacher' => $teacher->load('user'),
+                'temporary_password' => $request->password ? null : $temporaryPassword,
+            ]);
         } catch (\Exception $e) {
             DB::rollback();
             return response()->json(['error' => $e->getMessage()], 500);
@@ -1687,7 +1698,7 @@ class AdminController extends Controller
                     'name' => $name,
                     'email' => $email,
                     'phone' => !empty($phone) ? $phone : null,
-                    'password' => Hash::make('student123'),
+                    'password' => Hash::make(Str::password(16)),
                     'role' => 'student',
                 ]);
 

@@ -1,4 +1,9 @@
 #!/usr/bin/env bash
+set -e
+
+if [ "$#" -gt 0 ]; then
+    exec "$@"
+fi
 
 # Use the PORT environment variable provided by Render, or default to 8080
 export PORT=${PORT:-8080}

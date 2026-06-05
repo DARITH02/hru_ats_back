@@ -114,4 +114,6 @@ return [
 
     'password_timeout' => env('AUTH_PASSWORD_TIMEOUT', 10800),
 
+    'allow_student_code_login' => env('ALLOW_STUDENT_CODE_LOGIN', false),
+
 ];

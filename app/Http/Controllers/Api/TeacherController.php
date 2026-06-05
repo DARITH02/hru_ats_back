@@ -21,6 +21,32 @@ class TeacherController extends Controller
     {
         $this->telegram = $telegram;
     }
+
+    private function currentTeacher(Request $request): Teacher
+    {
+        return Teacher::where('user_id', $request->user()->id)->firstOrFail();
+    }
+
+    private function teacherSession(Request $request, $sessionId, array $with = []): AttendanceSession
+    {
+        $teacher = $this->currentTeacher($request);
+
+        return AttendanceSession::with($with)
+            ->where('id', $sessionId)
+            ->whereHas('classRoom', fn($q) => $q->where('teacher_id', $teacher->id))
+            ->firstOrFail();
+    }
+
+    private function teacherAssignment(Request $request, $assignmentId, array $with = []): SemesterAssignment
+    {
+        $teacher = $this->currentTeacher($request);
+
+        return SemesterAssignment::with($with)
+            ->where('id', $assignmentId)
+            ->whereHas('classRoom', fn($q) => $q->where('teacher_id', $teacher->id))
+            ->firstOrFail();
+    }
+
     private function syncSessionStatuses($teacherId)
     {
         $now = now();
@@ -134,9 +160,9 @@ class TeacherController extends Controller
         ];
     }
 
-    public function monitor($sessionId)
+    public function monitor(Request $request, $sessionId)
     {
-        $session = AttendanceSession::with('classRoom.subject')->findOrFail($sessionId);
+        $session = $this->teacherSession($request, $sessionId, ['classRoom.subject', 'classRoom.groups']);
         $attendances = Attendance::where('session_id', $sessionId)->get()->keyBy('student_id');
         $allStudents = collect();
         if ($session->classRoom) {
@@ -197,8 +223,7 @@ class TeacherController extends Controller
 
     public function generateQr(Request $request, $sessionId)
     {
-        $session = AttendanceSession::findOrFail($sessionId);
-        $user = $request->user();
+        $session = $this->teacherSession($request, $sessionId);
         
         // 🔒 SECURITY: For University-grade (HRU) security, we can rotate the token
         // to prevent students from sharing static photos of the QR code.
@@ -231,9 +256,15 @@ class TeacherController extends Controller
             'status'     => 'sometimes|in:present,late,absent'
         ]);
  
-        $user = $request->user();
-        $session = AttendanceSession::findOrFail($sessionId);
+        $session = $this->teacherSession($request, $sessionId, ['classRoom.groups']);
         $status  = $request->get('status', 'present');
+        $studentBelongsToSession = \App\Models\Student::where('id', $request->student_id)
+            ->whereIn('group_id', $session->classRoom->groups->pluck('id'))
+            ->exists();
+
+        if (!$studentBelongsToSession) {
+            return response()->json(['error' => 'Student is not enrolled in this session.'], 403);
+        }
  
         if ($status === 'absent') {
             Attendance::where('student_id', $request->student_id)->where('session_id', $sessionId)->delete();
@@ -259,9 +290,12 @@ class TeacherController extends Controller
     /**
      * Delete/Reset attendance record
      */
-    public function deleteAttendance($attendanceId)
+    public function deleteAttendance(Request $request, $attendanceId)
     {
-        $attendance = Attendance::findOrFail($attendanceId);
+        $teacher = $this->currentTeacher($request);
+        $attendance = Attendance::where('id', $attendanceId)
+            ->whereHas('session.classRoom', fn($q) => $q->where('teacher_id', $teacher->id))
+            ->firstOrFail();
         $attendance->delete();
 
         return response()->json([
@@ -450,7 +484,7 @@ class TeacherController extends Controller
      */
     public function regenerateQr(Request $request, $sessionId)
     {
-        $session = AttendanceSession::findOrFail($sessionId);
+        $session = $this->teacherSession($request, $sessionId);
         
         $newToken = bin2hex(random_bytes(8));
         $session->update(['qr_token' => $newToken]);
@@ -470,7 +504,7 @@ class TeacherController extends Controller
     {
         $request->validate(['status' => 'required|in:active,scheduled,completed,passed,skipped']);
         
-        $session = AttendanceSession::findOrFail($sessionId);
+        $session = $this->teacherSession($request, $sessionId);
         
         $status = $request->status;
         if ($status === 'passed') $status = 'completed';
@@ -561,6 +595,7 @@ class TeacherController extends Controller
         $sessions = AttendanceSession::whereHas('classRoom.groups', function($q) use ($student) {
                 $q->where('class_groups.id', $student->group_id);
             })
+            ->whereHas('classRoom', fn($q) => $q->where('teacher_id', $teacher->id))
             ->with('classRoom.subject')
             ->orderBy('id', 'desc')
             ->get();
@@ -632,7 +667,7 @@ class TeacherController extends Controller
     public function liveFeed(Request $request, $sessionId)
     {
         $lastId = $request->get('last_id', 0);
-        $session = AttendanceSession::findOrFail($sessionId);
+        $session = $this->teacherSession($request, $sessionId, ['classRoom.groups']);
         
         $newRecords = Attendance::with('student.user')
             ->where('session_id', $sessionId)
@@ -679,13 +714,7 @@ class TeacherController extends Controller
         ]);
 
         $user = $request->user();
-        $teacher = Teacher::where('user_id', $user->id)->first();
-        $assignment = SemesterAssignment::findOrFail($assignmentId);
-
-        // Security check
-        if ($assignment->classRoom->teacher_id !== $teacher->id) {
-            return response()->json(['error' => 'Unauthorized'], 403);
-        }
+        $assignment = $this->teacherAssignment($request, $assignmentId, ['classRoom']);
 
         $assignment->update([
             'teacher_score' => $request->teacher_score,
@@ -698,7 +727,7 @@ class TeacherController extends Controller
 
     public function getStudentScores(Request $request, $assignmentId)
     {
-        $assignment = SemesterAssignment::with('classRoom.groups')->findOrFail($assignmentId);
+        $assignment = $this->teacherAssignment($request, $assignmentId, ['classRoom.groups']);
         $class = $assignment->classRoom;
         
         $sessions = \App\Models\AttendanceSession::where('class_id', $class->id)
@@ -744,7 +773,8 @@ class TeacherController extends Controller
             'scores.*.final_score' => 'nullable|numeric|min:0|max:50',
         ]);
 
-        $assignment = SemesterAssignment::findOrFail($assignmentId);
+        $assignment = $this->teacherAssignment($request, $assignmentId, ['classRoom.groups']);
+        $allowedStudentIds = $assignment->classRoom->all_students->pluck('id');
         $sessions = AttendanceSession::where('class_id', $assignment->class_id)
             ->where('academic_year', $assignment->academic_year)
             ->where('semester', (int) $assignment->semester)
@@ -752,6 +782,10 @@ class TeacherController extends Controller
         $attendanceScores = app(SemesterAttendanceScoreService::class);
         
         foreach ($request->scores as $s) {
+            if (!$allowedStudentIds->contains((int) $s['student_id'])) {
+                return response()->json(['error' => 'Student is not enrolled in this assignment.'], 403);
+            }
+
             $attendance = $attendanceScores->calculate((int) $s['student_id'], $sessions)['score'];
             $midterm = $s['midterm_score'] ?? 0;
             $assignment_score = $s['assignment_score'] ?? 0;
@@ -782,9 +816,9 @@ class TeacherController extends Controller
         return response()->json(['success' => true, 'message' => 'Student scores updated successfully.']);
     }
 
-    public function exportSubjectScores($assignmentId)
+    public function exportSubjectScores(Request $request, $assignmentId)
     {
-        $assignment = SemesterAssignment::with(['classRoom.subject', 'classRoom.groups'])->findOrFail($assignmentId);
+        $assignment = $this->teacherAssignment($request, $assignmentId, ['classRoom.subject', 'classRoom.groups']);
         $class = $assignment->classRoom;
         
         // Use the common logic to get scores
@@ -797,15 +831,9 @@ class TeacherController extends Controller
         );
     }
 
-    public function exportSubjectScoresPdf($assignmentId)
+    public function exportSubjectScoresPdf(Request $request, $assignmentId)
     {
-        $assignment = SemesterAssignment::with(['classRoom.subject', 'classRoom.groups'])->findOrFail($assignmentId);
-        $user = request()->user();
-        $teacher = Teacher::where('user_id', $user->id)->first();
-        
-        if ($assignment->classRoom->teacher_id !== $teacher->id) {
-            return response()->json(['error' => 'Unauthorized'], 403);
-        }
+        $this->teacherAssignment($request, $assignmentId, ['classRoom.subject', 'classRoom.groups']);
 
         $adminCtrl = new AdminController();
         return $adminCtrl->generateSemesterReport($assignmentId);

@@ -758,10 +758,6 @@ document.getElementById('instructorForm').addEventListener('submit', async e => 
         phone: document.getElementById('modalPhone').value,
     };
 
-    if (mode === 'create') {
-        payload.password = 'password123'; // Default password for new instructors
-    }
-
     const csrfToken = document.querySelector('meta[name="csrf-token"]')?.content
                    || document.querySelector('input[name="_token"]')?.value || '';
     try {
@@ -777,7 +773,10 @@ document.getElementById('instructorForm').addEventListener('submit', async e => 
         });
         const data = await res.json();
         if (data.success) {
-            showToast(mode === 'create' ? 'Instructor added to registry.' : 'Profile updated successfully.', 'success');
+            const message = data.temporary_password
+                ? `Instructor added. Temporary password: ${data.temporary_password}`
+                : (mode === 'create' ? 'Instructor added to registry.' : 'Profile updated successfully.');
+            showToast(message, 'success');
             closeModal('instructorModal');
             setTimeout(() => window.location.reload(), 900);
         } else if (data.errors) {
