@@ -1,269 +1,183 @@
 # Academic Attendance Management System
 
-## Documentation
+![HRU Logo](docs/images/logo-hru.png)
 
-Repository documentation, screenshots, and Khmer translation are available in [`docs/README.md`](docs/README.md).
+## Project Overview
 
-## Project Objective
+![HRU Building](docs/images/building-hru.jpeg)
 
-This project is a Laravel-based academic attendance management system designed to help an institution manage class attendance, student records, teacher activity, semester grading, attendance reports, and administrative operations from one web platform.
+The Academic Attendance Management System is a thesis project for managing university attendance, academic records, teacher activities, semester scores, reports, and administrative workflows in one digital platform.
 
-The main objective is to replace manual attendance tracking with a more reliable digital workflow. The system supports QR-based student check-in, teacher-managed attendance sessions, admin monitoring, semester score management, attendance issue review, PDF/Excel exports, and Telegram notification support.
+The system replaces manual attendance checking with a web-based workflow using QR code check-in, teacher-managed attendance sessions, role-based access control, attendance issue monitoring, report exports, and Telegram notifications.
 
-## Core Goals
+## ទិដ្ឋភាពទូទៅគម្រោង
 
-- Track student attendance accurately for every class session.
-- Allow teachers to manage their assigned classes, QR codes, attendance records, and subject scores.
-- Allow admins and super admins to manage students, instructors, courses, departments, subjects, class groups, permissions, and reports.
-- Provide student-facing attendance access for scanning QR codes and viewing attendance data.
-- Generate reports for attendance issues, semester results, course review, and institutional summaries.
-- Improve operational visibility through dashboards, statistics, exports, and Telegram notifications.
-- Strengthen system security through role-based access control, authenticated admin APIs, scoped teacher access, and safer credential handling.
+ប្រព័ន្ធគ្រប់គ្រងវត្តមានសិក្សា គឺជាគម្រោងសារណាសម្រាប់គ្រប់គ្រងវត្តមានសិស្ស កំណត់ត្រាសិក្សា សកម្មភាពគ្រូបង្រៀន ពិន្ទុប្រចាំឆមាស របាយការណ៍ និងការងាររដ្ឋបាលក្នុងប្រព័ន្ធឌីជីថលតែមួយ។
 
-## User Roles
+ប្រព័ន្ធនេះជំនួសការត្រួតពិនិត្យវត្តមានដោយដៃ ដោយប្រើ QR code, ការគ្រប់គ្រងសម័យវត្តមានដោយគ្រូ, ការគ្រប់គ្រងសិទ្ធិតាមតួនាទី, ការតាមដានបញ្ហាវត្តមាន, ការនាំចេញរបាយការណ៍ និងការជូនដំណឹងតាម Telegram។
 
-### Super Admin
+## System Preview
 
-Super admins have the highest level of control. They can approve users, delete high-impact records, manage accounts, generate academic calendars, and perform restricted administrative actions.
+![Dashboard Preview](docs/images/dashboad.png)
 
-### Admin
+## Main Modules
 
-Admins manage most academic and operational data, including students, instructors, classes, subjects, departments, majors, class groups, attendance sessions, permissions, settings, exports, and reports.
+- **Admin Management** - manage students, instructors, subjects, classes, departments, majors, groups, permissions, settings, and reports.
+- **Teacher Portal** - manage assigned classes, generate QR codes, monitor live attendance, update session status, and manage scores.
+- **Student Attendance** - scan QR codes, verify attendance, and access attendance data.
+- **Attendance Issues** - detect at-risk and blacklisted students based on accumulated absences.
+- **Reports And Exports** - generate PDF and Excel reports for attendance, semester scores, and institutional summaries.
+- **Telegram Integration** - send attendance and report notifications through configured Telegram bots.
 
-### Teacher
+## ម៉ូឌុលសំខាន់ៗ
 
-Teachers manage only their own assigned classes and sessions. They can generate or regenerate QR codes, monitor live attendance, manually check students in, update session status, manage semester scores, and export subject reports.
+- **ការគ្រប់គ្រង Admin** - គ្រប់គ្រងសិស្ស គ្រូ មុខវិជ្ជា ថ្នាក់ ដេប៉ាតឺម៉ង់ ជំនាញ ក្រុម សិទ្ធិ ការកំណត់ និងរបាយការណ៍។
+- **ផ្នែកគ្រូបង្រៀន** - គ្រប់គ្រងថ្នាក់ដែលបានចាត់តាំង បង្កើត QR code តាមដានវត្តមានផ្ទាល់ កែប្រែស្ថានភាពសម័យ និងគ្រប់គ្រងពិន្ទុ។
+- **វត្តមានសិស្ស** - ស្កេន QR code ផ្ទៀងផ្ទាត់វត្តមាន និងមើលទិន្នន័យវត្តមាន។
+- **បញ្ហាវត្តមាន** - រកឃើញសិស្សដែលមានហានិភ័យ ឬត្រូវបាន blacklist តាមចំនួនអវត្តមាន។
+- **របាយការណ៍ និងការនាំចេញ** - បង្កើត PDF និង Excel សម្រាប់វត្តមាន ពិន្ទុឆមាស និងរបាយការណ៍សរុប។
+- **Telegram Integration** - ផ្ញើការជូនដំណឹង និងរបាយការណ៍តាម Telegram bot។
 
-### Student
+## Work Flow
 
-Students can use QR-based attendance check-in and access student attendance information through the student-facing API or portal features.
+1. **Admin prepares academic data** - create departments, majors, class groups, subjects, teachers, students, and class schedules.
+2. **Teacher runs attendance session** - open assigned class, generate QR code, monitor check-ins, and complete the session.
+3. **Student checks in** - scan QR code, submit attendance request, and receive attendance status.
+4. **System validates attendance** - verify QR token, student enrollment, time window, attendance status, and optional location.
+5. **Admin reviews results** - monitor dashboard, attendance issues, at-risk students, blacklisted students, and semester results.
+6. **Reports are generated** - export attendance, semester result, subject score, and institutional summary reports as PDF or Excel.
+7. **Notifications are sent** - send report summaries or documents through Telegram bot integration.
 
-## Main Features
+## លំហូរការងារ
 
-### Authentication and Authorization
+1. **Admin រៀបចំទិន្នន័យសិក្សា** - បង្កើតដេប៉ាតឺម៉ង់ ជំនាញ ក្រុមថ្នាក់ មុខវិជ្ជា គ្រូ សិស្ស និងកាលវិភាគថ្នាក់។
+2. **Teacher ដំណើរការ session វត្តមាន** - បើកថ្នាក់ដែលបានចាត់តាំង បង្កើត QR code តាមដាន check-in និងបញ្ចប់ session។
+3. **Student ចុះវត្តមាន** - ស្កេន QR code ផ្ញើ attendance request និងទទួលស្ថានភាពវត្តមាន។
+4. **ប្រព័ន្ធផ្ទៀងផ្ទាត់វត្តមាន** - ពិនិត្យ QR token, student enrollment, time window, attendance status និង location ជាជម្រើស។
+5. **Admin ពិនិត្យលទ្ធផល** - តាមដាន dashboard, attendance issues, at-risk students, blacklisted students និង semester results។
+6. **បង្កើតរបាយការណ៍** - នាំចេញ attendance, semester result, subject score និង institutional summary ជា PDF ឬ Excel។
+7. **ផ្ញើការជូនដំណឹង** - ផ្ញើសេចក្តីសង្ខេប ឬឯកសាររបាយការណ៍តាម Telegram bot។
 
-- Web login and API login.
-- Role-based middleware for `admin`, `super_admin`, and `teacher`.
-- Admin approval workflow for non-student accounts.
-- Laravel Sanctum token support for protected API routes.
-- Optional student-code login controlled by `ALLOW_STUDENT_CODE_LOGIN`.
+## Project Flow Diagram
 
-### Attendance Management
+```mermaid
+flowchart TD
+    A[Admin Setup Academic Data] --> B[Create Classes And Sessions]
+    B --> C[Teacher Opens Session]
+    C --> D[Generate QR Code]
+    D --> E[Student Scans QR]
+    E --> F[System Validates QR, Time, Enrollment]
+    F -->|Valid| G[Save Attendance Record]
+    F -->|Invalid| H[Reject Check-In]
+    G --> I[Teacher Monitors Live Attendance]
+    I --> J[Admin Reviews Attendance Issues]
+    J --> K[Generate Reports]
+    K --> L[Export PDF or Excel]
+    K --> M[Send Telegram Notification]
+```
 
-- QR-based attendance verification.
-- Dynamic QR token regeneration.
-- Check-in time window validation.
-- Optional location validation through campus geofencing settings.
-- Manual teacher check-in for enrolled students.
-- Attendance status tracking: present, late, absent, excused, scheduled, completed, skipped.
-- Live attendance feed for teacher monitoring.
+## Database Relationship Diagram
 
-### Academic Management
+```mermaid
+erDiagram
+    USERS ||--o| STUDENTS : has
+    USERS ||--o| TEACHERS : has
+    DEPARTMENTS ||--o{ MAJORS : contains
+    DEPARTMENTS ||--o{ SUBJECTS : owns
+    MAJORS ||--o{ CLASS_GROUPS : contains
+    MAJORS ||--o{ STUDENTS : assigned
+    CLASS_GROUPS ||--o{ STUDENTS : contains
+    TEACHERS ||--o{ CLASSES : teaches
+    SUBJECTS ||--o{ CLASSES : used_by
+    CLASSES ||--o{ ATTENDANCE_SESSIONS : schedules
+    CLASS_GROUPS }o--o{ CLASSES : assigned
+    STUDENTS ||--o{ ATTENDANCE : records
+    ATTENDANCE_SESSIONS ||--o{ ATTENDANCE : includes
+    STUDENTS ||--o{ STUDENT_PERMISSIONS : receives
+    STUDENTS ||--o{ STUDENT_RESTORE_HISTORIES : tracks
+    USERS ||--o{ STUDENT_RESTORE_HISTORIES : restores
+    TELEGRAM_BOTS ||--o{ REPORTS : sends
+```
 
-- Students, instructors, courses/classes, subjects, departments, majors, and class groups.
-- Class-to-group assignment support.
-- Semester assignment and academic period management.
-- Attendance sessions generated and managed per class schedule.
-- Student permissions for excused attendance cases.
+## Code Architecture Diagram
 
-### Semester Scores and Reports
+```mermaid
+flowchart LR
+    UI[Blade Views and Frontend UI] --> WEB[Web Routes]
+    API_CLIENT[Mobile or SPA Client] --> API[API Routes]
+    WEB --> AUTH[Auth Controllers]
+    WEB --> ADMIN[Admin Controllers]
+    WEB --> DASH[Dashboard Controller]
+    API --> APICTRL[API Controllers]
+    AUTH --> MODELS[Eloquent Models]
+    ADMIN --> SERVICES[Services]
+    DASH --> SERVICES
+    APICTRL --> SERVICES
+    SERVICES --> MODELS
+    MODELS --> DB[(MySQL Database)]
+    SERVICES --> TELEGRAM[Telegram Bot API]
+    SERVICES --> EXPORTS[PDF and Excel Exports]
+```
 
-- Teacher and admin score management.
-- Semester grading preview.
-- Student score breakdowns for attendance, midterm, assignment, final, and total score.
-- Semester reports in PDF.
-- Subject score exports.
-- Attendance issue reports.
-- Institutional and system summary exports.
+## UI/UX Flow Diagram
 
-### Admin Dashboard
+```mermaid
+flowchart TD
+    A[Login Screen] --> B{Select Role}
+    B -->|Admin or Super Admin| C[Admin Dashboard]
+    B -->|Teacher| D[Teacher Dashboard]
+    B -->|Student| E[Student Attendance Portal]
+    C --> C1[Manage Students and Teachers]
+    C --> C2[Manage Courses and Subjects]
+    C --> C3[Review Attendance Issues]
+    C --> C4[Export Reports]
+    D --> D1[View Assigned Classes]
+    D --> D2[Generate QR Session]
+    D --> D3[Monitor Live Attendance]
+    D --> D4[Update Scores]
+    E --> E1[Scan QR Code]
+    E1 --> E2[Submit Check-In]
+    E2 --> E3[View Attendance Result]
+```
 
-- Global student and attendance statistics.
-- Active and upcoming session visibility.
-- Attendance rate and absence rate overview.
-- Top absent students and classes.
-- Recent activity tracking.
-- Admin pages for students, courses, instructors, results, permissions, settings, and Telegram bots.
+## Full Project Documentation
 
-### Telegram Integration
+This README is the short project presentation. For the full thesis-style description, including objectives, problem statement, scope, methodology, system architecture, detailed step-by-step workflow, technology stack, setup, security notes, and English/Khmer documentation, open:
 
-- Store and activate Telegram bots.
-- Send test notifications.
-- Send attendance and result reports to Telegram.
-- Sync Telegram chat IDs from bot updates.
+**[Read Full Project Documentation](docs/README.md)**
 
-## Security Improvements Included
+## ឯកសារពេញលេញ
 
-The project includes recent security hardening:
+README នេះជាការបង្ហាញគម្រោងខ្លី។ សម្រាប់អានការពិពណ៌នាគម្រោងពេញលេញបែបសារណា រួមមានគោលបំណង បញ្ហាដែលត្រូវដោះស្រាយ ដែនកំណត់ វិធីសាស្ត្រ ស្ថាបត្យកម្មប្រព័ន្ធ លំហូរការងារលម្អិតជាជំហានៗ បច្ចេកវិទ្យា ការដំឡើង កំណត់ចំណាំសុវត្ថិភាព និងឯកសារជាភាសាអង់គ្លេស/ខ្មែរ សូមចុច:
 
-- Admin class termination API is protected by authentication and admin role middleware.
-- Teacher API access is scoped to the authenticated teacher's own sessions and semester assignments.
-- Teachers cannot update another teacher's session, QR code, attendance record, or score by changing IDs.
-- Fixed default passwords such as `password123` and `student123` were removed from account creation.
-- New student and instructor accounts receive generated temporary passwords.
-- Super admin key fallback was removed from configuration.
-- Student-code-as-password login is disabled by default and controlled by `ALLOW_STUDENT_CODE_LOGIN`.
-
-## Important Security Notes
-
-Before production deployment:
-
-- Set `APP_DEBUG=false`.
-- Use a strong `APP_KEY`.
-- Rotate any exposed secrets such as database passwords, Cloudinary credentials, Telegram tokens, and super admin keys.
-- Set a strong `SUPER_ADMIN_KEY` only in the real environment file.
-- Keep `ALLOW_STUDENT_CODE_LOGIN=false` unless a temporary migration period is required.
-- Set secure cookie values for HTTPS deployments:
-  - `SESSION_SECURE_COOKIE=true`
-  - `SESSION_ENCRYPT=true`
-- Review public student endpoints before exposing the system publicly.
-- Restrict or authenticate location collection endpoints.
-- Update PHP dependencies regularly and run `composer audit`.
-- Do not expose MySQL or phpMyAdmin publicly in production.
+**[អានឯកសារគម្រោងពេញលេញ](docs/README.md)**
 
 ## Technology Stack
 
 - Laravel 12
 - PHP 8.2+
-- Laravel Sanctum
 - MySQL
 - Redis
 - Nginx
 - Docker Compose
+- Laravel Sanctum
+- Blade templates
 - Vite
 - JavaScript
-- Blade templates
 - Maatwebsite Excel
 - DomPDF
-- Cloudinary integration
+- Cloudinary
 - Telegram Bot API
 
-## Project Structure
-
-- `app/Http/Controllers/Api` - API controllers for auth, admin, teacher, attendance, and location features.
-- `app/Http/Controllers/Admin` - Web admin UI controllers.
-- `app/Http/Controllers/Auth` - Web authentication controllers.
-- `app/Models` - Eloquent models for users, students, teachers, classes, attendance, settings, Telegram bots, and academic entities.
-- `app/Services` - Business logic for attendance scoring, attendance processing, and Telegram notifications.
-- `database/migrations` - Database schema definitions.
-- `database/seeders` - Initial data seeders.
-- `resources/views` - Blade UI pages and PDF templates.
-- `routes/web.php` - Web routes.
-- `routes/api.php` - API routes.
-- `config` - Laravel configuration files.
-- `docker-compose.yml` - Local Docker environment.
-- `Dockerfile` and `start.sh` - Container build and startup process.
-
-## Local Setup
-
-### Using Docker Compose
+## Quick Start
 
 ```bash
 docker compose up -d --build
+docker compose exec app php artisan migrate --force
 ```
 
-The app is configured to run on:
+Local application:
 
 ```text
 http://localhost:8080
 ```
-
-phpMyAdmin is configured locally on:
-
-```text
-http://localhost:8081
-```
-
-### Clear Laravel Cache
-
-```bash
-docker compose exec app php artisan optimize:clear
-```
-
-### Run Migrations
-
-```bash
-docker compose exec app php artisan migrate --force
-```
-
-### Run PHP Syntax Check Example
-
-```bash
-docker compose exec app php -l app/Http/Controllers/Api/TeacherController.php
-```
-
-### Run NPM Audit
-
-```bash
-npm audit --omit=dev
-```
-
-### Run Composer Audit
-
-```bash
-docker compose exec app composer audit --locked
-```
-
-## Environment Configuration
-
-Create a `.env` file from `.env.example` and configure:
-
-```env
-APP_NAME=
-APP_ENV=
-APP_KEY=
-APP_DEBUG=
-APP_URL=
-
-DB_CONNECTION=
-DB_HOST=
-DB_PORT=
-DB_DATABASE=
-DB_USERNAME=
-DB_PASSWORD=
-
-SUPER_ADMIN_KEY=
-ALLOW_STUDENT_CODE_LOGIN=false
-
-TELEGRAM_BOT_TOKEN=
-CLOUDINARY_URL=
-```
-
-Do not commit real `.env` secrets to version control.
-
-## Expected Workflow
-
-1. Super admin or admin creates academic data such as departments, majors, groups, subjects, teachers, and students.
-2. Admin creates classes and assigns teachers, groups, schedules, semesters, and sessions.
-3. Teacher opens an active session and generates a QR code.
-4. Student scans the QR code and submits attendance verification.
-5. System validates the QR token, student enrollment, time window, and optional location.
-6. Teacher monitors attendance in real time.
-7. Admin and teacher review results, update scores, and export reports.
-8. Telegram notifications can be sent for reports or summaries.
-
-## Current Limitations
-
-- Imported students receive generated passwords but need a proper onboarding or password reset flow.
-- Some public student endpoints should be reviewed before public deployment.
-- Full automated tests are not currently available because the test directory structure is incomplete.
-- Docker Compose exposes MySQL and phpMyAdmin for local development and should be hardened for production.
-
-## Production Checklist
-
-- Set `APP_ENV=production`.
-- Set `APP_DEBUG=false`.
-- Generate a fresh `APP_KEY`.
-- Rotate all real secrets.
-- Use strong database credentials.
-- Disable public database and phpMyAdmin exposure.
-- Run `composer audit --locked` and update vulnerable dependencies.
-- Run `npm audit --omit=dev`.
-- Run migrations.
-- Clear and rebuild Laravel caches.
-- Confirm admin, teacher, and student workflows.
-- Confirm role access and teacher ownership restrictions.
-
-## License
-
-This project is built on Laravel. Confirm the final project license with the project owner before public distribution.
