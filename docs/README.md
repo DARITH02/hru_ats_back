@@ -2,6 +2,112 @@
 
 ![HRU Logo](images/logo-hru.png)
 
+## Thesis Project Overview
+
+![University Building](images/building-hru.jpeg)
+
+**Project Title:** Academic Attendance Management System  
+**Project Type:** Thesis / Final Year System Project  
+**Institution Context:** University academic attendance and administration  
+**System Category:** Web-based attendance, academic management, reporting, and notification system  
+**Main Technology:** Laravel, PHP, MySQL, Redis, Nginx, Docker, Blade, JavaScript  
+
+This document describes the full project system for the Academic Attendance Management System. It explains the background, problem statement, objectives, scope, features, workflow, database concept, system architecture, UI/UX flow, technology stack, setup steps, security notes, limitations, and conclusion. The document is written in both English and Khmer for thesis presentation and repository documentation.
+
+## Project Visual Summary
+
+### System Dashboard
+
+![Dashboard Overview](images/dashboad.png)
+
+### Project Team
+
+![Project Team](images/team-work.jpg)
+
+### Supervisor
+
+![Supervisor](images/Supervisor.jpg)
+
+### Project Leader
+
+![Project Leader](images/Leader.jpg)
+
+### Telegram Notification Example
+
+![Telegram Notification](images/telegram-notification.png)
+
+## Thesis Abstract
+
+The Academic Attendance Management System is developed to solve common problems in manual university attendance management. Traditional attendance tracking often depends on paper forms, teacher memory, or spreadsheets, which can cause delays, inaccurate records, duplicated data, and difficulty producing semester reports.
+
+This project provides a digital attendance workflow using QR code verification, teacher-managed sessions, student check-in, admin monitoring, attendance issue detection, semester score tracking, PDF and Excel exports, and Telegram notifications. The system uses role-based access control so that Super Admins, Admins, Teachers, and Students can only access the features related to their responsibilities.
+
+The final result is a centralized platform that improves attendance accuracy, reduces manual work, supports academic reporting, helps identify at-risk students earlier, and provides better operational visibility for academic administrators.
+
+## សេចក្តីសង្ខេបសារណា
+
+ប្រព័ន្ធគ្រប់គ្រងវត្តមានសិក្សា ត្រូវបានបង្កើតឡើងដើម្បីដោះស្រាយបញ្ហាទូទៅនៃការគ្រប់គ្រងវត្តមានដោយដៃក្នុងសាកលវិទ្យាល័យ។ វិធីសាស្ត្រចាស់ៗដូចជា ក្រដាសចុះវត្តមាន ការហៅឈ្មោះ ឬការកត់ត្រាក្នុង spreadsheet អាចធ្វើឱ្យយឺត មានកំហុស ទិន្នន័យស្ទួន និងពិបាកបង្កើតរបាយការណ៍ប្រចាំឆមាស។
+
+គម្រោងនេះផ្តល់លំហូរការងារឌីជីថលដោយប្រើ QR code verification, teacher-managed sessions, student check-in, admin monitoring, attendance issue detection, semester score tracking, PDF/Excel exports និង Telegram notifications។ ប្រព័ន្ធប្រើ role-based access control ដើម្បីធានាថា Super Admin, Admin, Teacher និង Student អាចប្រើបានតែ feature ដែលពាក់ព័ន្ធនឹងតួនាទីរបស់ខ្លួន។
+
+លទ្ធផលចុងក្រោយគឺជាប្រព័ន្ធមជ្ឈមណ្ឌលដែលជួយបង្កើនភាពត្រឹមត្រូវនៃវត្តមាន កាត់បន្ថយការងារដោយដៃ គាំទ្ររបាយការណ៍សិក្សា រកឃើញសិស្សដែលមានហានិភ័យបានលឿន និងផ្តល់ភាពច្បាស់លាស់សម្រាប់ការគ្រប់គ្រងរដ្ឋបាលសិក្សា។
+
+## Keywords
+
+- Academic Attendance
+- QR Code Check-In
+- Laravel System
+- Role-Based Access Control
+- Student Management
+- Teacher Portal
+- Semester Score
+- Attendance Report
+- Telegram Notification
+- Thesis Project
+
+## ពាក្យគន្លឹះ
+
+- វត្តមានសិក្សា
+- ការចុះវត្តមានតាម QR Code
+- ប្រព័ន្ធ Laravel
+- ការគ្រប់គ្រងសិទ្ធិតាមតួនាទី
+- ការគ្រប់គ្រងសិស្ស
+- ផ្នែកគ្រូបង្រៀន
+- ពិន្ទុឆមាស
+- របាយការណ៍វត្តមាន
+- ការជូនដំណឹងតាម Telegram
+- គម្រោងសារណា
+
+## Project Identity
+
+| Item | Description |
+| --- | --- |
+| Project Name | Academic Attendance Management System |
+| Purpose | Manage attendance, academic records, reports, and notifications |
+| Main Users | Super Admin, Admin, Teacher, Student |
+| Main Output | Attendance records, semester scores, reports, blacklist/restore history |
+| Deployment Type | Laravel web application with Docker support |
+| Documentation | English and Khmer thesis-style project documentation |
+
+## អត្តសញ្ញាណគម្រោង
+
+| ចំណុច | ការពិពណ៌នា |
+| --- | --- |
+| ឈ្មោះគម្រោង | ប្រព័ន្ធគ្រប់គ្រងវត្តមានសិក្សា |
+| គោលបំណង | គ្រប់គ្រងវត្តមាន កំណត់ត្រាសិក្សា របាយការណ៍ និងការជូនដំណឹង |
+| អ្នកប្រើសំខាន់ | Super Admin, Admin, Teacher, Student |
+| លទ្ធផលសំខាន់ | កំណត់ត្រាវត្តមាន ពិន្ទុឆមាស របាយការណ៍ ប្រវត្តិ blacklist/restore |
+| ប្រភេទ Deploy | Laravel web application ដែលគាំទ្រ Docker |
+| ឯកសារ | ឯកសារគម្រោងបែបសារណា ជាភាសាអង់គ្លេស និងខ្មែរ |
+
+## Repository Entry Point
+
+The root [README.md](../README.md) provides the short project presentation with quick overview, images, workflow, and diagrams. This file contains the full detailed thesis documentation.
+
+## ចំណុចចូល Repository
+
+[README.md](../README.md) នៅ root ផ្តល់ការបង្ហាញគម្រោងខ្លី រួមមាន overview, images, workflow និង diagrams។ ឯកសារនេះជាឯកសារលម្អិតពេញលេញសម្រាប់សារណា។
+
 ## English Version
 
 ### Thesis Project Title
@@ -243,6 +349,90 @@ The project follows a Laravel MVC architecture:
 - **Blade Views** render admin, teacher, student, and PDF pages.
 - **Migrations** define and update the database schema.
 - **Docker** provides a local development environment with PHP, Nginx, MySQL, and Redis.
+
+### System Diagrams
+
+#### Project Flow Diagram
+
+```mermaid
+flowchart TD
+    A[Admin Setup Academic Data] --> B[Create Classes And Sessions]
+    B --> C[Teacher Opens Session]
+    C --> D[Generate QR Code]
+    D --> E[Student Scans QR]
+    E --> F[System Validates QR, Time, Enrollment]
+    F -->|Valid| G[Save Attendance Record]
+    F -->|Invalid| H[Reject Check-In]
+    G --> I[Teacher Monitors Live Attendance]
+    I --> J[Admin Reviews Attendance Issues]
+    J --> K[Generate Reports]
+    K --> L[Export PDF or Excel]
+    K --> M[Send Telegram Notification]
+```
+
+#### Database Relationship Diagram
+
+```mermaid
+erDiagram
+    USERS ||--o| STUDENTS : has
+    USERS ||--o| TEACHERS : has
+    DEPARTMENTS ||--o{ MAJORS : contains
+    DEPARTMENTS ||--o{ SUBJECTS : owns
+    MAJORS ||--o{ CLASS_GROUPS : contains
+    MAJORS ||--o{ STUDENTS : assigned
+    CLASS_GROUPS ||--o{ STUDENTS : contains
+    TEACHERS ||--o{ CLASSES : teaches
+    SUBJECTS ||--o{ CLASSES : used_by
+    CLASSES ||--o{ ATTENDANCE_SESSIONS : schedules
+    CLASS_GROUPS }o--o{ CLASSES : assigned
+    STUDENTS ||--o{ ATTENDANCE : records
+    ATTENDANCE_SESSIONS ||--o{ ATTENDANCE : includes
+    STUDENTS ||--o{ STUDENT_PERMISSIONS : receives
+    STUDENTS ||--o{ STUDENT_RESTORE_HISTORIES : tracks
+    USERS ||--o{ STUDENT_RESTORE_HISTORIES : restores
+    TELEGRAM_BOTS ||--o{ REPORTS : sends
+```
+
+#### Code Architecture Diagram
+
+```mermaid
+flowchart LR
+    UI[Blade Views And Frontend UI] --> WEB[Web Routes]
+    API_CLIENT[Mobile Or SPA Client] --> API[API Routes]
+    WEB --> AUTH[Auth Controllers]
+    WEB --> ADMIN[Admin Controllers]
+    WEB --> DASH[Dashboard Controller]
+    API --> APICTRL[API Controllers]
+    AUTH --> MODELS[Eloquent Models]
+    ADMIN --> SERVICES[Services]
+    DASH --> SERVICES
+    APICTRL --> SERVICES
+    SERVICES --> MODELS
+    MODELS --> DB[(MySQL Database)]
+    SERVICES --> TELEGRAM[Telegram Bot API]
+    SERVICES --> EXPORTS[PDF And Excel Exports]
+```
+
+#### UI/UX Flow Diagram
+
+```mermaid
+flowchart TD
+    A[Login Screen] --> B{Select Role}
+    B -->|Admin Or Super Admin| C[Admin Dashboard]
+    B -->|Teacher| D[Teacher Dashboard]
+    B -->|Student| E[Student Attendance Portal]
+    C --> C1[Manage Students And Teachers]
+    C --> C2[Manage Courses And Subjects]
+    C --> C3[Review Attendance Issues]
+    C --> C4[Export Reports]
+    D --> D1[View Assigned Classes]
+    D --> D2[Generate QR Session]
+    D --> D3[Monitor Live Attendance]
+    D --> D4[Update Scores]
+    E --> E1[Scan QR Code]
+    E1 --> E2[Submit Check-In]
+    E2 --> E3[View Attendance Result]
+```
 
 ### Technology Stack
 

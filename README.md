@@ -10,11 +10,37 @@ The Academic Attendance Management System is a thesis project for managing unive
 
 The system replaces manual attendance checking with a web-based workflow using QR code check-in, teacher-managed attendance sessions, role-based access control, attendance issue monitoring, report exports, and Telegram notifications.
 
+This project is designed for academic institutions that need a reliable way to track attendance, reduce manual paperwork, identify students with attendance problems, and produce useful reports for teachers and administrators.
+
+## Project Objectives
+
+- Build a centralized digital platform for managing academic attendance.
+- Replace paper-based or manual attendance checking with QR code verification.
+- Help teachers create sessions, generate QR codes, monitor live attendance, and manage scores.
+- Help admins manage students, instructors, subjects, classes, departments, majors, groups, permissions, and reports.
+- Detect at-risk and blacklisted students based on absence totals.
+- Generate PDF and Excel reports for attendance, semester results, and academic summaries.
+- Improve data security using login authentication, role-based access control, and protected API routes.
+- Support Telegram notifications for reports and attendance-related updates.
+
 ## ទិដ្ឋភាពទូទៅគម្រោង
 
 ប្រព័ន្ធគ្រប់គ្រងវត្តមានសិក្សា គឺជាគម្រោងសារណាសម្រាប់គ្រប់គ្រងវត្តមានសិស្ស កំណត់ត្រាសិក្សា សកម្មភាពគ្រូបង្រៀន ពិន្ទុប្រចាំឆមាស របាយការណ៍ និងការងាររដ្ឋបាលក្នុងប្រព័ន្ធឌីជីថលតែមួយ។
 
 ប្រព័ន្ធនេះជំនួសការត្រួតពិនិត្យវត្តមានដោយដៃ ដោយប្រើ QR code, ការគ្រប់គ្រងសម័យវត្តមានដោយគ្រូ, ការគ្រប់គ្រងសិទ្ធិតាមតួនាទី, ការតាមដានបញ្ហាវត្តមាន, ការនាំចេញរបាយការណ៍ និងការជូនដំណឹងតាម Telegram។
+
+គម្រោងនេះត្រូវបានរចនាឡើងសម្រាប់ស្ថាប័នសិក្សាដែលត្រូវការវិធីសាស្ត្រដែលអាចទុកចិត្តបានក្នុងការតាមដានវត្តមាន កាត់បន្ថយការងារក្រដាស រកឃើញសិស្សដែលមានបញ្ហាវត្តមាន និងបង្កើតរបាយការណ៍សម្រាប់គ្រូ និងអ្នកគ្រប់គ្រង។
+
+## គោលបំណងគម្រោង
+
+- បង្កើតប្រព័ន្ធឌីជីថលមជ្ឈមណ្ឌលសម្រាប់គ្រប់គ្រងវត្តមានសិក្សា។
+- ជំនួសការចុះវត្តមានដោយក្រដាស ឬដោយដៃ ដោយប្រើ QR code verification។
+- ជួយគ្រូបង្កើត session បង្កើត QR code តាមដានវត្តមានផ្ទាល់ និងគ្រប់គ្រងពិន្ទុ។
+- ជួយ Admin គ្រប់គ្រងសិស្ស គ្រូ មុខវិជ្ជា ថ្នាក់ ដេប៉ាតឺម៉ង់ ជំនាញ ក្រុម សិទ្ធិ និងរបាយការណ៍។
+- រកឃើញសិស្ស at-risk និង blacklisted តាមចំនួនអវត្តមាន។
+- បង្កើតរបាយការណ៍ PDF និង Excel សម្រាប់វត្តមាន លទ្ធផលឆមាស និងសេចក្តីសង្ខេបសិក្សា។
+- បង្កើនសុវត្ថិភាពទិន្នន័យដោយប្រើ login authentication, role-based access control និង protected API routes។
+- គាំទ្រការជូនដំណឹងតាម Telegram សម្រាប់របាយការណ៍ និងព័ត៌មានទាក់ទងនឹងវត្តមាន។
 
 ## System Preview
 
