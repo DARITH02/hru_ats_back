@@ -5,8 +5,8 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Models\User;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
-use Illuminate\Validation\ValidationException;
 
 class AuthController extends Controller
 {
@@ -16,37 +16,38 @@ class AuthController extends Controller
     public function login(Request $request)
     {
         $request->validate([
-            'email' => 'required',
+            'email' => 'required_without_all:login,phone',
+            'login' => 'required_without_all:email,phone',
+            'phone' => 'required_without_all:email,login',
             'password' => 'required',
         ]);
 
-        $loginInput = $request->email;
+        $loginInput = trim((string) ($request->email ?? $request->login ?? $request->phone));
+        $phoneCandidates = $this->phoneLoginCandidates($loginInput);
+
         $user = User::where('email', $loginInput)
             ->orWhere('phone', $loginInput)
+            ->when($phoneCandidates !== [], function ($query) use ($phoneCandidates) {
+                $query->orWhereIn($this->normalizedPhoneColumn(), $phoneCandidates);
+            })
             ->orWhereHas('student', function($q) use ($loginInput) {
                 $q->where('student_code', $loginInput);
             })
             ->first();
 
         if (!$user) {
-            throw ValidationException::withMessages([
-                'email' => ['The provided credentials are incorrect.'],
-            ]);
+            return $this->invalidCredentialsResponse();
         }
 
         if ($user->role === 'student') {
             $student = \App\Models\Student::where('user_id', $user->id)->first();
             $allowsCodeLogin = config('auth.allow_student_code_login') && $student?->student_code === $request->password;
             if (!$student || (!$allowsCodeLogin && !Hash::check($request->password, $user->password))) {
-                throw ValidationException::withMessages([
-                    'email' => ['The provided credentials are incorrect.'],
-                ]);
+                return $this->invalidCredentialsResponse();
             }
         } else {
             if (!Hash::check($request->password, $user->password)) {
-                throw ValidationException::withMessages([
-                    'email' => ['The provided credentials are incorrect.'],
-                ]);
+                return $this->invalidCredentialsResponse();
             }
         }
 
@@ -134,5 +135,40 @@ class AuthController extends Controller
             'campus_radius_meters' => \App\Models\Setting::get('campus_radius_meters', '250'),
             'require_location' => \App\Models\Setting::get('require_location', 'true') === 'true',
         ]);
+    }
+
+    private function phoneLoginCandidates(string $value): array
+    {
+        $digits = preg_replace('/\D+/', '', $value);
+
+        if (!$digits) {
+            return [];
+        }
+
+        $candidates = [$digits];
+
+        if (str_starts_with($digits, '0')) {
+            $candidates[] = '855' . substr($digits, 1);
+        } elseif (str_starts_with($digits, '855')) {
+            $candidates[] = '0' . substr($digits, 3);
+        }
+
+        return array_values(array_unique($candidates));
+    }
+
+    private function normalizedPhoneColumn(): \Illuminate\Contracts\Database\Query\Expression
+    {
+        return DB::raw("REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(phone, ' ', ''), '+', ''), '-', ''), '(', ''), ')', '')");
+    }
+
+    private function invalidCredentialsResponse(): \Illuminate\Http\JsonResponse
+    {
+        return response()->json([
+            'success' => false,
+            'message' => 'The provided credentials are incorrect.',
+            'errors' => [
+                'email' => ['The provided credentials are incorrect.'],
+            ],
+        ], 401);
     }
 }
