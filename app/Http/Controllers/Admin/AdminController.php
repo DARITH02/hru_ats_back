@@ -17,6 +17,7 @@ use App\Models\ActivityLog;
 use App\Models\Attendance;
 use CloudinaryLabs\CloudinaryLaravel\Facades\Cloudinary;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\DB;
 use Maatwebsite\Excel\Facades\Excel;
 use App\Services\SemesterAttendanceScoreService;
 use App\Services\TelegramService;
@@ -1005,130 +1006,142 @@ class AdminController extends Controller
             $academicYears = collect([$academicYear]);
         }
 
-        $students = Student::with(['user', 'group.major', 'major'])->get();
-        $processedStudents = collect();
+        $studentsQuery = Student::with(['user', 'group.major', 'major']);
+        if ($request->filled('search')) {
+            $q = $request->search;
+            $studentsQuery->where(function ($query) use ($q) {
+                $query->where('student_code', 'like', "%{$q}%")
+                    ->orWhereHas('user', function ($userQuery) use ($q) {
+                        $userQuery->where('name', 'like', "%{$q}%");
+                    });
+            });
+        }
 
-        foreach ($students as $student) {
-            $groupId = $student->group_id;
-            
-            // Get latest restore for this student in this semester/academic year
-            $latestRestore = \App\Models\StudentRestoreHistory::where('student_id', $student->id)
-                ->where('academic_year', $academicYear)
-                ->where('semester', $semester)
-                ->latest()
-                ->first();
+        $students = $studentsQuery->get();
+        $studentIds = $students->pluck('id');
+        $groupIds = $students->pluck('group_id')->filter()->unique()->values();
 
-            $restoreCount = \App\Models\StudentRestoreHistory::where('student_id', $student->id)
-                ->where('academic_year', $academicYear)
-                ->where('semester', $semester)
-                ->count();
+        $restoreHistories = \App\Models\StudentRestoreHistory::with(['student.user', 'student.group.major', 'student.major', 'restoredBy'])
+            ->where('academic_year', $academicYear)
+            ->where('semester', $semester)
+            ->latest()
+            ->get();
+        $restoredHistoryCount = $restoreHistories
+            ->filter(fn ($history) => str_contains(strtolower($history->reason ?? ''), 'authorized by'))
+            ->count();
+        $restoreHistories
+            ->sortBy('created_at')
+            ->groupBy('student_id')
+            ->each(function ($studentHistories) {
+                $studentHistories->values()->each(function ($history, $index) {
+                    $history->display_sequence = $index + 1;
+                });
+            });
+        $restoreHistoriesByStudent = $restoreHistories->groupBy('student_id');
 
-            if (!$groupId) {
-                $processedStudents->push([
-                    'student' => $student,
-                    'total_sessions' => 0,
-                    'attended' => 0,
-                    'excused' => 0,
-                    'absences' => 0,
-                    'is_blacklisted_by_absences' => false,
-                    'restore_count' => $restoreCount,
-                    'latest_restore' => $latestRestore
-                ]);
-                continue;
-            }
-
-            // Get completed sessions for this group in selected academic year and semester
-            $sessionQuery = \App\Models\AttendanceSession::whereHas('classRoom.groups', function($q) use ($groupId) {
-                    $q->where('class_groups.id', $groupId);
-                })
-                ->where('academic_year', $academicYear)
-                ->where('semester', $semester)
-                ->where('status', 'completed');
-
-            // If the student was restored, absences only count after the restore date
-            if ($latestRestore) {
-                $sessionQuery->where('start_time', '>', $latestRestore->created_at);
-            }
-
-            $sessionIds = $sessionQuery->pluck('id');
-            $totalSessions = $sessionIds->count();
-
-            if ($totalSessions === 0) {
-                $processedStudents->push([
-                    'student' => $student,
-                    'total_sessions' => 0,
-                    'attended' => 0,
-                    'excused' => 0,
-                    'absences' => 0,
-                    'is_blacklisted_by_absences' => false,
-                    'restore_count' => $restoreCount,
-                    'latest_restore' => $latestRestore
-                ]);
-                continue;
-            }
-
-            // Attended sessions
-            $attendedSessionIds = Attendance::where('student_id', $student->id)
-                ->whereIn('session_id', $sessionIds)
-                ->whereIn('status', ['present', 'late', 'excused', 'PRESENT', 'LATE', 'EXCUSED'])
-                ->pluck('session_id');
-
-            $attendedCount = $attendedSessionIds->count();
-
-            // Excused sessions via StudentPermission
-            $excusedCount = \App\Models\AttendanceSession::whereIn('id', $sessionIds->diff($attendedSessionIds))
+        $sessionsByGroup = collect();
+        $allSessionIds = collect();
+        if ($groupIds->isNotEmpty()) {
+            $sessionsByGroup = DB::table('attendance_sessions')
+                ->join('class_class_group', 'attendance_sessions.class_id', '=', 'class_class_group.class_room_id')
+                ->whereIn('class_class_group.class_group_id', $groupIds)
+                ->where('attendance_sessions.academic_year', $academicYear)
+                ->where('attendance_sessions.semester', $semester)
+                ->where('attendance_sessions.status', 'completed')
+                ->select([
+                    'attendance_sessions.id',
+                    'attendance_sessions.start_time',
+                    'class_class_group.class_group_id',
+                ])
+                ->orderBy('attendance_sessions.start_time')
                 ->get()
-                ->filter(function ($session) use ($student) {
-                    $sessionDate = \Carbon\Carbon::parse($session->start_time)->toDateString();
-                    return \App\Models\StudentPermission::where('student_id', $student->id)
-                        ->where('start_date', '<=', $sessionDate)
-                        ->where('end_date', '>=', $sessionDate)
-                        ->exists();
-                })
-                ->count();
+                ->unique(fn ($session) => $session->class_group_id . '-' . $session->id)
+                ->groupBy('class_group_id');
 
-            $absentCount = max(0, $totalSessions - $attendedCount - $excusedCount);
+            $allSessionIds = $sessionsByGroup
+                ->flatten(1)
+                ->pluck('id')
+                ->unique()
+                ->values();
+        }
 
-            // Auto-update student status to 'blacklisted' if they hit 30 absences
-            if ($absentCount >= 30 && !$student->isBlacklistedInSemester($academicYear, $semester)) {
-                $student->blacklistInSemester($academicYear, $semester);
-                
-                // Trigger Telegram alert for the blacklist event
-                try {
-                    $bot = \App\Models\TelegramBot::where('is_active', true)->first();
-                    if ($bot && $bot->chat_id) {
-                        $message = "🚫 <b>STUDENT BLACKLISTED</b> 🚫\n\n"
-                                 . "👤 <b>Student:</b> " . e($student->user->name) . " (" . e($student->student_code) . ")\n"
-                                 . "📊 <b>Total Absences (All Subjects):</b> <b style='color:red'>" . $absentCount . "</b> sessions\n"
-                                 . "🎓 <b>Major:</b> " . e($student->major->name ?? $student->group->major->name ?? 'N/A') . "\n\n"
-                                 . "❌ This student has accumulated 30 or more absences and is now <b>BLACKLISTED</b>.";
-                        app(TelegramService::class)->sendMessage($bot, $message);
-                    }
-                } catch (\Exception $e) {
-                    Log::error("Failed to send Telegram blacklist alert: " . $e->getMessage());
+        $attendedSessionIdsByStudent = collect();
+        if ($studentIds->isNotEmpty() && $allSessionIds->isNotEmpty()) {
+            $attendedSessionIdsByStudent = Attendance::whereIn('student_id', $studentIds)
+                ->whereIn('session_id', $allSessionIds)
+                ->whereIn('status', ['present', 'late', 'excused', 'PRESENT', 'LATE', 'EXCUSED'])
+                ->select('student_id', 'session_id')
+                ->distinct()
+                ->get()
+                ->groupBy('student_id')
+                ->map(fn ($records) => $records->pluck('session_id')->flip());
+        }
+
+        $permissionsByStudent = \App\Models\StudentPermission::whereIn('student_id', $studentIds)
+            ->get()
+            ->groupBy('student_id');
+
+        $processedStudents = $students->map(function ($student) use (
+            $academicYear,
+            $semester,
+            $restoreHistoriesByStudent,
+            $sessionsByGroup,
+            $attendedSessionIdsByStudent,
+            $permissionsByStudent
+        ) {
+            $studentRestoreHistories = $restoreHistoriesByStudent->get($student->id, collect());
+            $latestRestore = $studentRestoreHistories->first();
+            $restoreCount = $studentRestoreHistories->count();
+
+            $sessions = $sessionsByGroup->get($student->group_id, collect());
+            if ($latestRestore) {
+                $restoreTime = $latestRestore->created_at;
+                $sessions = $sessions->filter(fn ($session) => \Carbon\Carbon::parse($session->start_time)->gt($restoreTime));
+            }
+
+            $attendedSessionIds = $attendedSessionIdsByStudent->get($student->id, collect());
+            $permissions = $permissionsByStudent->get($student->id, collect());
+
+            $totalSessions = $sessions->count();
+            $attendedCount = 0;
+            $excusedCount = 0;
+
+            foreach ($sessions as $session) {
+                if ($attendedSessionIds->has($session->id)) {
+                    $attendedCount++;
+                    continue;
+                }
+
+                $sessionDate = \Carbon\Carbon::parse($session->start_time)->toDateString();
+                $hasPermission = $permissions->contains(function ($permission) use ($sessionDate) {
+                    return $permission->start_date <= $sessionDate && $permission->end_date >= $sessionDate;
+                });
+
+                if ($hasPermission) {
+                    $excusedCount++;
                 }
             }
 
-            $processedStudents->push([
+            $absentCount = max(0, $totalSessions - $attendedCount - $excusedCount);
+            $isBlacklisted = $student->isBlacklistedInSemester($academicYear, $semester);
+
+            if ($absentCount >= 30 && !$isBlacklisted) {
+                $student->blacklistInSemester($academicYear, $semester);
+                $student->refresh();
+                $isBlacklisted = true;
+            }
+
+            return [
                 'student' => $student,
                 'total_sessions' => $totalSessions,
                 'attended' => $attendedCount,
                 'excused' => $excusedCount,
                 'absences' => $absentCount,
-                'is_blacklisted_by_absences' => ($absentCount >= 30) || $student->isBlacklistedInSemester($academicYear, $semester),
+                'is_blacklisted_by_absences' => ($absentCount >= 30) || $isBlacklisted,
                 'restore_count' => $restoreCount,
                 'latest_restore' => $latestRestore
-            ]);
-        }
-
-        // Apply search filter if present
-        if ($request->filled('search')) {
-            $q = strtolower($request->search);
-            $processedStudents = $processedStudents->filter(function ($item) use ($q) {
-                return str_contains(strtolower($item['student']->user->name), $q) || 
-                       str_contains(strtolower($item['student']->student_code), $q);
-            });
-        }
+            ];
+        });
 
         $blacklisted = $processedStudents->filter(function ($item) use ($academicYear, $semester) {
             return $item['student']->isBlacklistedInSemester($academicYear, $semester) || $item['absences'] >= 30;
@@ -1168,13 +1181,6 @@ class AdminController extends Controller
         $totalAbsencesAll = $processedStudents->sum('absences');
         $avgAbsenceRate = $totalPossibleAll > 0 ? round(($totalAbsencesAll / $totalPossibleAll) * 100, 1) : 0;
 
-        // Fetch all restore/manual-blacklist history for registry tab
-        $restoreHistories = \App\Models\StudentRestoreHistory::with(['student.user', 'student.group.major', 'student.major', 'restoredBy'])
-            ->where('academic_year', $academicYear)
-            ->where('semester', $semester)
-            ->latest()
-            ->get();
-
         return [
             'processedStudents' => $processedStudents,
             'processedStudentsGrouped' => $processedStudentsGrouped,
@@ -1192,6 +1198,7 @@ class AdminController extends Controller
             'semester' => $semester,
             'academicYears' => $academicYears,
             'restoreHistories' => $restoreHistories,
+            'restoredHistoryCount' => $restoredHistoryCount,
         ];
     }
 

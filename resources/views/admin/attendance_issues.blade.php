@@ -601,7 +601,7 @@
                         {{ $restoreHistories->count() }} RECORDS
                     </span>
                     <span style="font-family:var(--font-mono); font-size:9px; color:var(--green); font-weight:700; background:rgba(52,211,153,0.07); border:1px solid rgba(52,211,153,0.2); padding:3px 10px; border-radius:6px;">
-                        🟢 RESTORED: {{ $restoreHistories->filter(fn($r) => str_contains(strtolower($r->reason ?? ''), 'authorized by'))->count() }}
+                        🟢 RESTORED: {{ $restoredHistoryCount }}
                     </span>
                 </div>
 
@@ -696,12 +696,7 @@
                                 $authorizerName = trim($m[1] ?? '');
                                 $detailReason   = trim($m[2] ?? $record->reason);
                             }
-
-                            // Restore number for this student up to this record
-                            $studentRestoreCount = $restoreHistories
-                                ->where('student_id', $record->student_id)
-                                ->where('created_at', '<=', $record->created_at)
-                                ->count();
+                            $studentRestoreCount = $record->display_sequence ?? 1;
                         @endphp
 
                         <div class="history-card" data-id="{{ $record->id }}"
