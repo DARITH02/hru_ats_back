@@ -17,6 +17,7 @@ services:
       - DB_DATABASE=attendance_db
       - DB_USERNAME=admin
       - DB_PASSWORD=admin123
+      - ALLOW_STUDENT_CODE_LOGIN=true
     volumes:
       - .:/var/www
     depends_on:

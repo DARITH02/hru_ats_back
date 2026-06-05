@@ -41,7 +41,9 @@ class AuthController extends Controller
 
         if ($user->role === 'student') {
             $student = \App\Models\Student::where('user_id', $user->id)->first();
-            $allowsCodeLogin = config('auth.allow_student_code_login') && $student?->student_code === $request->password;
+            $allowsCodeLogin = config('auth.allow_student_code_login')
+                && $student
+                && strcasecmp($student->student_code, (string) $request->password) === 0;
             if (!$student || (!$allowsCodeLogin && !Hash::check($request->password, $user->password))) {
                 return $this->invalidCredentialsResponse();
             }

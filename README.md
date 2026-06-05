@@ -1,5 +1,9 @@
 # Academic Attendance Management System
 
+## Documentation
+
+Repository documentation, screenshots, and Khmer translation are available in [`docs/README.md`](docs/README.md).
+
 ## Project Objective
 
 This project is a Laravel-based academic attendance management system designed to help an institution manage class attendance, student records, teacher activity, semester grading, attendance reports, and administrative operations from one web platform.
