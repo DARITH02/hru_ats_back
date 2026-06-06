@@ -217,10 +217,11 @@
 
             <div class="panel monitor-panel" style="margin-top: 20px;">
                 @php
-                    $monitorClasses = collect($classes)->take(7);
+                    $monitorClasses = collect($monitorSubjects);
                     $monitorAvg = $monitorClasses->count() ? round($monitorClasses->avg('progress')) : 0;
                     $monitorStrongest = $monitorClasses->sortByDesc('progress')->first();
                     $monitorNeedsAttention = $monitorClasses->filter(fn($class) => $class['progress'] < 60)->count();
+                    $selectedMajor = $selectedMajorId ? $majorOptions->firstWhere('id', $selectedMajorId) : null;
                 @endphp
                 <div class="monitor-head">
                     <div>
@@ -236,13 +237,28 @@
                     </div>
                 </div>
 
+                <form method="GET" action="{{ route('dashboard') }}" class="monitor-filter">
+                    <label for="major_id">Progress by major</label>
+                    <select id="major_id" name="major_id" onchange="this.form.submit()">
+                        <option value="">All majors</option>
+                        @foreach($majorOptions as $major)
+                            <option value="{{ $major->id }}" @selected($selectedMajorId === $major->id)>
+                                {{ $major->name }}{{ $major->code ? ' · ' . $major->code : '' }}
+                            </option>
+                        @endforeach
+                    </select>
+                    @if($selectedMajor)
+                        <a href="{{ route('dashboard') }}">Clear</a>
+                    @endif
+                </form>
+
                 <div class="monitor-insights">
                     <div class="monitor-insight">
-                        <span>Classes tracked</span>
+                        <span>Subjects tracked</span>
                         <strong>{{ $monitorClasses->count() }}</strong>
                     </div>
                     <div class="monitor-insight">
-                        <span>Strongest class</span>
+                        <span>Strongest subject</span>
                         <strong>{{ $monitorStrongest['name'] ?? 'None' }}</strong>
                     </div>
                     <div class="monitor-insight monitor-insight--warn">
@@ -259,6 +275,30 @@
 
                 <div class="monitor-chart-wrap">
                     <canvas id="monitor-chart"></canvas>
+                </div>
+
+                <div class="subject-monitor">
+                    <div class="subject-monitor__head">
+                        <span>Subject monitor</span>
+                        <strong>{{ $selectedMajor?->name ?? 'All majors' }}</strong>
+                    </div>
+                    <div class="subject-monitor__list">
+                        @forelse($monitorClasses as $subject)
+                            <div class="subject-monitor__row">
+                                <div>
+                                    <strong>{{ $subject['name'] }}</strong>
+                                    <span>{{ $subject['majors'] }} · {{ $subject['teacher'] }}</span>
+                                </div>
+                                <em>{{ $subject['sessions'] }} sessions</em>
+                                <div class="subject-monitor__progress">
+                                    <i style="width: {{ min(100, max(0, $subject['progress'])) }}%;"></i>
+                                </div>
+                                <b>{{ $subject['progress'] }}%</b>
+                            </div>
+                        @empty
+                            <div class="subject-monitor__empty">No subjects found for this major.</div>
+                        @endforelse
+                    </div>
                 </div>
             </div>
 
@@ -408,6 +448,115 @@
             </div>
         </div>
     </div>
+
+    @php
+        $majorComparisonCollection = collect($majorComparison);
+        $majorTotalStudents = $majorComparisonCollection->sum('students');
+        $majorAverageAttendance = $majorComparisonCollection->count() ? round($majorComparisonCollection->avg('attendance_rate')) : 0;
+        $majorTop = $majorComparisonCollection->sortByDesc('attendance_rate')->first();
+        $majorNeedsAttention = $majorComparisonCollection->where('attendance_rate', '<', 60)->count();
+    @endphp
+
+    <section class="dashboard-chat-panel dashboard-graph-console">
+        <div class="dashboard-chat-left">
+            <div class="dashboard-chat-head">
+                <div>
+                    <div class="dashboard-chat-kicker">
+                        <span></span>
+                        SESSION GRAPH MONITOR
+                    </div>
+                    <h2>Attendance graph console</h2>
+                </div>
+                <div class="dashboard-chat-status">Live context</div>
+            </div>
+
+            <div class="dashboard-graph-summary">
+                <div class="graph-summary-card graph-summary-card--wide">
+                    <span>Selected session</span>
+                    <strong>{{ $activeSession?->classRoom?->subject?->name ?? 'None' }}</strong>
+                    <div class="graph-summary-track">
+                        <i style="width: {{ $totalCount > 0 ? round(($presentCount / $totalCount) * 100) : 0 }}%;"></i>
+                    </div>
+                </div>
+                <div class="graph-summary-card">
+                    <span>Marked</span>
+                    <strong>{{ $presentCount }}/{{ $totalCount }}</strong>
+                </div>
+                <div class="graph-summary-card">
+                    <span>Scans</span>
+                    <strong>{{ $sessionScanCount }}</strong>
+                </div>
+                <div class="graph-summary-card">
+                    <span>Total students</span>
+                    <strong>{{ $majorTotalStudents }}</strong>
+                </div>
+                <div class="graph-summary-card">
+                    <span>Majors</span>
+                    <strong>{{ $majorComparisonCollection->count() }}</strong>
+                </div>
+                <div class="graph-summary-card">
+                    <span>Avg health</span>
+                    <strong>{{ $majorAverageAttendance }}%</strong>
+                </div>
+                <div class="graph-summary-card graph-summary-card--alert">
+                    <span>Attention</span>
+                    <strong>{{ $majorNeedsAttention }}</strong>
+                </div>
+            </div>
+        </div>
+
+        <div class="dashboard-chat-compare dashboard-chat-compare--full">
+            <div class="dashboard-chat-compare__head">
+                <div>
+                    <span>Major comparison</span>
+                    <strong>Attendance health by major</strong>
+                </div>
+                <div class="dashboard-chat-compare__metrics">
+                    <em>{{ $majorAverageAttendance }}% AVG</em>
+                    <em>{{ $majorTop['code'] ?? 'TOP' }} {{ $majorTop['attendance_rate'] ?? 0 }}%</em>
+                    <em class="is-risk">{{ $majorNeedsAttention }} WATCH</em>
+                </div>
+            </div>
+            <div class="dashboard-graph-board">
+                <div class="graph-tile graph-tile--wide graph-tile--success">
+                    <span>Major trend</span>
+                    <canvas id="major-chat-chart"></canvas>
+                </div>
+                <div class="graph-tile graph-tile--blue">
+                    <span>Subject curve</span>
+                    <canvas id="subject-spark-chart"></canvas>
+                </div>
+                <div class="graph-tile graph-tile--amber">
+                    <span>Year radar</span>
+                    <canvas id="year-mini-chart"></canvas>
+                </div>
+                <div class="graph-tile graph-tile--teal">
+                    <span>Scan pulse</span>
+                    <canvas id="scan-pulse-chart"></canvas>
+                </div>
+                <div class="graph-tile graph-tile--wide graph-tile--danger">
+                    <span>Attention profile</span>
+                    <canvas id="attention-profile-chart"></canvas>
+                </div>
+            </div>
+            <div class="dashboard-major-list">
+                @forelse($majorComparisonCollection as $major)
+                    <div class="dashboard-major-row {{ $major['attendance_rate'] >= 80 ? 'major-row--strong' : ($major['attendance_rate'] >= 60 ? 'major-row--steady' : 'major-row--risk') }}">
+                        <div>
+                            <strong>{{ $major['name'] }}</strong>
+                            <span>{{ $major['students'] }} students · {{ $major['sessions'] }} sessions</span>
+                        </div>
+                        <div class="dashboard-major-bar">
+                            <i style="width: {{ min(100, max(0, $major['attendance_rate'])) }}%;"></i>
+                        </div>
+                        <b>{{ $major['attendance_rate'] }}%</b>
+                    </div>
+                @empty
+                    <div class="dashboard-major-empty">No major data available.</div>
+                @endforelse
+            </div>
+        </div>
+    </section>
 
     <section class="dashboard-bottom-grid">
         <div class="panel">
@@ -618,12 +767,183 @@
             }
         }
 
+        const majorComparison = @json($majorComparison);
+        const monitorSubjects = @json($monitorSubjects);
+        const miniChartBase = {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: { display: false },
+                tooltip: {
+                    backgroundColor: '#111722',
+                    titleColor: '#e8eaf2',
+                    bodyColor: '#b0b8cc',
+                    borderColor: '#263144',
+                    borderWidth: 1,
+                    padding: 10,
+                    displayColors: false
+                }
+            },
+            scales: {
+                x: {
+                    grid: { color: 'rgba(136,146,164,.1)' },
+                    ticks: { color: '#6f7a8e', font: { family: "'IBM Plex Mono', monospace", size: 8 } }
+                },
+                y: {
+                    beginAtZero: true,
+                    max: 100,
+                    grid: { color: 'rgba(136,146,164,.12)' },
+                    ticks: { color: '#6f7a8e', font: { family: "'IBM Plex Mono', monospace", size: 8 } }
+                }
+            }
+        };
+
+        function makeGradient(ctx, color) {
+            const gradient = ctx.createLinearGradient(0, 0, 0, 140);
+            gradient.addColorStop(0, color);
+            gradient.addColorStop(1, 'rgba(8,10,15,0)');
+            return gradient;
+        }
+
+        const majorChatCtx = document.getElementById('major-chat-chart');
+        if (majorChatCtx) {
+            const ctx = majorChatCtx.getContext('2d');
+            new Chart(majorChatCtx, {
+                type: 'line',
+                data: {
+                    labels: majorComparison.map(m => m.code || m.name),
+                    datasets: [
+                        {
+                            label: 'Attendance',
+                            data: majorComparison.map(m => m.attendance_rate),
+                            borderColor: '#34d399',
+                            backgroundColor: makeGradient(ctx, 'rgba(52,211,153,.32)'),
+                            borderWidth: 2,
+                            pointRadius: 3,
+                            pointBackgroundColor: '#34d399',
+                            tension: .36,
+                            fill: true
+                        },
+                        {
+                            label: 'Absence',
+                            data: majorComparison.map(m => m.absence_rate),
+                            borderColor: '#f25757',
+                            borderWidth: 2,
+                            pointRadius: 3,
+                            pointBackgroundColor: '#f25757',
+                            tension: .36,
+                            fill: false
+                        }
+                    ]
+                },
+                options: miniChartBase
+            });
+        }
+
+        const subjectSparkCtx = document.getElementById('subject-spark-chart');
+        if (subjectSparkCtx) {
+            new Chart(subjectSparkCtx, {
+                type: 'line',
+                data: {
+                    labels: monitorSubjects.slice(0, 10).map((s, i) => `S${i + 1}`),
+                    datasets: [{
+                        data: monitorSubjects.slice(0, 10).map(s => s.progress),
+                        borderColor: '#4f8ef7',
+                        backgroundColor: 'rgba(79,142,247,.18)',
+                        borderWidth: 2,
+                        pointRadius: 0,
+                        tension: .42,
+                        fill: true
+                    }]
+                },
+                options: miniChartBase
+            });
+        }
+
+        const yearMiniCtx = document.getElementById('year-mini-chart');
+        if (yearMiniCtx) {
+            new Chart(yearMiniCtx, {
+                type: 'radar',
+                data: {
+                    labels: ['Y1', 'Y2', 'Y3', 'Y4'],
+                    datasets: [{
+                        data: Object.values(@json($yearStats)),
+                        borderColor: '#f0a732',
+                        backgroundColor: 'rgba(240,167,50,.18)',
+                        pointBackgroundColor: '#f0a732',
+                        pointRadius: 3,
+                        borderWidth: 2
+                    }]
+                },
+                options: {
+                    ...miniChartBase,
+                    scales: {
+                        r: {
+                            beginAtZero: true,
+                            max: 100,
+                            ticks: { display: false },
+                            grid: { color: 'rgba(136,146,164,.16)' },
+                            angleLines: { color: 'rgba(136,146,164,.14)' },
+                            pointLabels: { color: '#8892a4', font: { family: "'IBM Plex Mono', monospace", size: 8 } }
+                        }
+                    }
+                }
+            });
+        }
+
+        const scanPulseCtx = document.getElementById('scan-pulse-chart');
+        if (scanPulseCtx) {
+            const rawTimesMini = {!! json_encode($activeStudents->whereIn('status', ['present', 'late'])->pluck('time')->filter(fn($t) => $t !== '—')->sort()->values()) !!};
+            const scanPoints = rawTimesMini.length ? rawTimesMini.map((_, i) => i + 1) : [0, 0, 0, 0, 0, 0];
+            new Chart(scanPulseCtx, {
+                type: 'line',
+                data: {
+                    labels: scanPoints.map((_, i) => i + 1),
+                    datasets: [{
+                        data: scanPoints,
+                        borderColor: '#38d9a9',
+                        backgroundColor: 'rgba(56,217,169,.14)',
+                        borderWidth: 2,
+                        pointRadius: 0,
+                        tension: .45,
+                        fill: true
+                    }]
+                },
+                options: {
+                    ...miniChartBase,
+                    scales: {
+                        x: { display: false },
+                        y: { display: false, beginAtZero: true }
+                    }
+                }
+            });
+        }
+
+        const attentionCtx = document.getElementById('attention-profile-chart');
+        if (attentionCtx) {
+            new Chart(attentionCtx, {
+                type: 'bar',
+                data: {
+                    labels: majorComparison.map(m => m.code || m.name),
+                    datasets: [{
+                        label: 'Attention',
+                        data: majorComparison.map(m => m.absence_rate),
+                        backgroundColor: majorComparison.map(m => m.absence_rate > 40 ? 'rgba(242,87,87,.75)' : 'rgba(240,167,50,.55)'),
+                        borderColor: majorComparison.map(m => m.absence_rate > 40 ? '#f25757' : '#f0a732'),
+                        borderWidth: 1,
+                        borderRadius: 7
+                    }]
+                },
+                options: miniChartBase
+            });
+        }
+
         // MONITOR CHART LOGIC (Replaced Chat)
         const monitorCtx = document.getElementById('monitor-chart');
         if (monitorCtx) {
-            const fullLabels = {!! json_encode(collect($classes)->take(7)->pluck('name')) !!};
+            const fullLabels = monitorSubjects.map(subject => subject.name);
             const classLabels = fullLabels.map(l => l.length > 20 ? l.substring(0, 20) + '...' : l);
-            const attendData = {!! json_encode(collect($classes)->take(7)->pluck('progress')) !!};
+            const attendData = monitorSubjects.map(subject => subject.progress);
             const absentData = attendData.map(p => 100 - p);
 
             new Chart(monitorCtx, {

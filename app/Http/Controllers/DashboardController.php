@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\Attendance;
 use App\Models\AttendanceSession;
 use App\Models\ClassRoom;
+use App\Models\Major;
 use App\Models\Student;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
@@ -30,6 +31,10 @@ class DashboardController extends Controller
 
         $pendingSessions = AttendanceSession::where('end_time', '>', now())->count();
         $absenceRate = 100 - $attendanceRate;
+        $selectedMajorId = $request->integer('major_id') ?: null;
+        $majorOptions = Major::orderBy('name')->get(['id', 'name', 'code']);
+        $monitorSubjects = $this->getSubjectProgressByMajor($selectedMajorId);
+        $majorComparison = $this->getMajorComparisonStats();
 
         // 2. Current Classes (Showing sessions from the last 24h + upcoming)
         $currentClasses = AttendanceSession::with(['classRoom.subject', 'classRoom.teacher'])
@@ -140,7 +145,101 @@ class DashboardController extends Controller
             'topAbsentClasses' => $this->getTopAbsentClasses(),
             'activePermissions' => $activePermissions,
             'yearStats' => $this->getYearLevelStats(),
+            'majorOptions' => $majorOptions,
+            'selectedMajorId' => $selectedMajorId,
+            'monitorSubjects' => $monitorSubjects,
+            'majorComparison' => $majorComparison,
         ]);
+    }
+
+    private function getMajorComparisonStats()
+    {
+        return Major::with(['groups.students'])
+            ->orderBy('name')
+            ->get()
+            ->map(function (Major $major) {
+                $groupIds = $major->groups->pluck('id');
+                $studentCount = $major->groups->flatMap->students->count();
+                $sessionIds = AttendanceSession::whereHas('classRoom.groups', function ($q) use ($groupIds) {
+                    $q->whereIn('class_groups.id', $groupIds);
+                })
+                    ->where('status', 'completed')
+                    ->pluck('id');
+
+                $totalPossible = $sessionIds->count() * $studentCount;
+                $attended = $totalPossible > 0
+                    ? Attendance::whereIn('session_id', $sessionIds)
+                        ->whereIn('status', ['present', 'late', 'excused', 'PRESENT', 'LATE', 'EXCUSED'])
+                        ->count()
+                    : 0;
+
+                $attendanceRate = $totalPossible > 0 ? round(($attended / $totalPossible) * 100) : 0;
+
+                return [
+                    'id' => $major->id,
+                    'name' => $major->name,
+                    'code' => $major->code,
+                    'students' => $studentCount,
+                    'sessions' => $sessionIds->count(),
+                    'attendance_rate' => $attendanceRate,
+                    'absence_rate' => max(0, 100 - $attendanceRate),
+                ];
+            })
+            ->values();
+    }
+
+    private function getSubjectProgressByMajor(?int $majorId = null)
+    {
+        return ClassRoom::with(['subject', 'teacher.user', 'groups.major'])
+            ->when($majorId, function ($query) use ($majorId) {
+                $query->where(function ($q) use ($majorId) {
+                    $q->whereHas('groups', fn($groupQuery) => $groupQuery->where('major_id', $majorId))
+                        ->orWhereHas('students.group', fn($groupQuery) => $groupQuery->where('major_id', $majorId));
+                });
+            })
+            ->orderBy('name')
+            ->get()
+            ->map(function (ClassRoom $class) {
+                $sessionIds = $class->sessions()->where('status', 'completed')->pluck('id');
+                $groupIds = $class->groups->pluck('id');
+
+                if ($groupIds->isEmpty() && $class->group_id) {
+                    $groupIds = collect([$class->group_id]);
+                }
+
+                $studentCount = $groupIds->isNotEmpty()
+                    ? Student::whereIn('group_id', $groupIds)->count()
+                    : 0;
+
+                $totalPossible = $sessionIds->count() * $studentCount;
+                $attended = $totalPossible > 0
+                    ? Attendance::whereIn('session_id', $sessionIds)
+                        ->whereIn('status', ['present', 'late', 'excused', 'PRESENT', 'LATE', 'EXCUSED'])
+                        ->count()
+                    : 0;
+
+                $progress = $totalPossible > 0 ? round(($attended / $totalPossible) * 100) : 0;
+                $majorNames = $class->groups
+                    ->map(fn($group) => $group->major?->name)
+                    ->filter()
+                    ->unique()
+                    ->values();
+
+                return [
+                    'id' => $class->id,
+                    'name' => $class->subject->name ?? $class->name,
+                    'teacher' => $class->teacher->user->name ?? 'Unassigned',
+                    'majors' => $majorNames->isNotEmpty() ? $majorNames->join(', ') : 'Unassigned major',
+                    'sessions' => $sessionIds->count(),
+                    'students' => $studentCount,
+                    'attended' => $attended,
+                    'total_possible' => $totalPossible,
+                    'progress' => $progress,
+                    'missing' => max(0, 100 - $progress),
+                ];
+            })
+            ->sortByDesc('progress')
+            ->values();
     }
 
     private function getTopAbsentStudents()
