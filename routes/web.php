@@ -9,6 +9,7 @@ use Illuminate\Support\Facades\Route;
 Route::middleware('guest')->group(function() {
     Route::get('/login', [WebAuthController::class, 'showLogin'])->name('login');
     Route::post('/login', [WebAuthController::class, 'login'])->name('login.post');
+    Route::post('/demo-login', [WebAuthController::class, 'demoLogin'])->name('demo.login');
     Route::get('/register', [WebAuthController::class, 'showRegister'])->name('register');
     Route::post('/register', [WebAuthController::class, 'register'])->name('register.post');
 });
@@ -16,7 +17,7 @@ Route::middleware('guest')->group(function() {
 Route::post('/logout', [WebAuthController::class, 'logout'])->name('logout');
 
 // Shared Protected Routes (Admin & Teacher)
-Route::middleware(['auth'])->group(function() {
+Route::middleware(['auth', 'demo.readonly'])->group(function() {
     Route::get('/', [DashboardController::class, 'index'])->name('dashboard');
     Route::get('/teacher/reports', [DashboardController::class, 'teacherReports'])->name('teacher.reports');
     Route::post('/regenerate-qr', [DashboardController::class, 'regenerateQr'])->name('regenerate-qr');
@@ -24,7 +25,7 @@ Route::middleware(['auth'])->group(function() {
 });
 
 // Admin & Super Admin Shared UI Management
-Route::middleware(['auth', 'role:admin,super_admin'])->group(function() {
+Route::middleware(['auth', 'demo.readonly', 'role:admin,super_admin'])->group(function() {
     Route::get('/admin/instructors', [AdminUIController::class, 'instructors'])->name('admin.instructors');
     Route::get('/admin/results', [AdminUIController::class, 'analytics'])->name('admin.results');
     Route::get('/admin/attendance-issues', [AdminUIController::class, 'attendanceIssues'])->name('admin.attendance-issues');
@@ -78,4 +79,6 @@ Route::middleware(['auth', 'role:admin,super_admin'])->group(function() {
 
 // Student Check-in Flow
 Route::get('/scan/{session_id}', [DashboardController::class, 'studentScan'])->name('student.scan');
-Route::post('/verify-attendance', [DashboardController::class, 'verifyAttendance'])->name('student.verify');
+Route::post('/verify-attendance', [DashboardController::class, 'verifyAttendance'])
+    ->middleware('demo.readonly')
+    ->name('student.verify');

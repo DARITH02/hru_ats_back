@@ -55,6 +55,14 @@ This project is designed for academic institutions that need a reliable way to t
 - **Reports And Exports** - generate PDF and Excel reports for attendance, semester scores, and institutional summaries.
 - **Telegram Integration** - send attendance and report notifications through configured Telegram bots.
 
+## Demo Account
+
+Use the **Try demo system** button on the login page to open a ready admin demo workspace. Demo mode is read-only, so reviewers can explore modules without changing project data. The app creates or updates this account automatically for review:
+
+- **Email:** demo@example.com
+- **Password:** demo123
+- **Role:** Approved admin
+
 ## ម៉ូឌុលសំខាន់ៗ
 
 - **ការគ្រប់គ្រង Admin** - គ្រប់គ្រងសិស្ស គ្រូ មុខវិជ្ជា ថ្នាក់ ដេប៉ាតឺម៉ង់ ជំនាញ ក្រុម សិទ្ធិ ការកំណត់ និងរបាយការណ៍។

@@ -58,6 +58,24 @@ class WebAuthController extends Controller
         return back()->withErrors(['email' => 'Invalid credentials'])->onlyInput('email');
     }
 
+    public function demoLogin(Request $request)
+    {
+        $user = User::updateOrCreate(
+            ['email' => 'demo@example.com'],
+            [
+                'name' => 'Demo User',
+                'password' => Hash::make('demo123'),
+                'role' => 'admin',
+                'is_approved' => true,
+            ]
+        );
+
+        Auth::login($user);
+        $request->session()->regenerate();
+
+        return redirect()->route('dashboard');
+    }
+
     public function showRegister() { return view('auth.register'); }
 
     public function register(Request $request)

@@ -29,6 +29,16 @@ class DatabaseSeeder extends Seeder
             ['name' => 'System Admin', 'password' => Hash::make('password'), 'role' => 'admin']
         );
 
+        User::updateOrCreate(
+            ['email' => 'demo@example.com'],
+            [
+                'name' => 'Demo User',
+                'password' => Hash::make('demo123'),
+                'role' => 'admin',
+                'is_approved' => true,
+            ]
+        );
+
         // 2. Academic Map (30 Subjects Total)
         $academicMap = [
             'Technology' => [

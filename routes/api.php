@@ -13,7 +13,7 @@ Route::post('/login', [AuthController::class, 'login'])->middleware('throttle:lo
 Route::get('/branding', [AuthController::class, 'branding']);
 
 //  PROTECTED API (SHARED)
-Route::middleware('auth:sanctum')->group(function () {
+Route::middleware(['auth:sanctum', 'demo.readonly'])->group(function () {
     Route::get('/profile', [AuthController::class, 'profile']);
     Route::post('/logout', [AuthController::class, 'logout']);
 
@@ -122,15 +122,15 @@ Route::middleware('auth:sanctum')->group(function () {
 });
 
 //  PUBLIC STUDENT CHECK-IN
-Route::middleware('auth:sanctum')->group(function () {
+Route::middleware(['auth:sanctum', 'demo.readonly'])->group(function () {
     Route::get('/student/portal', [AttendanceController::class, 'getPortalData']);
     Route::get('/student/active-session', [AttendanceController::class, 'getActiveSession']);
     Route::get('/student/classes', [AttendanceController::class, 'getStudentClasses']);
     Route::get('/student/classes/{classId}/history', [AttendanceController::class, 'getStudentClassHistory']);
 });
 Route::get('/student/scan/{sessionId}', [AttendanceController::class, 'getScanInfo']);
-Route::post('/student/verify', [AttendanceController::class, 'verify']);
+Route::post('/student/verify', [AttendanceController::class, 'verify'])->middleware('demo.readonly');
 Route::post('/student/history', [AttendanceController::class, 'getStudentHistoryByCode']);
 
 //  LOCATION TRACKING
-Route::post('/location/record', [UserLocationController::class, 'store'])->middleware('throttle:10,1');
+Route::post('/location/record', [UserLocationController::class, 'store'])->middleware(['demo.readonly', 'throttle:10,1']);
