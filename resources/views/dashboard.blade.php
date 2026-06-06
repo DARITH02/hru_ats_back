@@ -9,6 +9,7 @@
         $isDemoUser = Auth::user()?->email === 'demo@example.com';
         $activeSubject = $activeSession?->classRoom?->subject?->name ?? 'No active session';
         $activeGroups = $activeSession?->classRoom?->groups?->pluck('name')->filter()->join(', ') ?: 'No group selected';
+        $hasSessionActivity = $presentCount > 0 || $sessionScanCount > 0;
     @endphp
 
     <section class="dashboard-hero">
@@ -53,7 +54,7 @@
             <div class="session-ring" style="--value: {{ $sessionRate }};">
                 <div class="session-ring__inner">
                     <strong>{{ $sessionRate }}%</strong>
-                    <span>SESSION</span>
+                    <span>{{ $hasSessionActivity ? 'SESSION' : 'WAITING DATA' }}</span>
                 </div>
             </div>
             <div class="session-status-list">
@@ -72,6 +73,9 @@
                     <span>QR scans</span>
                     <strong>{{ $sessionScanCount }}</strong>
                 </div>
+                @unless($hasSessionActivity)
+                    <p class="session-status-note">Updates after the first attendance mark or QR scan.</p>
+                @endunless
             </div>
         </div>
     </section>
@@ -455,6 +459,9 @@
         $majorAverageAttendance = $majorComparisonCollection->count() ? round($majorComparisonCollection->avg('attendance_rate')) : 0;
         $majorTop = $majorComparisonCollection->sortByDesc('attendance_rate')->first();
         $majorNeedsAttention = $majorComparisonCollection->where('attendance_rate', '<', 60)->count();
+        $sessionGraphStatus = $activeSession
+            ? (now()->between($activeSession->start_time, $activeSession->end_time) ? 'Live session' : ucfirst($activeSession->status ?? 'Session selected'))
+            : 'No session';
     @endphp
 
     <section class="dashboard-chat-panel dashboard-graph-console">
@@ -463,11 +470,11 @@
                 <div>
                     <div class="dashboard-chat-kicker">
                         <span></span>
-                        SESSION GRAPH MONITOR
+                        SESSION INSIGHTS
                     </div>
-                    <h2>Attendance graph console</h2>
+                    <h2>{{ $activeSession?->classRoom?->subject?->name ?? 'Attendance overview' }}</h2>
                 </div>
-                <div class="dashboard-chat-status">Live context</div>
+                <div class="dashboard-chat-status">{{ $sessionGraphStatus }}</div>
             </div>
 
             <div class="dashboard-graph-summary">
@@ -558,166 +565,12 @@
         </div>
     </section>
 
-    <section class="dashboard-bottom-grid">
-        <div class="panel">
-            <div class="panel-head">
-                <span class="panel-title">CURRENT CLASSES</span>
-                <span style="font-family:var(--font-mono); font-size:9px; color:var(--muted2);">SESSION DISTRO</span>
-            </div>
-
-            <div id="class-list">
-                @foreach($classes as $class)
-                    <a href="?session_id={{ $class['id'] }}"
-                        class="class-row {{ ($activeSession && $activeSession->id == $class['id']) ? 'active' : '' }}">
-                        <div
-                            class="row-icon {{ $class['is_live'] ? 'icon-violet' : ($class['is_done'] ? 'icon-green' : 'icon-amber') }}">
-                            <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
-                                <path d="M3 3h10v10H3V3Z" stroke="currentColor" stroke-width="1.3"
-                                    stroke-linejoin="round" />
-                            </svg>
-                        </div>
-                        <div class="row-info">
-                            <div class="row-name">{{ $class['name'] }}</div>
-                            <div class="row-meta">{{ $class['room'] }} · {{ $class['time'] }}</div>
-                        </div>
-                        <div style="display:flex; flex-direction:column; align-items:flex-end; gap:6px;">
-                            @if($class['is_live'])
-                                <div class="live-badge">
-                                    <div class="live-dot"></div>LIVE
-                                </div>
-                            @elseif($class['is_done'])
-                                <div class="sched-badge">COMPLETED</div>
-                            @else
-                                <div class="sched-badge">SCHEDULED</div>
-                            @endif
-                            <div class="prog-row">
-                                <div class="prog-track">
-                                    <div class="prog-fill"
-                                        style="width:{{ $class['progress'] }}%; background:{{ $class['is_live'] ? 'var(--accent)' : ($class['is_done'] ? 'var(--green)' : 'var(--border2)') }}">
-                                    </div>
-                                </div>
-                                <span class="prog-pct">{{ $class['progress'] }}%</span>
-                            </div>
-                        </div>
-                    </a>
-                @endforeach
-            </div>
-        </div>
-
-        <div class="qr-panel">
-            <div class="qr-head">
-                <span class="qr-title">QR AUTHENTICATION</span>
-                <span class="qr-class-name">{{ $activeSession?->classRoom?->subject?->name ?? 'None' }}</span>
-            </div>
-            <div class="qr-body">
-                @if($activeSession)
-                    <div class="qr-frame">
-                        <div class="qr-scan-line"></div>
-                        <img id="qr-img"
-                            src="https://api.qrserver.com/v1/create-qr-code/?size=200x200&data={{ urlencode(url('/scan/' . $activeSession->id)) }}"
-                            alt="QR">
-                    </div>
-                    <div style="width:100%">
-                        <div class="qr-timer-row">
-                            <span class="timer-label">EXPIRES IN</span>
-                            <span class="timer-count" id="qr-timer">00:30</span>
-                        </div>
-                        <div class="timer-bar" style="margin-top:6px">
-                            <div class="timer-fill" id="timer-fill" style="width:100%"></div>
-                        </div>
-                        <div class="code-box">
-                            <span class="code-val" id="qr-code-val">{{ $activeSession->qr_token }}</span>
-                            <div style="color:var(--muted2); cursor:pointer;"><svg width="14" height="14" viewBox="0 0 14 14"
-                                    fill="none">
-                                    <rect x="4" y="4" width="8" height="8" rx="1.5" stroke="currentColor" stroke-width="1.2">
-                                    </rect>
-                                    <rect x="2" y="2" width="8" height="8" rx="1.5" stroke="currentColor" stroke-width="1.2">
-                                    </rect>
-                                </svg></div>
-                        </div>
-
-                        {{-- Permission Notification --}}
-                        @if(isset($activePermissions) && $activePermissions->count() > 0)
-                            <div style="margin-top:20px; background:rgba(167, 139, 250, 0.08); border:1px solid rgba(167, 139, 250, 0.2); border-radius:12px; padding:15px; animation: slideInRight 0.4s ease-out;">
-                                <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:12px;">
-                                    <div style="display:flex; align-items:center; gap:8px;">
-                                        <div style="width:6px; height:6px; border-radius:50%; background:#a78bfa; box-shadow:0 0 8px #a78bfa; animation: blink 2s infinite;"></div>
-                                        <span style="font-family:var(--font-mono); font-size:10px; font-weight:800; color:#a78bfa; letter-spacing:0.05em;">ACTIVE PERMISSIONS ({{ $activePermissions->count() }})</span>
-                                    </div>
-                                    <span style="font-size:8px; color:var(--muted); font-family:var(--font-mono);">EXCUSED TODAY</span>
-                                </div>
-                                <div style="display:flex; flex-direction:column; gap:10px;">
-                                    @foreach($activePermissions as $perm)
-                                        <div style="display:flex; justify-content:space-between; align-items:center; background:rgba(0,0,0,0.1); padding:8px 10px; border-radius:8px; border:1px solid rgba(255,255,255,0.03);">
-                                            <div style="display:flex; align-items:center; gap:10px;">
-                                                <div style="width:24px; height:24px; border-radius:50%; background:#a78bfa18; color:#a78bfa; display:flex; align-items:center; justify-content:center; font-weight:800; font-size:9px; border:1px solid rgba(167, 139, 250, 0.2)">{{ strtoupper(substr($perm->student->user->name, 0, 1)) }}</div>
-                                                <div style="display:flex; flex-direction:column;">
-                                                    <span style="color:var(--text2); font-weight:700; font-size:11px;">{{ $perm->student->user->name }}</span>
-                                                    <span style="font-size:9px; color:var(--muted2); font-family:var(--font-mono);">{{ $perm->student->student_code }}</span>
-                                                </div>
-                                            </div>
-                                            <div style="text-align:right;">
-                                                <span style="font-family:var(--font-mono); font-size:8px; color:#a78bfa; background:rgba(167, 139, 250, 0.12); padding:3px 8px; border-radius:20px; font-weight:800; border:1px solid rgba(167, 139, 250, 0.2)">{{ strtoupper($perm->type) }}</span>
-                                            </div>
-                                        </div>
-                                    @endforeach
-                                </div>
-                            </div>
-                        @endif
-                    </div>
-                    <div class="scan-count">QR SCANS THIS SESSION: <span
-                            style="color:var(--green)">{{ $sessionScanCount }}</span></div>
-                    <button class="btn-primary" id="regen-btn">REGENERATE QR</button>
-                @else
-                    <div style="padding:40px; text-align:center; color:var(--muted)">No active session.</div>
-                @endif
-            </div>
-        </div>
-    </section>
 @endsection
 
 @push('scripts')
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script>
         const sessionId = @json($activeSession?->id);
-
-        let qrExpirySecs = 30;
-        setInterval(() => {
-            const timer = document.getElementById('qr-timer');
-            const fill = document.getElementById('timer-fill');
-            if (!timer) return;
-
-            qrExpirySecs = qrExpirySecs <= 0 ? 30 : qrExpirySecs - 1;
-            timer.textContent = '00:' + String(qrExpirySecs).padStart(2, '0');
-            timer.className = 'timer-count' + (qrExpirySecs <= 8 ? ' urgent' : '');
-
-            if (fill) {
-                const pct = (qrExpirySecs / 30) * 100;
-                fill.style.width = pct + '%';
-                fill.style.background = qrExpirySecs <= 8 ? 'var(--red)' : (qrExpirySecs <= 15 ? 'var(--amber)' : 'var(--accent)');
-            }
-        }, 1000);
-
-        async function regenerateQr(auto = false) {
-            if (!sessionId) return;
-            const btn = document.getElementById('regen-btn');
-            if (!auto) btn.textContent = 'GENERATING...';
-
-            try {
-                const resp = await fetch(`/api/teacher/session/${sessionId}/regenerate-qr`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': csrf, 'Accept': 'application/json' }
-                });
-                const data = await resp.json();
-                if (data.success) {
-                    document.getElementById('qr-img').src = `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(data.scan_url)}`;
-                    document.getElementById('qr-code-val').textContent = data.qr_token;
-                    qrExpirySecs = 30;
-                    if (!auto) showToast('QR Token Regenerated');
-                }
-            } catch (e) { console.error(e); }
-            finally { if (!auto) btn.textContent = 'REGENERATE QR'; }
-        }
 
         async function manualCheckin(studentId) {
             if (!sessionId) return;
@@ -744,8 +597,6 @@
                 if (data.success) { showToast(data.message); refreshMonitor(); }
             } catch (e) { console.error(e); }
         }
-
-        document.getElementById('regen-btn')?.addEventListener('click', () => regenerateQr());
 
         async function globalSkipToday() {
             if (!confirm('DANGER: This will mark ALL scheduled sessions for TODAY as SKIPPED and shift their entire future schedule forward by 1 week. Other days (like tomorrow) will NOT be affected. Proceed?')) return;
@@ -894,7 +745,7 @@
         const scanPulseCtx = document.getElementById('scan-pulse-chart');
         if (scanPulseCtx) {
             const rawTimesMini = {!! json_encode($activeStudents->whereIn('status', ['present', 'late'])->pluck('time')->filter(fn($t) => $t !== '—')->sort()->values()) !!};
-            const scanPoints = rawTimesMini.length ? rawTimesMini.map((_, i) => i + 1) : [0, 0, 0, 0, 0, 0];
+            const scanPoints = rawTimesMini.map((_, i) => i + 1);
             new Chart(scanPulseCtx, {
                 type: 'line',
                 data: {
@@ -1083,12 +934,7 @@
             const rawTimes = {!! json_encode($activeStudents->whereIn('status', ['present', 'late'])->pluck('time')->filter(fn($t) => $t !== '—')->sort()->values()) !!};
 
             const scanFreq = {};
-            if (rawTimes.length === 0) {
-                const dummyTime = window.getServerTime ? window.getServerTime() : new Date();
-                scanFreq[dummyTime.getHours().toString().padStart(2, '0') + ':' + dummyTime.getMinutes().toString().padStart(2, '0')] = 0;
-            } else {
-                rawTimes.forEach(t => { scanFreq[t] = (scanFreq[t] || 0) + 1; });
-            }
+            rawTimes.forEach(t => { scanFreq[t] = (scanFreq[t] || 0) + 1; });
 
             const sysChart = new Chart(ctx, {
                 type: 'line',
@@ -1120,7 +966,7 @@
                         y: {
                             display: false,
                             beginAtZero: true,
-                            suggestedMax: Math.max(...Object.values(scanFreq)) + 2
+                            suggestedMax: Math.max(0, ...Object.values(scanFreq)) + 2
                         }
                     }
                 }
@@ -1128,33 +974,6 @@
 
             // Ensure refreshMonitor exists for manual buttons
             window.refreshMonitor = function () { window.location.reload(); };
-        }
-
-        // CLASS DISTRO CHART
-        const distroCtx = document.getElementById('class-distro-chart');
-        if (distroCtx) {
-            new Chart(distroCtx, {
-                type: 'doughnut',
-                data: {
-                    labels: ['Live', 'Scheduled', 'Completed'],
-                    datasets: [{
-                        data: [
-                                {{ collect($classes)->where('is_live', true)->count() }},
-                                {{ collect($classes)->where('is_live', false)->where('is_done', false)->count() }},
-                            {{ collect($classes)->where('is_done', true)->count() }}
-                        ],
-                        backgroundColor: ['#a78bfa', '#fbbf24', '#34d399'],
-                        borderWidth: 0,
-                        hoverOffset: 4,
-                        cutout: '80%'
-                    }]
-                },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    plugins: { legend: { display: false } }
-                }
-            });
         }
 
         // YEAR PERFORMANCE CHART
