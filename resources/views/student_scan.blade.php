@@ -256,9 +256,13 @@ function toggleTheme() {
 <div class="alert alert-error">{{ session('error') }}</div>
 @endif
 
-<form action="{{ route('student.verify') }}" method="POST">
+<form id="checkin-form" action="{{ route('student.verify') }}" method="POST">
 @csrf
 <input type="hidden" name="session_id" value="{{ $session->id }}">
+<input type="hidden" name="qr_token" value="{{ $token }}">
+<input type="hidden" name="latitude" id="latitude">
+<input type="hidden" name="longitude" id="longitude">
+<input type="hidden" name="accuracy" id="accuracy">
 
 <div class="form-group">
     <label class="label">
@@ -268,7 +272,7 @@ function toggleTheme() {
     <input type="text" name="student_code" class="input" placeholder="STD-12345" required autofocus>
 </div>
 
-<button class="btn">
+<button class="btn" id="checkin-button">
     <span>បញ្ជាក់វត្តមាន</span>
     <small>VERIFY ATTENDANCE</small>
 </button>
@@ -284,6 +288,38 @@ function toggleTheme() {
 
 </div>
 </div>
+
+<script>
+const checkinForm = document.getElementById('checkin-form');
+const checkinButton = document.getElementById('checkin-button');
+
+if (checkinForm) {
+    checkinForm.addEventListener('submit', function (event) {
+        if (checkinForm.dataset.locationReady === '1' || !navigator.geolocation) {
+            return;
+        }
+
+        event.preventDefault();
+        checkinButton.disabled = true;
+        checkinButton.querySelector('small').textContent = 'CHECKING LOCATION...';
+
+        navigator.geolocation.getCurrentPosition(function (position) {
+            document.getElementById('latitude').value = position.coords.latitude;
+            document.getElementById('longitude').value = position.coords.longitude;
+            document.getElementById('accuracy').value = position.coords.accuracy;
+            checkinForm.dataset.locationReady = '1';
+            checkinForm.submit();
+        }, function () {
+            checkinForm.dataset.locationReady = '1';
+            checkinForm.submit();
+        }, {
+            enableHighAccuracy: true,
+            timeout: 10000,
+            maximumAge: 0
+        });
+    });
+}
+</script>
 
 </body>
 </html>

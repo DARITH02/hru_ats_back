@@ -36,13 +36,13 @@ class AttendanceService
      */
     public function processCheckin($sessionId, $studentCode, $qrToken = null, $latitude = null, $longitude = null, $accuracy = null)
     {
-        $session = AttendanceSession::with('classRoom')->findOrFail($sessionId);
+        $session = AttendanceSession::with('classRoom.groups')->findOrFail($sessionId);
 
         // 1. Validate Time Window
         $this->validateCheckinWindow($session);
 
         // 2. 🛡️ SECURITY: Validate QR Token Integrity
-        if (!$qrToken || $qrToken !== $session->qr_token) {
+        if (!$qrToken || !$session->qr_token || !hash_equals($session->qr_token, (string) $qrToken)) {
             throw new Exception("Invalid or expired QR token. Please scan the latest code on the teacher's screen.");
         }
 
@@ -107,7 +107,7 @@ class AttendanceService
         $isLocationRequired = \App\Models\Setting::get('require_location', 'true') === 'true';
         if (!$isLocationRequired) return true;
 
-        if (!$lat || !$lng) {
+        if ($lat === null || $lat === '' || $lng === null || $lng === '') {
             throw new Exception("Location access is required for check-in. Please enable GPS.");
         }
 

@@ -238,12 +238,12 @@ class TeacherController extends Controller
         }
 
         // Rotate token (Dynamic QR to prevent photo sharing)
-        $session->update(['qr_token' => bin2hex(random_bytes(8))]);
+        $session->update(['qr_token' => bin2hex(random_bytes(16))]);
 
         return response()->json([
             'success'   => true,
             'qr_token'  => $session->qr_token,
-            'scan_url'  => url("/scan/{$session->id}"),
+            'scan_url'  => route('student.scan', ['session_id' => $session->id, 'token' => $session->qr_token]),
             'expires_at' => $close->format('H:i'),
             'refresh_in' => 60 // Client should re-fetch every 60s
         ]);
@@ -486,13 +486,13 @@ class TeacherController extends Controller
     {
         $session = $this->teacherSession($request, $sessionId);
         
-        $newToken = bin2hex(random_bytes(8));
+        $newToken = bin2hex(random_bytes(16));
         $session->update(['qr_token' => $newToken]);
 
         return response()->json([
             'success' => true,
             'qr_token' => $newToken,
-            'scan_url' => url("/scan/{$session->id}"),
+            'scan_url' => route('student.scan', ['session_id' => $session->id, 'token' => $newToken]),
             'expires_at' => Carbon::parse($session->end_time)->format('H:i')
         ]);
     }

@@ -454,7 +454,83 @@ class DashboardController extends Controller
     public function studentScan($sessionId)
     {
         $session = AttendanceSession::with('classRoom.subject')->findOrFail($sessionId);
-        return view('student_scan', compact('session'));
+        $token = request()->query('token');
+
+        if (!$token || !$session->qr_token || !hash_equals($session->qr_token, (string) $token)) {
+            abort(403, 'Invalid or expired QR code. Please scan the latest code on the teacher screen.');
+        }
+
+        return view('student_scan', compact('session', 'token'));
+    }
+
+    public function verifyAttendance(Request $request)
+    {
+        $validated = $request->validate([
+            'session_id' => ['required', 'integer', 'exists:attendance_sessions,id'],
+            'student_code' => ['required', 'string', 'max:50'],
+            'qr_token' => ['required', 'string', 'max:255'],
+            'latitude' => ['nullable', 'numeric'],
+            'longitude' => ['nullable', 'numeric'],
+            'accuracy' => ['nullable', 'numeric'],
+        ]);
+
+        try {
+            $this->attendanceService->processCheckin(
+                $validated['session_id'],
+                $validated['student_code'],
+                $validated['qr_token'],
+                $validated['latitude'] ?? null,
+                $validated['longitude'] ?? null,
+                $validated['accuracy'] ?? null
+            );
+
+            return back()->with('success', 'Attendance verified successfully.');
+        } catch (\Throwable $e) {
+            return back()->withInput()->with('error', $e->getMessage());
+        }
+    }
+
+    public function regenerateQr(Request $request)
+    {
+        $validated = $request->validate([
+            'session_id' => ['required', 'integer', 'exists:attendance_sessions,id'],
+        ]);
+
+        $session = AttendanceSession::with('classRoom')->findOrFail($validated['session_id']);
+        $user = $request->user();
+
+        if ($user && $user->role === 'teacher') {
+            $teacherId = $user->teacher?->id;
+            abort_if(!$teacherId || $session->classRoom?->teacher_id !== $teacherId, 403);
+        }
+
+        $session->update(['qr_token' => bin2hex(random_bytes(16))]);
+
+        return response()->json([
+            'success' => true,
+            'qr_token' => $session->qr_token,
+            'scan_url' => route('student.scan', ['session_id' => $session->id, 'token' => $session->qr_token]),
+        ]);
+    }
+
+    public function simulateScan(Request $request)
+    {
+        $validated = $request->validate([
+            'session_id' => ['required', 'integer', 'exists:attendance_sessions,id'],
+            'student_code' => ['required', 'string', 'max:50'],
+        ]);
+
+        $session = AttendanceSession::findOrFail($validated['session_id']);
+        $attendance = $this->attendanceService->processCheckin(
+            $session->id,
+            $validated['student_code'],
+            $session->qr_token
+        );
+
+        return response()->json([
+            'success' => true,
+            'attendance' => $attendance,
+        ]);
     }
 
     public function teacherReports(Request $request)
